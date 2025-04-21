@@ -70,7 +70,7 @@ export default function Login() {
     <div
       className="flex items-center justify-center min-h-screen w-screen bg-cover bg-center"
       style={{
-        backgroundImage: "url('/123.png')",
+        backgroundImage: "url('/dashboard.jpg')",
       }}
     >
       <div className="bg-white p-16 rounded-3xl shadow-2xl w-full max-w-3xl">
