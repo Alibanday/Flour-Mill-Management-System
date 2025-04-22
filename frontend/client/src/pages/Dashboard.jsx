@@ -4,12 +4,14 @@ import AccountsPage from "./AccountsPage";
 import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
-  FaCog, FaSignOutAlt, FaUserCog, FaChartBar
+  FaCog, FaSignOutAlt, FaUserCog, FaChartBar, FaHome, FaWarehouse,
+  FaWeightHanging, FaUsers
 } from "react-icons/fa";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [showForm, setShowForm] = useState(false); // toggle AccountsPage
+  const [showForm, setShowForm] = useState(false);
+  const [activeMenu, setActiveMenu] = useState("Dashboard");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -18,116 +20,221 @@ export default function Dashboard() {
   };
 
   const mastersMenu = [
-    "Opening", "Bags", "Food Purchase", "Private Purchase", 
-    "Production", "Sale", "Warehouse Transfer", "Transactions",
-    "Reports", "Payroll", "Help"
+    { name: "Opening", icon: <FaFolderOpen className="mr-3" /> },
+    { name: "Bags", icon: <FaShoppingBag className="mr-3" /> },
+    { name: "Food Purchase", icon: <FaIndustry className="mr-3" /> },
+    { name: "Private Purchase", icon: <FaCashRegister className="mr-3" /> },
+    { name: "Warehouse", icon: <FaWarehouse className="mr-3" /> },
+    { name: "Transactions", icon: <FaBook className="mr-3" /> },
+    { name: "Reports", icon: <FaChartBar className="mr-3" /> },
+    { name: "Payroll", icon: <FaUsers className="mr-3" /> },
+    { name: "Help", icon: <FaCog className="mr-3" /> }
   ];
 
   const functionButtons = [
-    {
-      name: "Accounts (F1)",
-      icon: <FaFolderOpen />,
-      action: () => setShowForm(true), // open form
-    },
-    { name: "Food Purchase (F2)", icon: <FaShoppingBag />, action: () => console.log("Food Purchase clicked") },
-    { name: "Production (F3)", icon: <FaIndustry />, action: () => console.log("Production clicked") },
-    { name: "Stock Sale (F4)", icon: <FaReceipt />, action: () => console.log("Sale clicked") },
-    { name: "Whare House (F7)", icon: <FaExchangeAlt />, action: () => console.log("JV Voucher clicked") },
-    { name: "Stock (F8)", icon: <FaBoxes />, action: () => console.log("Stock clicked") },
-    { name: "Ledger (F9)", icon: <FaBook />, action: () => console.log("Ledger clicked") },
-    { name: "Weight (F10)", icon: <FaBalanceScale />, action: () => console.log("Weight clicked") },
-    { name: "Setting (F11)", icon: <FaCog />, action: () => console.log("Setting clicked") },
+    { name: "Accounts", shortcut: "F1", icon: <FaFolderOpen />, action: () => setShowForm(true) },
+    { name: "Production", shortcut: "F3", icon: <FaIndustry />, action: () => console.log("Production clicked") },
+    { name: "Sales", shortcut: "F4", icon: <FaReceipt />, action: () => console.log("Sale clicked") },
+    { name: "Warehouse", shortcut: "F7", icon: <FaWarehouse />, action: () => console.log("JV Voucher clicked") },
+    { name: "Stock", shortcut: "F8", icon: <FaBoxes />, action: () => console.log("Stock clicked") },
+    { name: "Ledger", shortcut: "F9", icon: <FaBook />, action: () => console.log("Ledger clicked") },
+    
+    
   ];
 
   return (
-    <div className="min-h-screen w-screen relative">
-      <div 
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0"
-        style={{ backgroundImage: "url('/dashboard.jpg')" }}
-      />
+             <div
+      
+             className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
+              style={{ backgroundImage: "url('/dashboard.jpg')" }}
+         
+            >
+              
 
-      <div className="relative z-20">
-        <div className="bg-[#DDF1F2] border-b shadow px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-1 overflow-x-auto">
-            {functionButtons.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={item.action}
-                className="flex flex-col items-center justify-center text-[#2F528F] hover:text-[#1C3A6B] w-20 h-20 min-w-[5rem] flex-shrink-0 transition-colors !bg-white"
+      {/* Top Navigation */}
+      <header className="bg-white shadow-sm w-full">
+        <div className="px-6 py-3 flex items-center justify-between w-full">
+          <div className="flex items-center">
+            <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
+            <nav className="hidden md:flex space-x-8">
+            <button 
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
+                onClick={() => setActiveMenu("Dashboard")}
               >
-                <div className="text-2xl mb-1 text-[#2F528F]">{item.icon}</div>
-                <span className="text-xs text-center leading-tight">{item.name}</span>
+                Dashboard
+              </button>
+
+              <button 
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Operations" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
+                onClick={() => setActiveMenu("Operations")}
+              >
+                Operations
+              </button>
+
+              <button 
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
+                onClick={() => setActiveMenu("Reports")}
+              >
+                Reports
+              </button>
+
+            </nav>
+          </div>
+          <div className="flex items-center space-x-4">
+            <button className="p-2 rounded-full !bg-gray-100  text-gray-600 hover:bg-gray-200">
+              <FaUserCog className="text-lg" />
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 !bg-transparent"
+            >
+              <FaSignOutAlt />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex w-full">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
+          <div className="p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">MAIN MENU</h3>
+            <ul className="space-y-1">
+              {mastersMenu.map((item, index) => (
+                <li key={index}>
+                  <button
+                    onClick={() => {
+                      if (item.name === "Payroll") {
+                        navigate("/EmployeesPage");
+                      } else {
+                        console.log(`${item.name} clicked`);
+                      }
+                    }}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                  >
+                    {item.icon}
+                    {item.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 p-6 w-full">
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-6 w-full">
+            {functionButtons.map((button, index) => (
+              <button
+                key={index}
+                onClick={button.action}
+                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+              >
+                <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                  {button.icon}
+                </div>
+                <span className="text-sm font-medium text-gray-700">{button.name}</span>
+                <span className="text-xs text-gray-500 mt-1">{button.shortcut}</span>
               </button>
             ))}
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex flex-col items-center justify-center text-[#2F528F] !bg-white hover:text-[#1C3A6B] transition-colors ml-4"
-          >
-            <FaSignOutAlt className="text-2xl" />
-            <span className="text-xs mt-1">Logout</span>
-          </button>
-        </div>
 
-        <div className="flex">
-          <div className="bg-white w-48 min-h-[calc(100vh-5rem)] py-4 flex flex-col items-start border-r border-gray-200">
-            <h2 className="font-bold text-[#2F528F] px-4 py-2 text-sm mb-2">Masters</h2>
-            <div className="w-full">
-              {mastersMenu.map((item, idx) => (
-                <div key={idx} className="border-b border-gray-200 last:border-b-0">
-                  <button
-                    onClick={() => console.log(`${item} clicked`)}
-                    className="w-full text-left text-[#2F528F] hover:bg-[#B7DEE8] px-4 py-3 text-sm transition-colors duration-200 !bg-white"
-                  >
-                    {item}
-                  </button>
-                </div>
-              ))}
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 w-full">
+            <DashboardCard 
+              title="Cash in Hand" 
+              value="Rs. 0" 
+              icon={<FaCashRegister />}
+              trend="up"
+            />
+            <DashboardCard 
+              title="Total Debit" 
+              value="Rs. 0" 
+              icon={<FaChartBar />}
+              trend="down"
+            />
+            <DashboardCard 
+              title="Total Credit" 
+              value="Rs. 0" 
+              icon={<FaChartBar />}
+              trend="up"
+            />
+            <DashboardCard 
+              title="Total Stock" 
+              value="0 Units" 
+              icon={<FaBoxes />}
+              trend="neutral"
+            />
+          </div>
+
+          {/* Recent Activity Section */}
+          {/*<div className="bg-white rounded-xl shadow-sm p-6 w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
+              <button className="text-sm text-blue-600 hover:text-blue-800 !bg-transparent">
+                View All
+              </button>
+            </div>
+            <div className="text-center py-8 text-gray-400">
+              <FaExchangeAlt className="mx-auto text-3xl mb-2" />
+              <p>No recent activity</p>
+            </div>
+          </div>*/}
+        </main>
+      </div>
+      
+
+      {/* Accounts Modal */}
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-gray-200">
+            <div className="border-b p-4 flex justify-between items-center bg-blue-600 text-white rounded-t-xl">
+              <h2 className="text-lg font-semibold">Accounts Management</h2>
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-white hover:text-gray-200 text-xl bg-transparent"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <AccountsPage />
+            </div>
+            
+            <div className="border-t p-4 flex justify-end space-x-3 bg-gray-50 rounded-b-xl">
+              <button
+                onClick={() => setShowForm(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 bg-white"
+              >
+                Close
+              </button>
             </div>
           </div>
-
-          <div className="flex-1 relative">
-            <main className="px-6 pb-12">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                <DashboardCard title="Cash in Hand" value="Rs. 0" icon={<FaCashRegister size={20} />} />
-                <DashboardCard title="Total Debit" value="Rs. 0" icon={<FaChartBar size={20} />} />
-                <DashboardCard title="Total Credit" value="Rs. 0" icon={<FaChartBar size={20} />} />
-                <DashboardCard title="Total Stock" value="0 Units" icon={<FaBoxes size={20} />} />
-                <DashboardCard title="Notifications" value="0" icon={<FaCog size={20} />} />
-              </div>
-            </main>
-
-            {showForm && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md">
-                 <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-3xl relative border border-gray-300">
-                    <button
-                     onClick={() => setShowForm(false)}
-                     className="absolute top-2 right-3 text-gray-500 hover:text-red-600 text-xl font-bold"
-                    >
-                       ×
-                      </button>
-                      <AccountsPage />
-                    </div>
-                  </div>
-                )}
-
-
-          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function DashboardCard({ title, value, icon }) {
+function DashboardCard({ title, value, icon, trend }) {
+  const trendColors = {
+    up: "text-green-500",
+    down: "text-red-500",
+    neutral: "text-gray-500"
+  };
+
   return (
-    <div className="bg-gradient-to-r from-[#04686D] to-[#06868A] text-white rounded-xl p-6 shadow-lg">
-      <div className="flex items-center justify-between">
-        <div className="text-lg font-medium">{title}</div>
-        <div>{icon}</div>
+    <div className="bg-white rounded-xl shadow-sm p-6 flex items-start justify-between hover:shadow-md transition-shadow border border-gray-100">
+      <div>
+        <div className="text-sm font-medium text-gray-500 mb-1">{title}</div>
+        <div className="text-2xl font-semibold text-gray-800">{value}</div>
       </div>
-      <div className="mt-4 text-3xl font-bold">{value}</div>
-      <div className="text-sm mt-2 text-white/80">Just Updated</div>
+      <div className={`p-3 rounded-full ${trend === 'up' ? 'bg-green-100' : trend === 'down' ? 'bg-red-100' : 'bg-gray-100'} ${trendColors[trend]}`}>
+        {icon}
+      </div>
     </div>
   );
 }
