@@ -5,6 +5,8 @@ import {
   FaSearch, FaFileExport, FaFilter, FaHome, FaChartBar,
   FaUserCog, FaSignOutAlt, FaFolderOpen, FaWarehouse
 } from "react-icons/fa";
+import AddUserForm from "../components/AddUserForm";
+import UserList from "../components/UserList";
 
 export default function EmployeePage() {
   const navigate = useNavigate();
@@ -149,56 +151,7 @@ export default function EmployeePage() {
           {/* Tab Content */}
           <div className="bg-white rounded-xl shadow-sm p-6 w-full">
             {activeTab === "employees" && (
-              <div>
-                <div className="mb-4 flex justify-between">
-                  <div className="relative w-64">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FaSearch className="text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Search employees..."
-                    />
-                  </div>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {employeeData.map((employee) => (
-                        <tr key={employee.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.position}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.department}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{employee.salary}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${employee.status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                              {employee.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                            <button className="text-red-600 hover:text-red-900">Delete</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+             <UserList />
             )}
 
             {activeTab === "attendance" && (
@@ -305,135 +258,7 @@ export default function EmployeePage() {
             )}
 
             {activeTab === "registration" && (
-              <div className="max-w-3xl mx-auto">
-                <h2 className="text-lg font-medium text-gray-900 mb-6">Employee Registration Form</h2>
-                <form className="space-y-6">
-                  <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                    <div className="sm:col-span-3">
-                      <label htmlFor="first-name" className="block text-sm font-medium text-gray-700">First name</label>
-                      <input
-                        type="text"
-                        name="first-name"
-                        id="first-name"
-                        autoComplete="given-name"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-3">
-                      <label htmlFor="last-name" className="block text-sm font-medium text-gray-700">Last name</label>
-                      <input
-                        type="text"
-                        name="last-name"
-                        id="last-name"
-                        autoComplete="family-name"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-4">
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
-                      <input
-                        type="email"
-                        name="email"
-                        id="email"
-                        autoComplete="email"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
-                      <input
-                        type="text"
-                        name="phone"
-                        id="phone"
-                        autoComplete="tel"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-3">
-                      <label htmlFor="position" className="block text-sm font-medium text-gray-700">Position</label>
-                      <select
-                        id="position"
-                        name="position"
-                        className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      >
-                        <option>Select position</option>
-                        <option>Manager</option>
-                        <option>Accountant</option>
-                        <option>Operator</option>
-                        <option>Supervisor</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-3">
-                      <label htmlFor="department" className="block text-sm font-medium text-gray-700">Department</label>
-                      <select
-                        id="department"
-                        name="department"
-                        className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      >
-                        <option>Select department</option>
-                        <option>Administration</option>
-                        <option>Finance</option>
-                        <option>Production</option>
-                        <option>Warehouse</option>
-                      </select>
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label htmlFor="salary" className="block text-sm font-medium text-gray-700">Salary</label>
-                      <input
-                        type="text"
-                        name="salary"
-                        id="salary"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label htmlFor="join-date" className="block text-sm font-medium text-gray-700">Join Date</label>
-                      <input
-                        type="date"
-                        name="join-date"
-                        id="join-date"
-                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-                      <select
-                        id="status"
-                        name="status"
-                        className="mt-1 block w-full bg-white border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      >
-                        <option>Active</option>
-                        <option>Inactive</option>
-                        <option>Probation</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("employees")}
-                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 bg-white"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      Save Employee
-                    </button>
-                  </div>
-                </form>
-              </div>
+             <AddUserForm />
             )}
           </div>
         </main>

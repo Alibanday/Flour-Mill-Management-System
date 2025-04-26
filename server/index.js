@@ -4,6 +4,8 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/user.js";
+import fileUpload from "express-fileupload";
 
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
@@ -16,6 +18,10 @@ if (!process.env.MONGO_URL) {
 
 const app = express();
 
+app.use(fileUpload({
+  useTempFiles: true,
+}));
+
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:5173",
@@ -27,6 +33,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api/auth", authRoutes);
+
+app.use("/api/users", userRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {

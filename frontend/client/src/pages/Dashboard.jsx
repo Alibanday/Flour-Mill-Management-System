@@ -169,8 +169,8 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Recent Activity Section */}
-          {/*<div className="bg-white rounded-xl shadow-sm p-6 w-full">
+          {/* Recent Activity Section 
+          <div className="bg-white rounded-xl shadow-sm p-6 w-full">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
               <button className="text-sm text-blue-600 hover:text-blue-800 !bg-transparent">
