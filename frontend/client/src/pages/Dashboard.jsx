@@ -24,10 +24,9 @@ export default function Dashboard() {
     { name: "Bags", icon: <FaShoppingBag className="mr-3" /> },
     { name: "Food Purchase", icon: <FaIndustry className="mr-3" /> },
     { name: "Private Purchase", icon: <FaCashRegister className="mr-3" /> },
-    { name: "Warehouse", icon: <FaWarehouse className="mr-3" /> },
     { name: "Transactions", icon: <FaBook className="mr-3" /> },
     { name: "Reports", icon: <FaChartBar className="mr-3" /> },
-    { name: "Payroll", icon: <FaUsers className="mr-3" /> },
+    { name: "Employees", icon: <FaUsers className="mr-3" /> },
     { name: "Help", icon: <FaCog className="mr-3" /> }
   ];
 
@@ -35,7 +34,7 @@ export default function Dashboard() {
     { name: "Accounts", shortcut: "F1", icon: <FaFolderOpen />, action: () => setShowForm(true) },
     { name: "Production", shortcut: "F3", icon: <FaIndustry />, action: () => console.log("Production clicked") },
     { name: "Sales", shortcut: "F4", icon: <FaReceipt />, action: () => console.log("Sale clicked") },
-    { name: "Warehouse", shortcut: "F7", icon: <FaWarehouse />, action: () => console.log("JV Voucher clicked") },
+    { name: "Warehouse", shortcut: "F7", icon: <FaWarehouse />, action: () => navigate("/warehouse")},
     { name: "Stock", shortcut: "F8", icon: <FaBoxes />, action: () => console.log("Stock clicked") },
     { name: "Ledger", shortcut: "F9", icon: <FaBook />, action: () => console.log("Ledger clicked") },
     
@@ -58,22 +57,29 @@ export default function Dashboard() {
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
             <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
-                onClick={() => setActiveMenu("Dashboard")}
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+                onClick={() => {
+                  setActiveMenu("Dashboard");
+                  navigate("/Dashboard"); 
+                }}
               >
                 Dashboard
               </button>
 
-              <button 
+              {/*<button 
                 className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Operations" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
                 onClick={() => setActiveMenu("Operations")}
               >
                 Operations
-              </button>
+              </button>*/}
 
               <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
-                onClick={() => setActiveMenu("Reports")}
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+
+                onClick={() => {
+                  setActiveMenu("Reports");
+                  navigate("/ReportsPage");
+                }}
               >
                 Reports
               </button>
@@ -105,7 +111,7 @@ export default function Dashboard() {
                 <li key={index}>
                   <button
                     onClick={() => {
-                      if (item.name === "Payroll") {
+                      if (item.name === "Employees") {
                         navigate("/EmployeesPage");
                       } else {
                         console.log(`${item.name} clicked`);

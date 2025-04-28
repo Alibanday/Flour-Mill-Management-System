@@ -104,7 +104,7 @@ export default function EmployeePage() {
                   Daily Wagers
                 </button>
               </li>
-              <li>
+              {/*<li>
                 <button
                   onClick={() => setActiveTab("registration")}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${activeTab === "registration" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
@@ -112,7 +112,7 @@ export default function EmployeePage() {
                   <FaUserPlus className="mr-3" />
                   Employee Registration
                 </button>
-              </li>
+              </li>*/}
             </ul>
           </div>
         </aside>

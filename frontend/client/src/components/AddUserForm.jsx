@@ -63,8 +63,28 @@ export default function AddUserForm() {
   };
 
   return (
+
+     
     <div className="max-w-4xl mx-auto p-8 bg-white shadow-lg rounded-xl mt-10">
       <h2 className="text-2xl font-bold mb-6 text-black">Create New User</h2>
+
+       {/* Image Preview */}
+       {previewImage && (
+          <div className="col-span-2 flex justify-center">
+            <img src={previewImage} alt="Preview" className="w-32 h-32 object-cover rounded-full mt-4" />
+          </div>
+        )}
+      {/* Profile Image Upload */}
+     <div>
+     <label className="block text-black mb-1">Profile Picture</label>
+     <input
+       type="file"
+       name="profileImage"
+       accept="image/*"
+       onChange={handleChange}
+       className="border border-black p-3 rounded w-full text-black placeholder-gray-400"
+     />
+   </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {[
@@ -110,7 +130,7 @@ export default function AddUserForm() {
           </select>
         </div>
 
-        {/* Profile Image Upload */}
+        {/* Profile Image Upload 
         <div>
           <label className="block text-black mb-1">Profile Picture</label>
           <input
@@ -120,14 +140,9 @@ export default function AddUserForm() {
             onChange={handleChange}
             className="border border-black p-3 rounded w-full text-black placeholder-gray-400"
           />
-        </div>
+        </div>*/}
 
-        {/* Image Preview */}
-        {previewImage && (
-          <div className="col-span-2 flex justify-center">
-            <img src={previewImage} alt="Preview" className="w-32 h-32 object-cover rounded-full mt-4" />
-          </div>
-        )}
+       
 
         {/* Error Message just above Submit */}
         {error && (

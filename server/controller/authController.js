@@ -10,9 +10,9 @@ export const login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not found" });
 
-    if (!user.warehouse) {
+    {/*if (!user.warehouse) {
       return res.status(403).json({ message: "Warehouse not assigned. Contact admin." });
-    }
+    }*/}
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ message: "Incorrect password" });
