@@ -77,7 +77,7 @@ export default function UserList() {
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Employee Directory</h1>
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">Employee Directory</h2>
           <p className="text-gray-600 text-lg">
             {displayedUsers.length} {displayedUsers.length === 1 ? "employee" : "employees"}
           </p>

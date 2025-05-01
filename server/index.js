@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
+import warehouseRoutes from "./routes/warehouseRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
 import fileUpload from "express-fileupload";
 
 // Initialize dotenv before accessing any environment variables
@@ -35,6 +37,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 
 app.use("/api/users", userRoutes);
+
+app.use("/api/warehouse", warehouseRoutes);
+
+app.use("/api/stock", stockRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {

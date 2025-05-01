@@ -11,7 +11,12 @@ const UserSchema = new mongoose.Schema({
     enum: ['admin', 'manager', 'employee', 'cashier'], 
     default: 'employee' 
   },
-  warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse" },
+  status: { 
+    type: String, 
+    enum: ['active', 'inactive'], 
+    default: 'Active' 
+  },
+  warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse",  required: true  },
 
   // New fields you requested:
   cnic: { type: String },
@@ -23,6 +28,8 @@ const UserSchema = new mongoose.Schema({
   guardianContact: { type: String },
   profileImage: { type: String }, // URL from Cloudinary
   salary: { type: Number }
+
+
 },
 { timestamps: true }
 );

@@ -48,7 +48,7 @@ export default function EmployeePage() {
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
               <button 
-                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm !bg-transparent"
+                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm flex items-center"
                 onClick={() => navigate("/dashboard")}
               >
                 <FaHome className="inline mr-2" />
@@ -139,7 +139,7 @@ export default function EmployeePage() {
               {activeTab === "employees" && (
                 <button 
                   onClick={() => setActiveTab("registration")}
-                  className="flex items-center px-4 py-2 bg-blue-600 rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700"
+                  className="flex items-center px-4 py-2 !bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   <FaUserPlus className="mr-2" />
                   Add Employee

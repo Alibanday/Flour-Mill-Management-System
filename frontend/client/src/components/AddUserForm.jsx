@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -7,30 +7,45 @@ export default function AddUserForm() {
 
   const [formData, setFormData] = useState({
     firstName: "", lastName: "", email: "", password: "",
-    role: "employee", cnic: "", education: "", address: "",
+    role: "employee", status:"active", cnic: "", education: "", address: "",
     mobile: "", bankAccount: "", guardianName: "", guardianContact: "", salary: "",
-    profileImage: null
+    profileImage: null, warehouse: ""
   });
   const [previewImage, setPreviewImage] = useState(null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // ✅ loader state
+  const [loading, setLoading] = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
+
+  useEffect(() => {
+    // Fetch all active warehouses when component mounts
+    const fetchWarehouses = async () => {
+      try {
+        const response = await axios.get("http://localhost:8000/api/warehouse/all");
+        setWarehouses(response.data);
+      } catch (error) {
+        console.error("Error fetching warehouses", error);
+      }
+    };
+    fetchWarehouses();
+  }, []);
 
   const handleChange = (e) => {
-    if (e.target.name === "profileImage") {
-      const file = e.target.files[0];
+    const { name, value, files } = e.target;
+    if (name === "profileImage") {
+      const file = files[0];
       if (file) {
         setFormData((prev) => ({ ...prev, profileImage: file }));
         setPreviewImage(URL.createObjectURL(file));
       }
     } else {
-      setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(""); // clear any previous error
-    setLoading(true); // ✅ show loader
+    setError("");
+    setLoading(true);
 
     try {
       const data = new FormData();
@@ -50,7 +65,6 @@ export default function AddUserForm() {
       }
     } catch (err) {
       console.error(err);
-
       if (axios.isAxiosError(err)) {
         const message = err.response?.data?.message || "Server error. Please try again.";
         setError(message);
@@ -58,35 +72,35 @@ export default function AddUserForm() {
         setError("Unexpected error occurred. Please refresh and try again.");
       }
     } finally {
-      setLoading(false); // ✅ hide loader
+      setLoading(false);
     }
   };
 
   return (
-
-     
     <div className="max-w-4xl mx-auto p-8 bg-white shadow-lg rounded-xl mt-10">
       <h2 className="text-2xl font-bold mb-6 text-black">Create New User</h2>
 
-       {/* Image Preview */}
-       {previewImage && (
-          <div className="col-span-2 flex justify-center">
-            <img src={previewImage} alt="Preview" className="w-32 h-32 object-cover rounded-full mt-4" />
-          </div>
-        )}
-      {/* Profile Image Upload */}
-     <div>
-     <label className="block text-black mb-1">Profile Picture</label>
-     <input
-       type="file"
-       name="profileImage"
-       accept="image/*"
-       onChange={handleChange}
-       className="border border-black p-3 rounded w-full text-black placeholder-gray-400"
-     />
-   </div>
+      {/* Image Preview */}
+      {previewImage && (
+        <div className="col-span-2 flex justify-center">
+          <img src={previewImage} alt="Preview" className="w-32 h-32 object-cover rounded-full mt-4" />
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+
+        {/* Profile Image Upload */}
+        <div className="col-span-2">
+          <label className="block text-black mb-1">Profile Picture</label>
+          <input
+            type="file"
+            name="profileImage"
+            accept="image/*"
+            onChange={handleChange}
+            className="border border-black p-3 rounded w-full text-black placeholder-gray-400"
+          />
+        </div>
+
         {[
           { label: "First Name", name: "firstName" },
           { label: "Last Name", name: "lastName" },
@@ -114,6 +128,24 @@ export default function AddUserForm() {
           </div>
         ))}
 
+        {/* Warehouse Dropdown */}
+        <div className="col-span-2">
+          <label className="block text-black mb-1">Warehouse</label>
+          <select
+            name="warehouse"
+            onChange={handleChange}
+            className="border border-black p-3 rounded w-full text-black placeholder-gray-400 overflow-y-auto"
+            required
+          >
+            <option value="">Select a Warehouse</option>
+            {warehouses.map((warehouse) => (
+              <option key={warehouse._id} value={warehouse._id}>
+                {warehouse.name} - {warehouse.location}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Role Dropdown */}
         <div>
           <label className="block text-black mb-1">Role</label>
@@ -130,28 +162,28 @@ export default function AddUserForm() {
           </select>
         </div>
 
-        {/* Profile Image Upload 
+        {/* Status Dropdown */}
         <div>
-          <label className="block text-black mb-1">Profile Picture</label>
-          <input
-            type="file"
-            name="profileImage"
-            accept="image/*"
+          <label className="block text-black mb-1">Status</label>
+          <select
+            name="status"
             onChange={handleChange}
             className="border border-black p-3 rounded w-full text-black placeholder-gray-400"
-          />
-        </div>*/}
+            value={formData.status}
+          >
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
 
-       
-
-        {/* Error Message just above Submit */}
+        {/* Error Message */}
         {error && (
           <div className="col-span-2 text-center text-red-500 font-medium">
             {error}
           </div>
         )}
 
-        {/* Submit Button with Loader */}
+        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading}

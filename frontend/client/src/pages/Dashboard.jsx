@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
-import AccountsPage from "./AccountsPage";
 import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
@@ -20,23 +19,23 @@ export default function Dashboard() {
   };
 
   const mastersMenu = [
-    { name: "Opening", icon: <FaFolderOpen className="mr-3" /> },
+   
+    { name: "Ledger", icon: <FaBook className="mr-3" /> },
     { name: "Bags", icon: <FaShoppingBag className="mr-3" /> },
     { name: "Food Purchase", icon: <FaIndustry className="mr-3" /> },
     { name: "Private Purchase", icon: <FaCashRegister className="mr-3" /> },
     { name: "Transactions", icon: <FaBook className="mr-3" /> },
-    { name: "Reports", icon: <FaChartBar className="mr-3" /> },
-    { name: "Employees", icon: <FaUsers className="mr-3" /> },
-    { name: "Help", icon: <FaCog className="mr-3" /> }
+    { name: "Help", icon: <FaCog className="mr-3" /> },
+    {/* { name: "Opening", icon: <FaFolderOpen className="mr-3" /> },*/}
   ];
 
   const functionButtons = [
-    { name: "Accounts", shortcut: "F1", icon: <FaFolderOpen />, action: () => setShowForm(true) },
-    { name: "Production", shortcut: "F3", icon: <FaIndustry />, action: () => console.log("Production clicked") },
-    { name: "Sales", shortcut: "F4", icon: <FaReceipt />, action: () => console.log("Sale clicked") },
+    { name: "Accounts", shortcut: "F1", icon: <FaFolderOpen />, action: () => navigate("/AccountsPage")},
+    { name: "Production", shortcut: "F2", icon: <FaIndustry />, action: () => navigate("/production")},
+    { name: "Sales", shortcut: "F4", icon: <FaReceipt />,action: () => navigate("/SalesPage")},
     { name: "Warehouse", shortcut: "F7", icon: <FaWarehouse />, action: () => navigate("/warehouse")},
-    { name: "Stock", shortcut: "F8", icon: <FaBoxes />, action: () => console.log("Stock clicked") },
-    { name: "Ledger", shortcut: "F9", icon: <FaBook />, action: () => console.log("Ledger clicked") },
+    { name: "Stock", shortcut: "F8", icon: <FaBoxes />, action: () => navigate("/StockPage") },
+    { name: "Employees", shortcut: "F9", icon: <FaUsers />, action: () => navigate("/EmployeesPage") },
     
     
   ];

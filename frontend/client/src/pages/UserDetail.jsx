@@ -49,8 +49,9 @@ export default function UserDetail() {
       fields: [
         { label: "First Name", name: "firstName" },
         { label: "Last Name", name: "lastName" },
-        { label: "Email", name: "email", icon: <FaEnvelope /> },
+        { label: "Email", name: "email" },
         { label: "Password", name: "password", type: "password" },
+        { label: "Status", name: "status" }
       ]
     },
     {
@@ -95,7 +96,7 @@ export default function UserDetail() {
           <nav className="flex items-center text-sm text-gray-600 space-x-2 mb-2">
             <Link to="/dashboard" className="text-blue-600 hover:underline">Dashboard</Link>
             <span>/</span>
-            <Link to="/users" className="text-blue-600 hover:underline">EmployeesPage</Link>
+            <Link to="/EmployeesPage" className="text-blue-600 hover:underline">Employees</Link>
             <span>/</span>
             <span className="text-gray-500">{user.firstName} {user.lastName}</span>
           </nav>
@@ -131,9 +132,25 @@ export default function UserDetail() {
                     {field.icon && <span className="text-gray-500 mt-1">{field.icon}</span>}
                     <div className="flex-1">
                       <p className="text-sm text-gray-500 mb-1">{field.label}</p>
-                      <div className="text-gray-800 font-medium">
-                        {field.type === 'password' ? '••••••••' : (user[field.name] || '-')}
-                      </div>
+                      
+                      {/* Special rendering for Status */}
+                      {field.name === "status" ? (
+                        <div className="flex items-center space-x-2">
+                          <span
+                            className={`h-3 w-3 rounded-full ${
+                              user.status === "Active" ? "bg-green-500" : "bg-red-500"
+                            }`}
+                          ></span>
+                          <span className="text-gray-800 font-medium">
+                            {user.status || "-"}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-gray-800 font-medium">
+                          {field.type === 'password' ? '••••••••' : (user[field.name] || '-')}
+                        </div>
+                      )}
+                      
                     </div>
                   </div>
                 ))}
