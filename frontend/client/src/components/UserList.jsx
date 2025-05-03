@@ -96,59 +96,63 @@ export default function UserList() {
       </div>
 
       {/* User List */}
-      <div className="grid grid-cols-1 gap-4 mb-8">
-        {currentUsers.map((user) => (
-          <div
-            key={user._id}
-            onClick={() => navigate(`/user/${user._id}`)}
-            className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-200 p-6 cursor-pointer"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-6">
-                <img
-                  src={user.profileImage || "https://via.placeholder.com/100"}
-                  alt="Profile"
-                  className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
-                />
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">
-                    {user.firstName} {user.lastName}
-                  </h2>
-                  <p className="text-gray-600">{user.email}</p>
-                  <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                    {user.mobile && <span className="flex items-center space-x-1">
-                      <FaSearch className="text-gray-400" /> {/* Replace with phone icon */}
-                      {user.mobile}
-                    </span>}
-                    {user.cnic && <span className="flex items-center space-x-1">
-                      <FaSearch className="text-gray-400" /> {/* Replace with ID icon */}
-                      {user.cnic}
-                    </span>}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Link
-                  to={`/edit-user/${user._id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-2 text-black hover:text-blue-600 !bg-white hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <FaEdit className="text-xl" />
-                </Link>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete(user._id);
-                  }}
-                  className="p-2 text-black hover:text-red-600 !bg-white hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <FaTrash className="text-xl" />
-                </button>
-              </div>
+      {/* User List */}
+<div className="grid grid-cols-1 gap-4 mb-8 max-w-3xl mx-auto">
+  {currentUsers.map((user) => (
+    <div
+      key={user._id}
+      onClick={() => navigate(`/user/${user._id}`)}
+      className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 p-4 cursor-pointer"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <img
+            src={user.profileImage || "https://via.placeholder.com/100"}
+            alt="Profile"
+            className="w-14 h-14 rounded-full object-cover border border-gray-300 shadow-sm"
+          />
+          <div className="max-w-xs">
+            <h2 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition-colors truncate">
+              {user.firstName} {user.lastName}
+            </h2>
+            <p className="text-sm text-gray-600 truncate">{user.email}</p>
+            <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+              {user.mobile && (
+                <span className="flex items-center gap-1">
+                  📞 {user.mobile}
+                </span>
+              )}
+              {user.cnic && (
+                <span className="flex items-center gap-1">
+                  🆔 {user.cnic}
+                </span>
+              )}
             </div>
           </div>
-        ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/edit-user/${user._id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-2 text-black hover:text-blue-600 !bg-white hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <FaEdit className="text-base" />
+          </Link>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(user._id);
+            }}
+            className="p-2 text-black hover:text-red-600 !bg-white hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <FaTrash className="text-base" />
+          </button>
+        </div>
       </div>
+    </div>
+  ))}
+</div>
+
 
       {/* Pagination */}
       <div className="flex flex-col sm:flex-row items-center justify-between px-4 space-y-4 sm:space-y-0">

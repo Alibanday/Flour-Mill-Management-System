@@ -71,3 +71,14 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+html, body, #root {
+  height: 100%;
+  background-image: url('/background.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-attachment: fixed;
+  margin: 0;
+  padding: 0;
+}
