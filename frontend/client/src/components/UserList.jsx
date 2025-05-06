@@ -13,45 +13,77 @@ export default function UserList() {
   const navigate = useNavigate();
   const usersPerPage = 6;
 
+  // Fetch users from the API
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:8000/api/users/all");
-      setUsers(res.data.users);
-      setDisplayedUsers(res.data.users);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("You are not authenticated!");
+        setLoading(false);
+        return;
+      }
+  
+      const res = await axios.get("http://localhost:8000/api/users/all", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      // Log the full API response to check the structure
+      console.log("API response:", res);
+  
+      // Check if the response contains the users in the 'data' field
+      if (res.data && Array.isArray(res.data)) {
+        setUsers(res.data); // Set users to the data array directly
+        setDisplayedUsers(res.data);
+      } else {
+        setError("No users found in the response.");
+        setLoading(false);
+      }
+  
       setLoading(false);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching users:", err);
       setError("Failed to fetch users");
       setLoading(false);
     }
   };
+  
 
+  // Handle search and update displayed users
   useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    const filtered = users.filter(user =>
+    const filtered = users.filter((user) =>
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.mobile?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.cnic?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setDisplayedUsers(filtered);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page after filter
   }, [searchTerm, users]);
 
+  // Handle user deletion
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
+  
     try {
-      await axios.delete(`http://localhost:8000/api/users/${id}`);
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:8000/api/users/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       fetchUsers();
       alert("User deleted successfully");
     } catch (err) {
       console.error(err);
-      alert("Failed to delete user");
+      alert(
+        err.response?.data?.message || "Failed to delete user. Please try again."
+      );
     }
   };
+  
 
+  // Pagination calculations
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = displayedUsers.slice(indexOfFirstUser, indexOfLastUser);
@@ -59,6 +91,11 @@ export default function UserList() {
 
   const nextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
   const prevPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
+
+  // Fetch users on component mount
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   if (loading) return (
     <div className="flex justify-center items-center h-screen">
@@ -96,90 +133,85 @@ export default function UserList() {
       </div>
 
       {/* User List */}
-      {/* User List */}
-<div className="grid grid-cols-1 gap-4 mb-8 max-w-3xl mx-auto">
-  {currentUsers.map((user) => (
-    <div
-      key={user._id}
-      onClick={() => navigate(`/user/${user._id}`)}
-      className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 p-4 cursor-pointer"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <img
-            src={user.profileImage || "https://via.placeholder.com/100"}
-            alt="Profile"
-            className="w-14 h-14 rounded-full object-cover border border-gray-300 shadow-sm"
-          />
-          <div className="max-w-xs">
-            <h2 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition-colors truncate">
-              {user.firstName} {user.lastName}
-            </h2>
-            <p className="text-sm text-gray-600 truncate">{user.email}</p>
-            <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-              {user.mobile && (
-                <span className="flex items-center gap-1">
-                  📞 {user.mobile}
-                </span>
-              )}
-              {user.cnic && (
-                <span className="flex items-center gap-1">
-                  🆔 {user.cnic}
-                </span>
-              )}
+      <div className="grid grid-cols-1 gap-4 mb-8 max-w-3xl mx-auto">
+        {currentUsers.map((user) => (
+          <div
+            key={user._id}
+            onClick={() => navigate(`/user/${user._id}`)}
+            className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 p-4 cursor-pointer"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <img
+                  src={user.profileImage || "https://via.placeholder.com/100"}
+                  alt="Profile"
+                  className="w-14 h-14 rounded-full object-cover border border-gray-300 shadow-sm"
+                />
+                <div className="max-w-xs">
+                  <h2 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition-colors truncate">
+                    {user.firstName} {user.lastName}
+                  </h2>
+                  <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                    {user.mobile && (
+                      <span className="flex items-center gap-1">
+                        📞 {user.mobile}
+                      </span>
+                    )}
+                    {user.cnic && (
+                      <span className="flex items-center gap-1">
+                        🆔 {user.cnic}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/edit-user/${user._id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-2 text-black hover:text-blue-600 !bg-white hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <FaEdit className="text-base" />
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(user._id);
+                  }}
+                  className="p-2 text-black hover:text-red-600 !bg-white hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <FaTrash className="text-base" />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to={`/edit-user/${user._id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="p-2 text-black hover:text-blue-600 !bg-white hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <FaEdit className="text-base" />
-          </Link>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDelete(user._id);
-            }}
-            className="p-2 text-black hover:text-red-600 !bg-white hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <FaTrash className="text-base" />
-          </button>
-        </div>
+        ))}
       </div>
-    </div>
-  ))}
-</div>
-
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between px-4 space-y-4 sm:space-y-0">
-        <div className="text-sm text-gray-600">
-          Showing {indexOfFirstUser + 1} - {Math.min(indexOfLastUser, displayedUsers.length)} of {displayedUsers.length}
-        </div>
-        <div className="flex items-center space-x-2">
+      <div className="flex justify-center items-center space-x-2">
+        <button
+          onClick={prevPage}
+          className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+        >
+          Previous
+        </button>
+        {[...Array(totalPages)].map((_, idx) => (
           <button
-            onClick={prevPage}
-            disabled={currentPage === 1}
-            className="flex items-center px-5 py-2.5 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:hover:bg-white transition-colors"
+            key={idx + 1}
+            onClick={() => setCurrentPage(idx + 1)}
+            className={`px-3 py-1 rounded ${currentPage === idx + 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
           >
-            <FaChevronLeft className="mr-2" />
-            Previous
+            {idx + 1}
           </button>
-          <span className="px-4 py-2 text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={nextPage}
-            disabled={currentPage === totalPages}
-            className="flex items-center px-5 py-2.5 bg-blue-50 border border-gray-300 rounded-xl hover:bg-blue-50 disabled:opacity-50 !hover:bg-white transition-colors"
-          >
-            Next
-            <FaChevronRight className="ml-2" />
-          </button>
-        </div>
+        ))}
+        <button
+          onClick={nextPage}
+          className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+        >
+          Next
+        </button>
       </div>
     </div>
   );

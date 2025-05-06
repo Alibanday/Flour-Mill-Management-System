@@ -52,3 +52,32 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Ensure the body fills the entire screen */
+body, html {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f4f4f4; /* Light background color */
+}
+
+.container {
+  width: 100%;
+  max-width: 600px; /* Limit the width of the form */
+  padding: 20px;
+  background-color: white; /* Set background to white */
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Light shadow */
+}
+
+.form-wrapper {
+  width: 100%;
+  max-width: 600px; /* Ensure form doesn't stretch too wide */
+  margin: 0 auto;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: subtle shadow */
+}

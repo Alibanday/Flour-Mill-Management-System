@@ -10,7 +10,12 @@ export default function UserDetail() {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/users/${id}`);
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`http://localhost:8000/api/users/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setUser(response.data || null);
     } catch (error) {
       console.error("Fetch user error: ", error);
@@ -25,12 +30,17 @@ export default function UserDetail() {
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      await axios.delete(`http://localhost:8000/api/users/${id}`);
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:8000/api/users/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       alert("User deleted successfully");
       navigate("/users");
     } catch (err) {
       console.error(err);
-      alert("Failed to delete user");
+      alert(err.response?.data?.message || "Failed to delete user");
     }
   };
 

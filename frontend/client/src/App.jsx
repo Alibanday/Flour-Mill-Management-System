@@ -15,6 +15,7 @@ import ProductionPage from "./pages/ProductionPage";
 import ReportsPage from "./pages/ReportsPage";
 import StockPage from "./pages/StockPage";
 import SalesPage from "./pages/SalesPage";
+import EditUserForm from "./pages/EditUserForm";
 
 function App() {
   return (
@@ -36,7 +37,8 @@ function App() {
           <Route path="/EmployeesPage" element={<EmployeesPage />} />
           <Route path="/users" element={<UserList />} />
           <Route path="/user/:id" element={<UserDetail />} />
-          <Route path="/edit-user/:id" element={<UserEdit />} />
+          {/* <Route path="/edit-user/:id" element={<UserEdit />} /> */}
+          <Route path="/edit-user/:id" element={<EditUserForm />} />
           <Route path="/warehouse" element={<WarehousePage />} /> 
           <Route path="/production" element={<ProductionPage />} />
           <Route path="/StockPage" element={<StockPage />} />

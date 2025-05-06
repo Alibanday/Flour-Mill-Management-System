@@ -46,17 +46,36 @@ export default function AddUserForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
+  
     try {
       const data = new FormData();
+  
+      // Append keys with lowercase string values, preserve files and numbers
       for (let key in formData) {
-        if (formData[key] !== null && formData[key] !== "") {
-          data.append(key, formData[key]);
+        const value = formData[key];
+  
+        if (value !== null && value !== "") {
+          if (typeof value === "string") {
+            data.append(key, value.toLowerCase());
+          } else {
+            data.append(key, value);
+          }
         }
       }
-
-      const response = await axios.post("http://localhost:8000/api/users/create", data);
-
+  
+      const token = localStorage.getItem("token");
+  
+      const response = await axios.post(
+        "http://localhost:8000/api/users/create",
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Let axios set Content-Type for FormData automatically
+          },
+        }
+      );
+  
       if (response.status === 201) {
         alert("User registered successfully!");
         navigate(-1);
@@ -75,6 +94,9 @@ export default function AddUserForm() {
       setLoading(false);
     }
   };
+  
+  
+  
 
   return (
     <div className="max-w-4xl mx-auto p-8 bg-white shadow-lg rounded-xl mt-10">
@@ -155,10 +177,13 @@ export default function AddUserForm() {
             className="border border-black p-3 rounded w-full text-black placeholder-gray-400"
             value={formData.role}
           >
-            <option value="employee">Employee</option>
-            <option value="manager">Manager</option>
-            <option value="cashier">Cashier</option>
             <option value="admin">Admin</option>
+            <option value="general manager">General Manager</option>
+            <option value="production manager">Production Manager</option>
+            <option value="sale manager">Sale Manager</option>
+            <option value="warehouse manager">Warehouse Manager</option>
+            <option value="labor">Labor</option>
+          
           </select>
         </div>
 

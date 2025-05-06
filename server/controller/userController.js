@@ -8,10 +8,14 @@ cloudinary.config({
   api_secret: '7Psdvk7EDDmj2W4dTrW7Sz_53FE',
 });
 
+// Create User (admin only)
 export const createUser = async (req, res) => {
   try {
-    let profileUrl = "";
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Only admin can create users" });
+    }
 
+    let profileUrl = "";
     if (req.files?.profileImage) {
       const result = await cloudinary.uploader.upload(req.files.profileImage.tempFilePath, {
         folder: "profiles",
@@ -24,44 +28,56 @@ export const createUser = async (req, res) => {
 
     res.status(201).json({ message: "User created successfully", user });
   } catch (err) {
-    console.error(err);
-
+    console.error("User creation failed:", err);
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ message: err.message, errors: err.errors });
+    }
     if (err.code === 11000 && err.keyPattern?.email) {
       return res.status(400).json({ message: "Email already exists!" });
     }
-
     res.status(500).json({ message: "Server error" });
   }
 };
 
+// Get All Users (accessible to any authenticated user)
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: { $ne: "admin" } }); // exclude admin users
-    res.status(200).json({ users });
+    const users = await User.find(); // Fetch all users without filtering by role
+    res.status(200).json(users);
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching users:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-export const deleteUser = async (req, res) => {
+
+// Get Single User (accessible to any authenticated user)
+export const getUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findByIdAndDelete(id);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid user ID" });
     }
-    res.status(200).json({ message: "User deleted successfully" });
+
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json(user);
   } catch (err) {
-    console.error(err);
+    console.error("Error fetching user:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
 
+// Update User (admin only)
 export const updateUser = async (req, res) => {
   try {
-    const { id } = req.params;
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Only admin can update users" });
+    }
 
+    const { id } = req.params;
     const updatedData = { ...req.body };
 
     if (req.files?.profileImage) {
@@ -73,39 +89,36 @@ export const updateUser = async (req, res) => {
 
     const user = await User.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     res.status(200).json({ message: "User updated successfully", user });
   } catch (err) {
-    console.error(err);
-
+    console.error("Error updating user:", err);
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ message: err.message, errors: err.errors });
+    }
     if (err.code === 11000 && err.keyPattern?.email) {
       return res.status(400).json({ message: "Email already exists!" });
     }
-
-    res.status(500).json({ message: "Server error while updating user" });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-export const getUser = async (req, res) => {
-    try {
-      const { id } = req.params;
-  
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid user ID' });
-      }
-  
-      const user = await User.findById(id);
-  
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-  
-      res.status(200).json(user);
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      res.status(500).json({ message: 'Server error' });
+// Delete User (admin only)
+export const deleteUser = async (req, res) => {
+  try {
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Only admin can delete users" });
     }
-  };
+
+    const { id } = req.params;
+
+    const user = await User.findByIdAndDelete(id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
