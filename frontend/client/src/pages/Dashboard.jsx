@@ -19,43 +19,38 @@ export default function Dashboard() {
   };
 
   const mastersMenu = [
-   
     { name: "Ledger", icon: <FaBook className="mr-3" /> },
     { name: "Bags", icon: <FaShoppingBag className="mr-3" /> },
-    { name: "Food Purchase", icon: <FaIndustry className="mr-3" /> },
+    { 
+      name: "Gov Purchase", 
+      icon: <FaIndustry className="mr-3" />,
+      action: () => navigate("/gov-purchase")
+    },
     { name: "Private Purchase", icon: <FaCashRegister className="mr-3" /> },
     { name: "Transactions", icon: <FaBook className="mr-3" /> },
     { name: "Help", icon: <FaCog className="mr-3" /> },
-    {/* { name: "Opening", icon: <FaFolderOpen className="mr-3" /> },*/}
   ];
 
   const functionButtons = [
     { name: "Accounts", shortcut: "F1", icon: <FaFolderOpen />, action: () => navigate("/AccountsPage")},
     { name: "Production", shortcut: "F2", icon: <FaIndustry />, action: () => navigate("/production")},
-    { name: "Sales", shortcut: "F4", icon: <FaReceipt />,action: () => navigate("/SalesPage")},
+    { name: "Sales", shortcut: "F4", icon: <FaReceipt />, action: () => navigate("/SalesPage")},
     { name: "Warehouse", shortcut: "F7", icon: <FaWarehouse />, action: () => navigate("/warehouse")},
     { name: "Stock", shortcut: "F8", icon: <FaBoxes />, action: () => navigate("/StockPage") },
     { name: "Employees", shortcut: "F9", icon: <FaUsers />, action: () => navigate("/EmployeesPage") },
-    
-    
   ];
 
   return (
-             <div
+    <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
+      style={{ backgroundImage: "url('/dashboard.jpg')" }}>
       
-             className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
-              style={{ backgroundImage: "url('/dashboard.jpg')" }}
-         
-            >
-              
-
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
         <div className="px-6 py-3 flex items-center justify-between w-full">
           <div className="flex items-center">
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
-            <button 
+              <button 
                 className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
                 onClick={() => {
                   setActiveMenu("Dashboard");
@@ -65,16 +60,8 @@ export default function Dashboard() {
                 Dashboard
               </button>
 
-              {/*<button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Operations" ? "!bg-white text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-500 hover:bg-white hover:shadow-sm"}`}
-                onClick={() => setActiveMenu("Operations")}
-              >
-                Operations
-              </button>*/}
-
               <button 
                 className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
-
                 onClick={() => {
                   setActiveMenu("Reports");
                   navigate("/ReportsPage");
@@ -82,11 +69,10 @@ export default function Dashboard() {
               >
                 Reports
               </button>
-
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full !bg-gray-100  text-gray-600 hover:bg-gray-200">
+            <button className="p-2 rounded-full !bg-gray-100 text-gray-600 hover:bg-gray-200">
               <FaUserCog className="text-lg" />
             </button>
             <button 
@@ -110,7 +96,9 @@ export default function Dashboard() {
                 <li key={index}>
                   <button
                     onClick={() => {
-                      if (item.name === "Employees") {
+                      if (item.action) {
+                        item.action();
+                      } else if (item.name === "Employees") {
                         navigate("/EmployeesPage");
                       } else {
                         console.log(`${item.name} clicked`);
@@ -173,24 +161,9 @@ export default function Dashboard() {
               trend="neutral"
             />
           </div>
-
-          {/* Recent Activity Section 
-          <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
-              <button className="text-sm text-blue-600 hover:text-blue-800 !bg-transparent">
-                View All
-              </button>
-            </div>
-            <div className="text-center py-8 text-gray-400">
-              <FaExchangeAlt className="mx-auto text-3xl mb-2" />
-              <p>No recent activity</p>
-            </div>
-          </div>*/}
         </main>
       </div>
       
-
       {/* Accounts Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">

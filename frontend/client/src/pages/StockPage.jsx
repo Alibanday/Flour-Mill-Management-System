@@ -32,10 +32,10 @@ export default function StockPage() {
 
   return (
     <div
-      className="min-h-screen w-full bg-cover bg-center bg-no-repeat"
+      className="h-screen w-screen bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: "url('/dashboard.jpg')" }}
     >
-      <div className="min-h-screen flex flex-col">
+      <div className="h-full flex flex-col">
         {/* Header */}
         <header className="bg-white shadow-sm w-full">
           <div className="px-6 py-3 flex items-center justify-between w-full">
@@ -60,9 +60,9 @@ export default function StockPage() {
         </header>
 
         {/* Content */}
-        <div className="flex flex-grow w-full">
+        <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <aside className="w-64 bg-white shadow-sm min-h-full hidden md:block">
+          <aside className="w-64 bg-white shadow-sm h-full hidden md:block">
             <div className="p-4">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">STOCK MENU</h3>
               <ul className="space-y-1">
@@ -82,13 +82,13 @@ export default function StockPage() {
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 p-6">
+          <main className="flex-1 overflow-y-auto p-6">
             {activeMenu === "Add Stock" ? (
               <AddStockForm onStockAdded={() => setActiveMenu("Total Stock")} />
             ) : (
               <>
                 {/* Action Buttons */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6">
                   {stockActions.map((button, index) => (
                     <button
                       key={index}
@@ -104,7 +104,7 @@ export default function StockPage() {
                 </div>
 
                 {/* Stock List */}
-                <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+                <div className="bg-white rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-gray-800">Current Stock</h2>
                     <div className="relative">

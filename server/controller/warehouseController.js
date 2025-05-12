@@ -1,8 +1,12 @@
 import Warehouse from "../model/wareHouse.js";
 
-// Add new warehouse
+// Add new warehouse (Admin only)
 export const addWarehouse = async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admin can add warehouses" });
+    }
+
     const { warehouseNumber, name, location, status, description } = req.body;
 
     const newWarehouse = new Warehouse({
@@ -10,30 +14,30 @@ export const addWarehouse = async (req, res) => {
       name,
       location,
       status,
-      description
+      description,
     });
 
     await newWarehouse.save();
 
     res.status(201).json({ message: "Warehouse added successfully", warehouse: newWarehouse });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error adding warehouse", error });
+    console.error("Warehouse creation error:", error);
+    res.status(500).json({ message: "Error adding warehouse", error: error.message });
   }
 };
 
-// Get all warehouses
+
+// Get all warehouses (All users)
 export const getAllWarehouses = async (req, res) => {
   try {
     const warehouses = await Warehouse.find();
     res.status(200).json(warehouses);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Error retrieving warehouses", error });
   }
 };
 
-// Get a single warehouse by ID
+// Get a single warehouse by ID (All users)
 export const getWarehouseById = async (req, res) => {
   try {
     const warehouse = await Warehouse.findById(req.params.id);
@@ -42,14 +46,17 @@ export const getWarehouseById = async (req, res) => {
     }
     res.status(200).json(warehouse);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Error retrieving warehouse", error });
   }
 };
 
-// Update a warehouse by ID
+// Update a warehouse by ID (Admin only)
 export const updateWarehouse = async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admin can update warehouses" });
+    }
+
     const { warehouseNumber, name, location, status, description } = req.body;
 
     const updatedWarehouse = await Warehouse.findByIdAndUpdate(
@@ -64,57 +71,52 @@ export const updateWarehouse = async (req, res) => {
 
     res.status(200).json({ message: "Warehouse updated successfully", warehouse: updatedWarehouse });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Error updating warehouse", error });
   }
 };
 
-// Delete a warehouse by ID
+// Delete a warehouse by ID (Admin only)
 export const deleteWarehouse = async (req, res) => {
   try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admin can delete warehouses" });
+    }
+
     const deletedWarehouse = await Warehouse.findByIdAndDelete(req.params.id);
     if (!deletedWarehouse) {
       return res.status(404).json({ message: "Warehouse not found" });
     }
     res.status(200).json({ message: "Warehouse deleted successfully" });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ message: "Error deleting warehouse", error });
   }
 };
 
-// Search warehouses by query parameters
+// Search warehouses (All users)
 export const searchWarehouses = async (req, res) => {
-    try {
-      const { warehouseNumber, name, location, status } = req.query;
-  
-      // Build query filter
-      const filter = {};
-  
-      if (warehouseNumber) filter.warehouseNumber = { $regex: warehouseNumber, $options: "i" }; // Case-insensitive search
-      if (name) filter.name = { $regex: name, $options: "i" };
-      if (location) filter.location = { $regex: location, $options: "i" };
-      if (status) filter.status = status;
-  
-      // Find warehouses based on filter
-      const warehouses = await Warehouse.find(filter);
-  
-      res.status(200).json(warehouses);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Error searching warehouses", error });
-    }
-  };
+  try {
+    const { warehouseNumber, name, location, status } = req.query;
 
-  export const getActiveWarehouses = async (req, res) => {
-    try {
-      const activeWarehouses = await Warehouse.find({ status: "Active" });
-      res.status(200).json(activeWarehouses);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Error retrieving active warehouses", error });
-    }
-  };
-  
-  
-  
+    const filter = {};
+    if (warehouseNumber) filter.warehouseNumber = { $regex: warehouseNumber, $options: "i" };
+    if (name) filter.name = { $regex: name, $options: "i" };
+    if (location) filter.location = { $regex: location, $options: "i" };
+    if (status) filter.status = status;
+
+    const warehouses = await Warehouse.find(filter);
+
+    res.status(200).json(warehouses);
+  } catch (error) {
+    res.status(500).json({ message: "Error searching warehouses", error });
+  }
+};
+
+// Get only active warehouses (All users)
+export const getActiveWarehouses = async (req, res) => {
+  try {
+    const activeWarehouses = await Warehouse.find({ status: "Active" });
+    res.status(200).json(activeWarehouses);
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving active warehouses", error });
+  }
+};

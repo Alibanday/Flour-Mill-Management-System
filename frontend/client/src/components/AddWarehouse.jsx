@@ -22,7 +22,12 @@ export default function AddWarehouse() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:8000/api/warehouse/create", formData);
+      const token = await localStorage.getItem("token");
+      await axios.post("http://localhost:8000/api/warehouse/create", formData,{
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
       alert("Warehouse added successfully!");
       navigate("/warehouses"); // redirect to warehouse list or home
     } catch (error) {

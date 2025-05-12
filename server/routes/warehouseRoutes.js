@@ -8,27 +8,17 @@ import {
   searchWarehouses,
   getActiveWarehouses
 } from "../controller/warehouseController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Route to add a new warehouse
-router.post("/create", addWarehouse);
+router.post("/create", protect, addWarehouse); // admin only
+router.put("/:id", protect, updateWarehouse);  // admin only
+router.delete("/:id", protect, deleteWarehouse); // admin only
 
-// Route to get all warehouses
-router.get("/all", getAllWarehouses);
-
-// Route to search warehouses
-router.get("/search", searchWarehouses);
-
-// Route to get a single warehouse by ID
-router.get("/:id", getWarehouseById);
-
-// Route to update a warehouse by ID
-router.put("/:id", updateWarehouse);
-
-// Route to delete a warehouse by ID
-router.delete("/:id", deleteWarehouse);
-
-router.get("/active", getActiveWarehouses);
+router.get("/all", protect, getAllWarehouses); // all users
+router.get("/search", protect, searchWarehouses); // all users
+router.get("/active", protect, getActiveWarehouses); // all users
+router.get("/:id", protect, getWarehouseById); // all users
 
 export default router;

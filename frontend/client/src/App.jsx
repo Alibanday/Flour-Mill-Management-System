@@ -16,6 +16,9 @@ import ReportsPage from "./pages/ReportsPage";
 import StockPage from "./pages/StockPage";
 import SalesPage from "./pages/SalesPage";
 import EditUserForm from "./pages/EditUserForm";
+import GovernmentPurchase from "./pages/GovernmentPurchase";
+import FoodPurchaseInvoice from "./components/FoodPurchaseInvoice";
+import FoodArrivalEntry from "./components/FoodArrivalEntry";
 
 function App() {
   return (
@@ -37,6 +40,10 @@ function App() {
           <Route path="/EmployeesPage" element={<EmployeesPage />} />
           <Route path="/users" element={<UserList />} />
           <Route path="/user/:id" element={<UserDetail />} />
+          <Route path="/gov-purchase" element={<GovernmentPurchase />}>
+          <Route path="invoice" element={<FoodPurchaseInvoice />} />
+          <Route path="arrival" element={<FoodArrivalEntry />} />
+        </Route>
           {/* <Route path="/edit-user/:id" element={<UserEdit />} /> */}
           <Route path="/edit-user/:id" element={<EditUserForm />} />
           <Route path="/warehouse" element={<WarehousePage />} /> 
