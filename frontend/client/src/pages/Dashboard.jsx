@@ -28,7 +28,7 @@ export default function Dashboard() {
     },
     { name: "Private Purchase",
        icon: <FaCashRegister className="mr-3" />,
-      action:() => navigate("/private-purchase") },
+      action:() => navigate("/PrivatePurchase") },
     { name: "Transactions", icon: <FaBook className="mr-3" /> },
     { name: "Help", icon: <FaCog className="mr-3" /> },
   ];

@@ -40,9 +40,10 @@ function App() {
           <Route path="/AccountsPage" element={<AccountsPage />} />
           <Route path="/EmployeesPage" element={<EmployeesPage />} />
           <Route path="/users" element={<UserList />} />
+          <Route path="/PrivatePurchase" element={<PrivatePurchase />} />
           <Route path="/user/:id" element={<UserDetail />} />
           <Route path="/gov-purchase" element={<GovernmentPurchase />}>
-          <Route path="/private-purchase" element={<PrivatePurchase />} />
+          
           <Route path="invoice" element={<FoodPurchaseInvoice />} />
           <Route path="arrival" element={<FoodArrivalEntry />} />
         </Route>
