@@ -26,12 +26,37 @@ export const addWarehouse = async (req, res) => {
   }
 };
 
-
-// Get all warehouses (All users)
+// ✅ Get all warehouses with search + pagination (All users)
 export const getAllWarehouses = async (req, res) => {
   try {
-    const warehouses = await Warehouse.find();
-    res.status(200).json(warehouses);
+    const {
+      page = 1,
+      limit = 10,
+      warehouseNumber,
+      name,
+      location,
+      status
+    } = req.query;
+
+    const filter = {};
+    if (warehouseNumber) filter.warehouseNumber = { $regex: warehouseNumber, $options: "i" };
+    if (name) filter.name = { $regex: name, $options: "i" };
+    if (location) filter.location = { $regex: location, $options: "i" };
+    if (status) filter.status = status;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const [warehouses, total] = await Promise.all([
+      Warehouse.find(filter).skip(skip).limit(Number(limit)).sort({ createdAt: -1 }),
+      Warehouse.countDocuments(filter)
+    ]);
+
+    res.status(200).json({
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+      warehouses
+    });
   } catch (error) {
     res.status(500).json({ message: "Error retrieving warehouses", error });
   }
@@ -92,7 +117,7 @@ export const deleteWarehouse = async (req, res) => {
   }
 };
 
-// Search warehouses (All users)
+// Search warehouses (All users) – still usable separately if needed
 export const searchWarehouses = async (req, res) => {
   try {
     const { warehouseNumber, name, location, status } = req.query;

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import {
   FaHome, FaPlus, FaBoxes, FaClipboardList,
   FaChartLine, FaWarehouse, FaSearch, FaExchangeAlt
@@ -9,6 +10,10 @@ import AddStockForm from "../components/AddStockForm";
 export default function StockPage() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState("Total Stock");
+  const [stockItems, setStockItems] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const stockMenu = [
     { name: "Add Stock", icon: <FaPlus className="mr-3" /> },
@@ -24,11 +29,39 @@ export default function StockPage() {
     { name: "Transfer", icon: <FaExchangeAlt />, action: () => setActiveMenu("Stock Transfer") }
   ];
 
-  const stockItems = [
-    { id: 1, product: "Wheat Flour", quantity: "500 Bags", category: "Flour", location: "A12" },
-    { id: 2, product: "Sugar", quantity: "300 Bags", category: "Sweeteners", location: "B34" },
-    { id: 3, product: "Rice", quantity: "700 Bags", category: "Grains", location: "C56" },
-  ];
+  const fetchStockItems = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(`http://localhost:8000/api/stock`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: currentPage,
+          search: searchTerm
+        }
+      });
+
+      const data = response.data;
+
+      if (Array.isArray(data.stocks)) {
+        setStockItems(data.stocks);
+        setTotalPages(data.totalPages || 1);
+      } else {
+        setStockItems([]);
+        setTotalPages(1);
+      }
+
+    } catch (error) {
+      console.error("Error fetching stock data:", error);
+      setStockItems([]);
+      setTotalPages(1);
+    }
+  };
+
+  useEffect(() => {
+    if (activeMenu === "Total Stock") {
+      fetchStockItems();
+    }
+  }, [activeMenu, currentPage, searchTerm]);
 
   return (
     <div
@@ -42,7 +75,7 @@ export default function StockPage() {
             <div className="flex items-center">
               <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
               <nav className="hidden md:flex space-x-8">
-                <button 
+                <button
                   className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm flex items-center"
                   onClick={() => navigate("/dashboard")}
                 >
@@ -70,7 +103,9 @@ export default function StockPage() {
                   <li key={index}>
                     <button
                       onClick={() => setActiveMenu(item.name)}
-                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                      className={`w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg transition-colors ${
+                        activeMenu === item.name ? "bg-blue-100 text-blue-700" : "hover:bg-blue-50 hover:text-blue-600"
+                      }`}
                     >
                       {item.icon}
                       {item.name}
@@ -103,7 +138,7 @@ export default function StockPage() {
                   ))}
                 </div>
 
-                {/* Stock List */}
+                {/* Stock List with Search */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-gray-800">Current Stock</h2>
@@ -112,32 +147,70 @@ export default function StockPage() {
                       <input
                         type="text"
                         placeholder="Search stock..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                          setSearchTerm(e.target.value);
+                          setCurrentPage(1);
+                        }}
                         className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {stockItems.map((item) => (
-                      <div key={item.id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-medium text-gray-800">{item.product}</h3>
-                          <span className="text-sm text-gray-500">#{item.id}</span>
+                  {stockItems && stockItems.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {stockItems.map((item) => (
+                        <div key={item._id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-medium text-gray-800">{item.itemName}</h3>
+                            <span className="text-sm text-gray-500">#{item._id}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-600">Seller Name:</span>
+                            <span className="text-blue-600 font-medium">{item.sellerName}</span>
+                          </div>
+                          <div className="flex justify-between text-sm mt-2">
+                            <span className="text-gray-600">Item Type:</span>
+                            <span className="text-gray-500">{item.itemType}</span>
+                          </div>
+                          <div className="flex justify-between text-sm mt-2">
+                            <span className="text-gray-600">Sub Type:</span>
+                            <span className="text-gray-500">{item.subType}</span>
+                          </div>
+                          <div className="flex justify-between text-sm mt-2">
+                            <span className="text-gray-600">Description:</span>
+                            <span className="text-gray-500">{item.itemDescription}</span>
+                          </div>
+                          <div className="flex justify-between text-sm mt-2">
+                            <span className="text-gray-600">Quantity:</span>
+                            <span className="text-blue-600 font-medium">
+                              {item.quantity.value} {item.quantity.unit}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Quantity:</span>
-                          <span className="text-blue-600 font-medium">{item.quantity}</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-2">
-                          <span className="text-gray-600">Category:</span>
-                          <span className="text-gray-500">{item.category}</span>
-                        </div>
-                        <div className="flex justify-between text-sm mt-2">
-                          <span className="text-gray-600">Location:</span>
-                          <span className="text-gray-500">{item.location}</span>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-gray-500">No stock data available.</p>
+                  )}
+
+                  {/* Pagination Controls */}
+                  <div className="flex justify-center mt-6 space-x-2">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-gray-200 text-sm font-medium rounded disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <span className="px-4 py-2 text-sm">{`Page ${currentPage} of ${totalPages}`}</span>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-gray-200 text-sm font-medium rounded disabled:opacity-50"
+                    >
+                      Next
+                    </button>
                   </div>
                 </div>
               </>

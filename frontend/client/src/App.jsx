@@ -20,6 +20,8 @@ import GovernmentPurchase from "./pages/GovernmentPurchase";
 import FoodPurchaseInvoice from "./components/FoodPurchaseInvoice";
 import FoodArrivalEntry from "./components/FoodArrivalEntry";
 import PrivatePurchase from "./pages/PrivatePurchase";
+import WarehouseDetail from "./pages/WarehouseDetail";
+import EditWarehouse from "./pages/EditWarehouse";
 
 function App() {
   return (
@@ -53,6 +55,9 @@ function App() {
           <Route path="/production" element={<ProductionPage />} />
           <Route path="/StockPage" element={<StockPage />} />
           <Route path="/SalesPage" element={<SalesPage />} />
+
+          <Route path="/warehouse/:id" element={<WarehouseDetail />} />
+          <Route path="/warehouse/edit/:id" element={<EditWarehouse />} />
         </Route>
       </Routes>
     </Router>

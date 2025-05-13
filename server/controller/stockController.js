@@ -4,15 +4,48 @@ import Warehouse from "../model/wareHouse.js";
 
 export const addStock = async (req, res) => {
   try {
-    if (req.user.role !== "admin") return res.status(403).json({ message: "Only admin can add stock" });
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admin can add stock" });
+    }
 
-    const stock = new Stock({ ...req.body, createdBy: req.user._id });
+    const {
+      sellerName,
+      sellerDescription,
+      itemName,
+      itemType,
+      quantity,  // This should be { value, unit }
+      subType,
+      itemDescription,
+      date,
+      warehouse
+    } = req.body;
+
+    // Validate quantity structure
+    if (!quantity || typeof quantity.value !== "number") {
+      return res.status(400).json({ message: "Quantity with value is required" });
+    }
+
+    const stock = new Stock({
+      sellerName,
+      sellerDescription,
+      itemName,
+      itemType,
+      quantity,
+      subType,
+      itemDescription,
+      date: date || new Date(),
+      warehouse,
+      createdBy: req.user._id,
+    });
+
     await stock.save();
     res.status(201).json(stock);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Add stock error:", err);
+    res.status(500).json({ message: "Error adding stock", error: err.message });
   }
 };
+
 
 export const updateStock = async (req, res) => {
   try {
@@ -42,13 +75,36 @@ export const deleteStock = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
-
 export const getAllStocks = async (req, res) => {
   try {
-    const stocks = await Stock.find().populate("createdBy", "name");
-    res.json(stocks);
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const filter = {
+      $or: [
+        { itemName: { $regex: search, $options: "i" } },
+        { itemType: { $regex: search, $options: "i" } },
+        { subType: { $regex: search, $options: "i" } },
+        { sellerName: { $regex: search, $options: "i" } },
+        { sellerDescription: { $regex: search, $options: "i" } }
+      ]
+    };
+
+    const [stocks, total] = await Promise.all([
+      Stock.find(filter).skip(skip).limit(Number(limit)).sort({ createdAt: -1 }),
+      Stock.countDocuments(filter)
+    ]);
+
+    res.status(200).json({
+      stocks,
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Failed to fetch stock:", err);
+    res.status(500).json({ message: "Error retrieving stock data" });
   }
 };
 

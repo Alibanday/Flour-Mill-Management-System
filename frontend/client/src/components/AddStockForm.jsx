@@ -9,7 +9,8 @@ export default function AddStockForm({ onStockAdded }) {
     sellerDescription: "",
     itemName: "",
     itemType: "wheat",
-    quantity: "",
+    quantityValue: "",
+    quantityUnit: "", // Optional
     subType: "",
     itemDescription: "",
     date: new Date(),
@@ -18,7 +19,7 @@ export default function AddStockForm({ onStockAdded }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  const subTypes = ["floue", "mada", "choker", "suji", "fine"];
+  const subTypes = ["flour", "mada", "choker", "suji", "fine"];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,12 +33,28 @@ export default function AddStockForm({ onStockAdded }) {
     setSuccess(null);
 
     try {
-      const token = await localStorage.getItem("token");
-      const response = await axios.post("http://localhost:8000/api/stock/add", form, {
+      const token = localStorage.getItem("token");
+
+      const payload = {
+        sellerName: form.sellerName,
+        sellerDescription: form.sellerDescription,
+        itemName: form.itemName,
+        itemType: form.itemType,
+        quantity: {
+          value: Number(form.quantityValue),
+          unit: form.quantityUnit || (form.itemType === "wheat" ? "kg" : "bags"),
+        },
+        subType: form.itemType === "bags" ? form.subType : null,
+        itemDescription: form.itemDescription,
+        date: form.date,
+      };
+
+      const response = await axios.post("http://localhost:8000/api/stock/add", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
       setSuccess("Stock added successfully!");
       onStockAdded && onStockAdded(response.data);
       setForm({
@@ -45,7 +62,8 @@ export default function AddStockForm({ onStockAdded }) {
         sellerDescription: "",
         itemName: "",
         itemType: "wheat",
-        quantity: "",
+        quantityValue: "",
+        quantityUnit: "",
         subType: "",
         itemDescription: "",
         date: new Date(),
@@ -140,18 +158,32 @@ export default function AddStockForm({ onStockAdded }) {
           )}
 
           <div>
-            <label className="block font-semibold mb-1">Quantity</label>
+            <label className="block font-semibold mb-1">
+              Quantity {form.itemType === "wheat" ? "(kg)" : "(bags)"}
+            </label>
             <input
               type="number"
-              name="quantity"
+              name="quantityValue"
               placeholder={
                 form.itemType === "wheat"
                   ? "Enter quantity in kg"
                   : "Enter number of bags"
               }
-              value={form.quantity}
+              value={form.quantityValue}
               onChange={handleChange}
               required
+              className="w-full p-3 border border-black rounded placeholder-gray-400"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold mb-1">Quantity Unit (optional)</label>
+            <input
+              type="text"
+              name="quantityUnit"
+              placeholder="e.g. kg, bags"
+              value={form.quantityUnit}
+              onChange={handleChange}
               className="w-full p-3 border border-black rounded placeholder-gray-400"
             />
           </div>

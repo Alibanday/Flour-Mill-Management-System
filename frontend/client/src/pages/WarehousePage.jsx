@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import {
   FaBoxes, FaPallet, FaClipboardList, FaTruckLoading,
   FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome
@@ -9,14 +10,48 @@ import AddWarehouse from "../components/AddWarehouse";
 export default function WarehousePage() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState("Inventory");
-  const [showAddWarehouse, setShowAddWarehouse] = useState(false); // NEW
-  const [formData, setFormData] = useState({
-    warehouseNumber: "",
-    name: "",
-    location: "",
-    status: "",
-    description: ""
-  });
+  const [showAddWarehouse, setShowAddWarehouse] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [warehouses, setWarehouses] = useState([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = (id) => {
+    navigate(`/warehouse/${id}`);
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`http://localhost:8000/api/warehouse/all`, {
+        params: {
+          search: searchTerm,
+          page: page,
+          limit: 6
+        },
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setWarehouses(res.data.warehouses);
+      setTotalPages(res.data.totalPages);
+    } catch (error) {
+      console.error("Failed to fetch warehouses:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWarehouses();
+  }, [searchTerm, page, showAddWarehouse]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(1); // Reset to page 1 on new search
+  };
 
   const warehouseMenu = [
     { name: "Warehouses", icon: <FaWarehouse className="mr-3" /> },
@@ -32,16 +67,9 @@ export default function WarehousePage() {
     { name: "Dispatch", icon: <FaTruckLoading />, action: () => console.log("Dispatch") }
   ];
 
-  const inventoryItems = [
-    { id: 1, name: "Wheat Flour", quantity: "500 Bags", location: "A12" },
-    { id: 2, name: "Sugar", quantity: "300 Bags", location: "B34" },
-    { id: 3, name: "Rice", quantity: "700 Bags", location: "C56" },
-    { id: 4, name: "Salt", quantity: "200 Bags", location: "D78" }
-  ];
-
   return (
     <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0" style={{ backgroundImage: "url('/dashboard.jpg')" }}>
-      
+
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
         <div className="px-6 py-3 flex items-center justify-between w-full">
@@ -88,7 +116,7 @@ export default function WarehousePage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          
+
           {/* Quick Actions */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
             {warehouseActions.map((button, index) => (
@@ -106,44 +134,75 @@ export default function WarehousePage() {
           </div>
 
           {/* Add Warehouse Form */}
-          {showAddWarehouse && (
-           <AddWarehouse />
-          )}
+          {showAddWarehouse && <AddWarehouse />}
 
-          {/* Inventory Overview */}
-         {!showAddWarehouse && <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Current Inventory</h2>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search inventory..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                />
+          {/* Warehouse List */}
+          {!showAddWarehouse && (
+            <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">All Warehouses</h2>
+                <div className="relative">
+                  <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Search warehouses..."
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+              </div>
+
+              {loading ? (
+                <p className="text-gray-500 text-sm">Loading...</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {warehouses.map((wh, i) => (
+                    <div key={i} onClick={() => handleClick(wh._id)}  className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-medium text-gray-800">{wh.name}</h3>
+                        <span className="text-sm text-gray-500">{wh.warehouseNumber}</span>
+                      </div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        <strong>Location:</strong> {wh.location}
+                      </div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        <strong>Status:</strong> {wh.status}
+                      </div>
+                      <div className="text-xs text-gray-500 italic">{wh.description}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              <div className="flex justify-center mt-6 space-x-2">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                {[...Array(totalPages)].map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPage(i + 1)}
+                    className={`px-3 py-1 rounded ${page === i + 1 ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage(page + 1)}
+                  className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {inventoryItems.map((item) => (
-                <div key={item.id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-800">{item.name}</h3>
-                    <span className="text-sm text-gray-500">#{item.id}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Quantity:</span>
-                    <span className="text-blue-600 font-medium">{item.quantity}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Location:</span>
-                    <span className="text-gray-500">{item.location}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>}
-
+          )}
         </main>
       </div>
     </div>
