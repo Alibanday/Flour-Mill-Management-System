@@ -68,8 +68,8 @@ export default function WarehousePage() {
   ];
 
   return (
-    <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0" style={{ backgroundImage: "url('/dashboard.jpg')" }}>
-
+    <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
+    style={{ backgroundImage: "url('/dashboard.jpg')" }}>
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
         <div className="px-6 py-3 flex items-center justify-between w-full">

@@ -54,14 +54,15 @@
 }
 
 /* Ensure the body fills the entire screen */
-body, html {
-  height: 100%;
+html, body, #root {
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f4f4f4; /* Light background color */
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  background-color: #ffffff; /* or your desired background */
+  overflow-x: hidden;
 }
+
 
 .container {
   width: 100%;
