@@ -39,7 +39,9 @@ const EditUserForm = () => {
           axios.get(`http://localhost:8000/api/users/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:8000/api/warehouse/all"),
+          axios.get("http://localhost:8000/api/warehouse/all",{
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         const user = userRes.data;
@@ -204,7 +206,7 @@ const EditUserForm = () => {
                       className="border border-black p-3 rounded w-full text-black"
                     >
                       <option value="">Select Warehouse</option>
-                      {warehouses.map((w) => (
+                      {warehouses?.warehouses && warehouses?.warehouses.map((w) => (
                         <option key={w._id} value={w._id}>
                           {w.name} - {w.location}
                         </option>

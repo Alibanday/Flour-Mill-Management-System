@@ -7,7 +7,7 @@ export default function AddUserForm() {
 
   const [formData, setFormData] = useState({
     firstName: "", lastName: "", email: "", password: "",
-    role: "employee", status: "active", cnic: "", education: "", address: "",
+    role: "admin", status: "active", cnic: "", education: "", address: "",
     mobile: "", bankAccount: "", guardianName: "", guardianContact: "", salary: "",
     profileImage: null, warehouse: ""
   });
@@ -17,9 +17,12 @@ export default function AddUserForm() {
   const [warehouses, setWarehouses] = useState([]);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
     const fetchWarehouses = async () => {
       try {
-        const response = await axios.get("http://localhost:8000/api/warehouse/all");
+        const response = await axios.get("http://localhost:8000/api/warehouse/all",{
+            headers: { Authorization: `Bearer ${token}` },
+          });
         setWarehouses(response.data);
       } catch (error) {
         console.error("Error fetching warehouses", error);
@@ -151,7 +154,7 @@ export default function AddUserForm() {
               required
             >
               <option value="">Select a Warehouse</option>
-              {warehouses.map((warehouse) => (
+              {warehouses?.warehouses && warehouses?.warehouses.map((warehouse) => (
                 <option key={warehouse._id} value={warehouse._id}>
                   {warehouse.name} - {warehouse.location}
                 </option>

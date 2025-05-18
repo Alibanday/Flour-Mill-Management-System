@@ -1,6 +1,7 @@
 import { v2 as cloudinary } from "cloudinary";
 import User from "../model/user.js";
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 
 cloudinary.config({
   cloud_name: 'dqm4dcnqf',
@@ -8,7 +9,7 @@ cloudinary.config({
   api_secret: '7Psdvk7EDDmj2W4dTrW7Sz_53FE',
 });
 
-// Create User (admin only)
+
 export const createUser = async (req, res) => {
   try {
     if (!req.user || req.user.role !== 'admin') {
@@ -23,7 +24,16 @@ export const createUser = async (req, res) => {
       profileUrl = result.secure_url;
     }
 
-    const user = new User({ ...req.body, profileImage: profileUrl });
+    // Hash the password before saving
+    const plainPassword = req.body.password;
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    const user = new User({
+      ...req.body,
+      password: hashedPassword,  // Use hashed password
+      profileImage: profileUrl,
+    });
+
     await user.save();
 
     res.status(201).json({ message: "User created successfully", user });
@@ -38,6 +48,7 @@ export const createUser = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // Get All Users (accessible to any authenticated user)
 export const getAllUsers = async (req, res) => {
