@@ -64,9 +64,9 @@ export default function EditWarehouse() {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-50 overflow-y-auto">
-      <div className="min-h-full flex items-center justify-center p-4 sm:p-8">
-        <div className="w-full max-w-4xl bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="min-h-screen bg-gray-50">
+      <div className="py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="p-6 sm:p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
