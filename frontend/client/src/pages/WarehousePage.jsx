@@ -134,7 +134,9 @@ export default function WarehousePage() {
           </div>
 
           {/* Add Warehouse Form */}
-          {showAddWarehouse && <AddWarehouse />}
+          {showAddWarehouse && (
+            <AddWarehouse onCancel={() => setShowAddWarehouse(false)} />
+          )}
 
           {/* Warehouse List */}
           {!showAddWarehouse && (

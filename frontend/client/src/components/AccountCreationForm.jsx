@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { FaSave, FaTimes, FaPhone, FaWhatsapp, FaMapMarkerAlt, FaWallet } from "react-icons/fa";
 
-export default function AccountCreationForm() {
-  const navigate = useNavigate();
+export default function AccountCreationForm({ onCancel }) {
   const [formData, setFormData] = useState({
     accountType: "",
     accountName: "",
@@ -22,9 +20,8 @@ export default function AccountCreationForm() {
   }, []);
 
   const generateAccountId = () => {
-    // Generate a random 6-digit number
     const randomId = Math.floor(100000 + Math.random() * 900000);
-    setAccountId(ACC-${randomId});
+    setAccountId(`ACC-${randomId}`);
   };
 
   const accountTypes = [
@@ -41,7 +38,6 @@ export default function AccountCreationForm() {
       ...formData,
       [name]: value
     });
-    // Clear error when user types
     if (errors[name]) {
       setErrors({
         ...errors,
@@ -77,17 +73,25 @@ export default function AccountCreationForm() {
         console.log("Account created:", { accountId, ...formData });
         setIsSubmitting(false);
         alert("Account created successfully!");
-        navigate("/accounts");
+        onCancel(); // Use onCancel instead of navigate
       }, 1500);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md mt-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-        <FaWallet className="mr-2" />
-        Create New Account
-      </h2>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+          <FaWallet className="mr-2" />
+          Create New Account
+        </h2>
+        <button
+          onClick={onCancel}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <FaTimes className="text-xl" />
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Account ID (read-only) */}
@@ -100,7 +104,7 @@ export default function AccountCreationForm() {
               type="text"
               value={accountId}
               readOnly
-              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
             />
             <p className="text-xs text-gray-500 mt-1">Auto-generated account ID</p>
           </div>
@@ -114,7 +118,7 @@ export default function AccountCreationForm() {
               name="accountType"
               value={formData.accountType}
               onChange={handleChange}
-              className={`w-full px-4 py-2 border rounded-md ${
+              className={`w-full px-4 py-2 border rounded-md text-black ${
                 errors.accountType ? "border-red-500" : "border-gray-300"
               }`}
             >
@@ -142,7 +146,7 @@ export default function AccountCreationForm() {
             value={formData.accountName}
             onChange={handleChange}
             placeholder="Enter account name"
-            className={`w-full px-4 py-2 border rounded-md ${
+            className={`w-full px-4 py-2 border rounded-md text-black ${
               errors.accountName ? "border-red-500" : "border-gray-300"
             }`}
           />
@@ -164,7 +168,7 @@ export default function AccountCreationForm() {
               value={formData.phoneNumber}
               onChange={handleChange}
               placeholder="Enter phone number"
-              className={`w-full px-4 py-2 border rounded-md ${
+              className={`w-full px-4 py-2 border rounded-md text-black ${
                 errors.phoneNumber ? "border-red-500" : "border-gray-300"
               }`}
             />
@@ -184,7 +188,7 @@ export default function AccountCreationForm() {
               value={formData.whatsappNumber}
               onChange={handleChange}
               placeholder="Enter WhatsApp number"
-              className={`w-full px-4 py-2 border rounded-md ${
+              className={`w-full px-4 py-2 border rounded-md text-black ${
                 errors.whatsappNumber ? "border-red-500" : "border-gray-300"
               }`}
             />
@@ -205,7 +209,7 @@ export default function AccountCreationForm() {
             value={formData.creditLimit}
             onChange={handleChange}
             placeholder="Enter credit limit amount"
-            className={`w-full px-4 py-2 border rounded-md ${
+            className={`w-full px-4 py-2 border rounded-md text-black ${
               errors.creditLimit ? "border-red-500" : "border-gray-300"
             }`}
           />
@@ -226,7 +230,7 @@ export default function AccountCreationForm() {
             onChange={handleChange}
             rows={3}
             placeholder="Enter full address"
-            className="w-full px-4 py-2 border border-gray-300 rounded-md"
+            className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
           />
         </div>
 
@@ -234,7 +238,7 @@ export default function AccountCreationForm() {
         <div className="flex justify-end space-x-4 pt-4">
           <button
             type="button"
-            onClick={() => navigate("/accounts")}
+            onClick={onCancel}
             className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
           >
             <FaTimes className="mr-2" />
@@ -250,6 +254,6 @@ export default function AccountCreationForm() {
           </button>
         </div>
       </form>
-    </div>
-  );
+    </div>
+  );
 }

@@ -2,13 +2,14 @@ import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
 import {
   FaHome, FaPlus, FaList, FaMoneyCheckAlt,
-  FaChartLine, FaSearch, FaFileExport
+  FaChartLine, FaSearch, FaFileExport, FaEdit, FaTrash
 } from "react-icons/fa";
+import AccountCreationForm from "../components/AccountCreationForm";
 
 export default function AccountsPage() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState("AllAccounts");
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const accountsMenu = [
     { name: "Add Account", icon: <FaPlus className="mr-3" /> },
@@ -18,7 +19,7 @@ export default function AccountsPage() {
   ];
 
   const accountActions = [
-    { name: "New Account", icon: <FaPlus />, action: () => setShowAddForm(true) },
+    { name: "New Account", icon: <FaPlus />, action: () => setActiveMenu("Add Account") },
     { name: "Search Accounts", icon: <FaSearch />, action: () => console.log("Search Accounts") },
     { name: "Export Data", icon: <FaFileExport />, action: () => console.log("Export Data") }
   ];
@@ -29,6 +30,13 @@ export default function AccountsPage() {
     { id: 2, name: "Bank Account", type: "Bank", balance: "Rs. 1,50,000", description: "HBL Main Account" },
     { id: 3, name: "Credit Account", type: "Credit", balance: "Rs. -25,000", description: "Supplier credit" },
   ];
+
+  // Filter accounts based on search query
+  const filteredAccounts = accountData.filter(account =>
+    account.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    account.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    account.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
@@ -66,11 +74,10 @@ export default function AccountsPage() {
               {accountsMenu.map((item, index) => (
                 <li key={index}>
                   <button
-                    onClick={() => {
-                      setActiveMenu(item.name);
-                      setShowAddForm(item.name === "Add Account");
-                    }}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    onClick={() => setActiveMenu(item.name)}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg !bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors ${
+                      activeMenu === item.name ? "bg-blue-50 text-blue-600" : "text-gray-700"
+                    }`}
                   >
                     {item.icon}
                     {item.name}
@@ -83,154 +90,83 @@ export default function AccountsPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          {/* Quick Actions */}
-          {!showAddForm && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-              {accountActions.map((button, index) => (
-                <button
-                  key={index}
-                  onClick={button.action}
-                  className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-                >
-                  <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                    {button.icon}
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">{button.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Content Area */}
-          {showAddForm ? (
-            <AddAccountForm onCancel={() => setShowAddForm(false)} />
+          {activeMenu === "Add Account" ? (
+            <AccountCreationForm onCancel={() => setActiveMenu("AllAccounts")} />
           ) : (
-            <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">Account List</h2>
-                <div className="relative">
-                  <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search accounts..."
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Accounts Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {accountData.map((account) => (
-                  <div key={account.id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-gray-800">{account.name}</h3>
-                      <span className={`text-sm ${
-                        account.balance.includes('-') ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {account.balance}
-                      </span>
+            <>
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
+                {accountActions.map((button, index) => (
+                  <button
+                    key={index}
+                    onClick={button.action}
+                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                  >
+                    <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                      {button.icon}
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Type:</span>
-                      <span className="text-gray-500">{account.type}</span>
-                    </div>
-                    <div className="mt-2 text-sm text-gray-600">
-                      {account.description}
-                    </div>
-                  </div>
+                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
+                  </button>
                 ))}
               </div>
-            </div>
+
+              {/* Accounts Table */}
+              <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Account List</h2>
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search accounts..."
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Accounts Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredAccounts.map((account) => (
+                        <tr key={account.id} className="hover:bg-blue-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{account.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{account.type}</td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${
+                            account.balance.includes('-') ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {account.balance}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{account.description}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button className="text-blue-600 hover:text-blue-800 mr-3">
+                              <FaEdit />
+                            </button>
+                            <button className="text-red-600 hover:text-red-800">
+                              <FaTrash />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </main>
       </div>
-    </div>
-  );
-}
-
-// Add Account Form Component
-function AddAccountForm({ onCancel }) {
-  const [formData, setFormData] = useState({
-    accountName: '',
-    accountType: 'Cash',
-    openingBalance: '',
-    description: ''
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Add account submission logic
-    console.log('Account Data:', formData);
-    onCancel();
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Create New Account</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Name *</label>
-            <input
-              type="text"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.accountName}
-              onChange={(e) => setFormData({...formData, accountName: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Type *</label>
-            <select
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.accountType}
-              onChange={(e) => setFormData({...formData, accountType: e.target.value})}
-            >
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-              <option value="Credit">Credit</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Opening Balance *</label>
-            <input
-              type="number"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.openingBalance}
-              onChange={(e) => setFormData({...formData, openingBalance: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end space-x-3 mt-6">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Create Account
-          </button>
-        </div>
-      </form>
     </div>
   );
 }

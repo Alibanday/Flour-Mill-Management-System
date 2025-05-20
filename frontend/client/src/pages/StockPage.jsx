@@ -19,8 +19,8 @@ export default function StockPage() {
     { name: "Add Stock", icon: <FaPlus className="mr-3" /> },
     { name: "Total Stock", icon: <FaBoxes className="mr-3" /> },
     { name: "Stock Detail", icon: <FaClipboardList className="mr-3" /> },
-    { name: "Stock Transfer", icon: <FaExchangeAlt className="mr-3" /> },
-    { name: "Stock Reports", icon: <FaChartLine className="mr-3" /> }
+    { name: "Stock Transfer", icon: <FaExchangeAlt className="mr-3" /> }
+    
   ];
 
   const stockActions = [
@@ -103,8 +103,8 @@ export default function StockPage() {
                   <li key={index}>
                     <button
                       onClick={() => setActiveMenu(item.name)}
-                      className={`w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg transition-colors ${
-                        activeMenu === item.name ? "bg-blue-100 text-blue-700" : "hover:bg-blue-50 hover:text-blue-600"
+                      className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg !bg-white hover:bg-blue-50 hover:text-blue-600 transition-colors ${
+                      activeMenu === item.name ? "bg-blue-50 text-blue-600" : "text-gray-700"
                       }`}
                     >
                       {item.icon}

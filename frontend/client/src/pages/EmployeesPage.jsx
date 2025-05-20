@@ -258,7 +258,9 @@ export default function EmployeePage() {
             )}
 
             {activeTab === "registration" && (
-             <AddUserForm />
+              <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
+                <AddUserForm onClose={() => setActiveTab("employees")} />
+              </div>
             )}
           </div>
         </main>

@@ -1,11 +1,8 @@
-// pages/AddWarehouse.jsx
-
 import React, { useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { FaWarehouse, FaSave, FaTimes } from "react-icons/fa";
 
-export default function AddWarehouse() {
-  const navigate = useNavigate();
+export default function AddWarehouse({ onCancel }) {
   const [formData, setFormData] = useState({
     warehouseNumber: "",
     name: "",
@@ -23,13 +20,13 @@ export default function AddWarehouse() {
     e.preventDefault();
     try {
       const token = await localStorage.getItem("token");
-      await axios.post("http://localhost:8000/api/warehouse/create", formData,{
+      await axios.post("http://localhost:8000/api/warehouse/create", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
         }
       });
       alert("Warehouse added successfully!");
-      navigate("/warehouses"); // redirect to warehouse list or home
+      onCancel();
     } catch (error) {
       console.error(error);
       alert(error.response?.data?.message || "Failed to add warehouse");
@@ -37,88 +34,116 @@ export default function AddWarehouse() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="bg-white shadow-lg rounded-lg p-8 max-w-lg w-full">
-        <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Add New Warehouse</h2>
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Warehouse Number */}
-          <div className="w-full">
-            <label className="block mb-2 text-sm font-semibold text-black">Warehouse Number</label>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+          <FaWarehouse className="mr-2" />
+          Add New Warehouse
+        </h2>
+        <button
+          onClick={onCancel}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <FaTimes className="text-xl" />
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Warehouse Number <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="warehouseNumber"
               required
               value={formData.warehouseNumber}
               onChange={handleChange}
-              className="w-full border border-black rounded-md p-3 placeholder-gray-400 text-black"
               placeholder="Enter warehouse number"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
             />
           </div>
 
-          {/* Name */}
-          <div className="w-full">
-            <label className="block mb-2 text-sm font-semibold text-black">Name</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="name"
               required
               value={formData.name}
               onChange={handleChange}
-              className="w-full border border-black rounded-md p-3 placeholder-gray-400 text-black"
               placeholder="Enter warehouse name"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
             />
           </div>
 
-          {/* Location */}
-          <div className="w-full">
-            <label className="block mb-2 text-sm font-semibold text-black">Location</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Location <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               name="location"
               required
               value={formData.location}
               onChange={handleChange}
-              className="w-full border border-black rounded-md p-3 placeholder-gray-400 text-black"
               placeholder="Enter location"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
             />
           </div>
 
-          {/* Status */}
-          <div className="w-full">
-            <label className="block mb-2 text-sm font-semibold text-black">Status</label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
             <select
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full border border-black rounded-md p-3 placeholder-gray-400 text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
           </div>
+        </div>
 
-          {/* Description */}
-          <div className="w-full">
-            <label className="block mb-2 text-sm font-semibold text-black">Description</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              className="w-full border border-black rounded-md p-3 placeholder-gray-400 text-black"
-              placeholder="Enter warehouse description"
-              rows="3"
-            />
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <textarea
+            name="description"
+            value={formData.description}
+            onChange={handleChange}
+            rows="3"
+            placeholder="Enter warehouse description"
+            className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+          />
+        </div>
 
-          {/* Submit Button */}
+        {/* Buttons */}
+        <div className="flex justify-end space-x-4 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <FaTimes className="mr-2" />
+            Cancel
+          </button>
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-md mt-4 transition"
+            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
           >
+            <FaSave className="mr-2" />
             Add Warehouse
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }

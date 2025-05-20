@@ -22,6 +22,7 @@ import FoodArrivalEntry from "./components/FoodArrivalEntry";
 import PrivatePurchase from "./pages/PrivatePurchase";
 import WarehouseDetail from "./pages/WarehouseDetail";
 import EditWarehouse from "./pages/EditWarehouse";
+import AccountCreationForm from "./components/AccountCreationForm";
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
           <Route path="/warehouse" element={<WarehousePage />} /> 
           <Route path="/production" element={<ProductionPage />} />
           <Route path="/StockPage" element={<StockPage />} />
+          <Route path="/accounts/create" element={<AccountCreationForm />} />
           <Route path="/SalesPage" element={<SalesPage />} />
 
           <Route path="/warehouse/:id" element={<WarehouseDetail />} />
