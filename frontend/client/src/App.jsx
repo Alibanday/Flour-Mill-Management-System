@@ -23,6 +23,7 @@ import PrivatePurchase from "./pages/PrivatePurchase";
 import WarehouseDetail from "./pages/WarehouseDetail";
 import EditWarehouse from "./pages/EditWarehouse";
 import AccountCreationForm from "./components/AccountCreationForm";
+import AddPrCenter from "./components/Addprcenter";
 
 function App() {
   return (
@@ -57,6 +58,7 @@ function App() {
           <Route path="/StockPage" element={<StockPage />} />
           <Route path="/accounts/create" element={<AccountCreationForm />} />
           <Route path="/SalesPage" element={<SalesPage />} />
+          <Route path="/addprcenter" element={<AddPrCenter />} />
 
           <Route path="/warehouse/:id" element={<WarehouseDetail />} />
           <Route path="/warehouse/edit/:id" element={<EditWarehouse />} />

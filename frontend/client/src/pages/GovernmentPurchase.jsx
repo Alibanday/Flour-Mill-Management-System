@@ -1,18 +1,53 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import {
   FaHome, FaClipboardList, FaTruck, FaChartLine,
-  FaPlus, FaSearch, FaFileInvoiceDollar, FaBoxes
+  FaPlus, FaSearch, FaFileInvoiceDollar, FaBoxes,
+  FaBuilding
 } from "react-icons/fa";
+import AddPrCenter from "../components/Addprcenter";
 
 export default function GovernmentPurchase() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState("FoodPurchaseInvoice");
+  const [showPrCenters, setShowPrCenters] = useState(false);
+  const [showAddPrCenter, setShowAddPrCenter] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [prCenters, setPrCenters] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchPrCenters = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const res = await axios.get("http://localhost:8000/api/prcenter/all", {
+        params: { search: searchTerm },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPrCenters(res.data);
+    } catch (error) {
+      console.error("Failed to fetch PR Centers:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showPrCenters) {
+      fetchPrCenters();
+    }
+  }, [searchTerm, showPrCenters, showAddPrCenter]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
 
   const purchaseMenu = [
     { name: "Purchase Invoice", icon: <FaClipboardList className="mr-3" /> },
     { name: "Food Arrival Entry", icon: <FaTruck className="mr-3" /> },
-    { name: "Reports", icon: <FaChartLine className="mr-3" /> }
+    { name: "Reports", icon: <FaChartLine className="mr-3" /> },
+    { name: "PR Centers", icon: <FaBuilding className="mr-3" /> }
   ];
 
   const purchaseActions = [
@@ -21,12 +56,16 @@ export default function GovernmentPurchase() {
     { name: "Stock Update", icon: <FaBoxes />, action: () => console.log("Stock Update") }
   ];
 
-  // Sample purchase data
-  const purchaseData = [
-    { id: 1, supplier: "Govt. Food Dept", amount: "Rs. 150,000", date: "2024-03-20", status: "Pending" },
-    { id: 2, supplier: "Wheat Board", amount: "Rs. 200,000", date: "2024-03-18", status: "Completed" },
-    { id: 3, supplier: "Rice Corporation", amount: "Rs. 175,000", date: "2024-03-15", status: "Completed" },
+  const prCenterActions = [
+    { name: "Add PR Center", icon: <FaPlus />, action: () => setShowAddPrCenter(true) },
+    { name: "Search PR Centers", icon: <FaSearch />, action: () => console.log("Search PR Centers") }
   ];
+
+  const handleMenuClick = (menuName) => {
+    setActiveMenu(menuName);
+    setShowPrCenters(menuName === "PR Centers");
+    setShowAddPrCenter(false);
+  };
 
   return (
     <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
@@ -64,8 +103,8 @@ export default function GovernmentPurchase() {
               {purchaseMenu.map((item, index) => (
                 <li key={index}>
                   <button
-                    onClick={() => setActiveMenu(item.name)}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    onClick={() => handleMenuClick(item.name)}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent ${activeMenu === item.name ? 'text-blue-600 bg-blue-50' : 'text-gray-700'}`}
                   >
                     {item.icon}
                     {item.name}
@@ -78,67 +117,147 @@ export default function GovernmentPurchase() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-            {purchaseActions.map((button, index) => (
-              <button
-                key={index}
-                onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-              >
-                <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                  {button.icon}
-                </div>
-                <span className="text-sm font-medium text-gray-700">{button.name}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Purchase Overview */}
-          <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Government Purchases</h2>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search purchases..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                />
+          {showPrCenters ? (
+            <>
+              {/* PR Centers Actions */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
+                {prCenterActions.map((button, index) => (
+                  <button
+                    key={index}
+                    onClick={button.action}
+                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                  >
+                    <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                      {button.icon}
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
+                  </button>
+                ))}
               </div>
-            </div>
 
-            {/* Purchase Items Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {purchaseData.map((item) => (
-                    <tr key={item.id} className="hover:bg-blue-50 cursor-pointer">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.supplier}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.amount}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.date}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                          ${item.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {item.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+              {/* Add PR Center Form */}
+              {showAddPrCenter && (
+                <AddPrCenter onCancel={() => setShowAddPrCenter(false)} />
+              )}
+
+              {/* PR Centers List */}
+              {!showAddPrCenter && (
+                <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-800">Registered PR Centers</h2>
+                    <div className="relative">
+                      <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        placeholder="Search PR Centers..."
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {loading ? (
+                    <p className="text-gray-500 text-sm">Loading...</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {prCenters.map((center) => (
+                            <tr key={center._id} className="hover:bg-blue-50 cursor-pointer">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{center._id}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{center.name}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{center.location}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{center.contact}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
+                {purchaseActions.map((button, index) => (
+                  <button
+                    key={index}
+                    onClick={button.action}
+                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                  >
+                    <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                      {button.icon}
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Purchase Overview */}
+              <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Recent Government Purchases</h2>
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search purchases..."
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <tr className="hover:bg-blue-50 cursor-pointer">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#1</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Govt. Food Dept</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. 150,000</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2024-03-20</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Pending
+                          </span>
+                        </td>
+                      </tr>
+                      <tr className="hover:bg-blue-50 cursor-pointer">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#2</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Wheat Board</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. 200,000</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2024-03-18</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Completed
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>
