@@ -39,8 +39,10 @@ export default function AccountsPage() {
   );
 
   return (
-    <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
-         style={{ backgroundImage: "url('/dashboard.jpg')" }}>
+    <div
+        className="min-h-screen w-full bg-white bg-opacity-30 backdrop-blur-sm bg-cover bg-no-repeat bg-center"
+        style={{ backgroundImage: "url('/dashboard.jpg')" }}
+      >
       
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
