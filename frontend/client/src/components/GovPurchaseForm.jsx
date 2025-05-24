@@ -2,16 +2,18 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { FaWallet, FaTimes, FaSave } from "react-icons/fa";
 
-export default function GovPurchaseForm({ onPurchaseAdded }) {
+export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
   const [form, setForm] = useState({
     prCenter: "",
     paymentMethod: "cash",
-    amountPaid: "",
+    initialPayment: "",
     description: "",
     wheatQuantity: "",
     ratePerKg: "",
     totalAmount: "",
+    remainingAmount: "",
     date: new Date(),
   });
 
@@ -26,7 +28,7 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:8000/api/pr-centers", {
+        const response = await axios.get("http://localhost:8000/api/prcenter", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -43,15 +45,25 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
     fetchPrCenters();
   }, []);
 
-  // Calculate total amount when wheat quantity or rate changes
+  // Calculate total amount and remaining amount when values change
   useEffect(() => {
     if (form.wheatQuantity && form.ratePerKg) {
       const total = parseFloat(form.wheatQuantity) * parseFloat(form.ratePerKg);
-      setForm(prev => ({ ...prev, totalAmount: total.toFixed(2) }));
+      const remaining = total - (parseFloat(form.initialPayment) || 0);
+      
+      setForm(prev => ({ 
+        ...prev, 
+        totalAmount: total.toFixed(2),
+        remainingAmount: remaining > 0 ? remaining.toFixed(2) : "0.00"
+      }));
     } else {
-      setForm(prev => ({ ...prev, totalAmount: "" }));
+      setForm(prev => ({ 
+        ...prev, 
+        totalAmount: "",
+        remainingAmount: "" 
+      }));
     }
-  }, [form.wheatQuantity, form.ratePerKg]);
+  }, [form.wheatQuantity, form.ratePerKg, form.initialPayment]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,7 +78,7 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
 
     // Validation
     if (!form.prCenter) {
-      setError("PR Center is important");
+      setError("PR Center is required");
       return;
     }
     if (!form.wheatQuantity || isNaN(form.wheatQuantity)) {
@@ -84,11 +96,12 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
       const payload = {
         prCenter: form.prCenter,
         paymentMethod: form.paymentMethod,
-        amountPaid: parseFloat(form.amountPaid) || 0,
+        initialPayment: parseFloat(form.initialPayment) || 0,
         description: form.description,
         wheatQuantity: parseFloat(form.wheatQuantity),
         ratePerKg: parseFloat(form.ratePerKg),
         totalAmount: parseFloat(form.totalAmount),
+        remainingAmount: parseFloat(form.remainingAmount),
         date: form.date,
       };
 
@@ -109,11 +122,12 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
       setForm({
         prCenter: "",
         paymentMethod: "cash",
-        amountPaid: "",
+        initialPayment: "",
         description: "",
         wheatQuantity: "",
         ratePerKg: "",
         totalAmount: "",
+        remainingAmount: "",
         date: new Date(),
       });
     } catch (err) {
@@ -123,27 +137,48 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-white py-10 px-4">
-      <div className="max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-md">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+          <FaWallet className="mr-2" />
           Government Wheat Purchase
         </h2>
-
-        {error && <p className="text-red-600 mb-4">{error}</p>}
-        {success && <p className="text-green-600 mb-4">{success}</p>}
-
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 text-black"
+        <button
+          onClick={onCancel}
+          className="text-gray-500 hover:text-gray-700"
         >
+          <FaTimes className="text-xl" />
+        </button>
+      </div>
+
+      {error && <p className="text-red-600 mb-4">{error}</p>}
+      {success && <p className="text-green-600 mb-4">{success}</p>}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Purchase Date <span className="text-red-500">*</span>
+            </label>
+            <DatePicker
+              selected={form.date}
+              onChange={(date) => setForm((prev) => ({ ...prev, date }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              required
+            />
+          </div>
+
           {/* PR Center Dropdown */}
           <div>
-            <label className="block font-semibold mb-1">PR Center</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              PR Center <span className="text-red-500">*</span>
+            </label>
             <select
               name="prCenter"
               value={form.prCenter}
               onChange={handleChange}
-              className="w-full p-3 border border-black rounded"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
               required
             >
               <option value="">Select PR Center</option>
@@ -159,114 +194,137 @@ export default function GovPurchaseForm({ onPurchaseAdded }) {
             </select>
           </div>
 
-          {/* Amount Paid and Payment Method */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold mb-1">Amount Paid (Rs.)</label>
-              <input
-                type="number"
-                name="amountPaid"
-                placeholder="Enter amount paid"
-                value={form.amountPaid}
-                onChange={handleChange}
-                className="w-full p-3 border border-black rounded placeholder-gray-400"
-                step="0.01"
-                min="0"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold mb-1">Payment Method</label>
-              <select
-                name="paymentMethod"
-                value={form.paymentMethod}
-                onChange={handleChange}
-                className="w-full p-3 border border-black rounded"
-              >
-                <option value="cash">Cash</option>
-                <option value="bank">Bank Account</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="md:col-span-2">
-            <label className="block font-semibold mb-1">Description</label>
-            <textarea
-              name="description"
-              placeholder="Enter purchase description"
-              value={form.description}
+          {/* Wheat Quantity and Rate */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Wheat Quantity (kg) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              name="wheatQuantity"
+              placeholder="Enter quantity in kg"
+              value={form.wheatQuantity}
               onChange={handleChange}
-              className="w-full p-3 border border-black rounded placeholder-gray-400"
-              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              step="0.01"
+              min="0"
+              required
             />
           </div>
 
-          {/* Wheat Quantity and Rate */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block font-semibold mb-1">Wheat Quantity (kg)</label>
-              <input
-                type="number"
-                name="wheatQuantity"
-                placeholder="Enter quantity in kg"
-                value={form.wheatQuantity}
-                onChange={handleChange}
-                className="w-full p-3 border border-black rounded placeholder-gray-400"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-semibold mb-1">Rate Per Kg (Rs.)</label>
-              <input
-                type="number"
-                name="ratePerKg"
-                placeholder="Enter rate per kg"
-                value={form.ratePerKg}
-                onChange={handleChange}
-                className="w-full p-3 border border-black rounded placeholder-gray-400"
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Rate Per Kg (Rs.) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              name="ratePerKg"
+              placeholder="Enter rate per kg"
+              value={form.ratePerKg}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              step="0.01"
+              min="0"
+              required
+            />
           </div>
 
-          {/* Total Amount (auto-calculated) */}
+          {/* Total Amount */}
           <div>
-            <label className="block font-semibold mb-1">Total Amount (Rs.)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Total Amount (Rs.)
+            </label>
             <input
               type="text"
               name="totalAmount"
               value={form.totalAmount || "0.00"}
               readOnly
-              className="w-full p-3 border border-black rounded bg-gray-100"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
             />
           </div>
 
-          {/* Date */}
+          {/* Payment Method */}
           <div>
-            <label className="block font-semibold mb-1">Purchase Date</label>
-            <DatePicker
-              selected={form.date}
-              onChange={(date) => setForm((prev) => ({ ...prev, date }))}
-              className="w-full p-3 border border-black rounded"
-              required
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Payment Method
+            </label>
+            <select
+              name="paymentMethod"
+              value={form.paymentMethod}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+            >
+              <option value="cash">Cash</option>
+              <option value="bank">Bank Account</option>
+            </select>
+          </div>
+
+          {/* Initial Payment */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Initial Payment (Rs.)
+            </label>
+            <input
+              type="number"
+              name="initialPayment"
+              placeholder="Enter initial payment"
+              value={form.initialPayment}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              step="0.01"
+              min="0"
             />
           </div>
 
-          {/* Submit Button */}
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded hover:bg-blue-700"
-            >
-              Record Purchase
-            </button>
+          {/* Remaining Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Remaining Amount (Rs.)
+            </label>
+            <input
+              type="text"
+              name="remainingAmount"
+              value={form.remainingAmount || "0.00"}
+              readOnly
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
+            />
           </div>
-        </form>
-      </div>
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Description
+          </label>
+          <textarea
+            name="description"
+            placeholder="Enter purchase description"
+            value={form.description}
+            onChange={handleChange}
+            rows={3}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+          />
+        </div>
+
+        {/* Buttons */}
+        <div className="flex justify-end space-x-4 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+          >
+            <FaTimes className="mr-2" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+          >
+            <FaSave className="mr-2" />
+            Record Purchase
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
