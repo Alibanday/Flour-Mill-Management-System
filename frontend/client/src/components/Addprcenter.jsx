@@ -9,6 +9,8 @@ export default function AddPrCenter({ onCancel }) {
     contact: ""
   });
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -16,18 +18,37 @@ export default function AddPrCenter({ onCancel }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!formData.name || !formData.location || !formData.contact) {
+      alert("All fields are required.");
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      const token = await localStorage.getItem("token");
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Unauthorized: Admin token missing.");
+        setLoading(false);
+        return;
+      }
+
       await axios.post("http://localhost:8000/api/prcenter/create", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         }
       });
+
       alert("PR Center added successfully!");
-      onCancel();
+      onCancel(); // Close modal or return to previous screen
     } catch (error) {
-      console.error(error);
-      alert(error.response?.data?.message || "Failed to add PR Center");
+      console.error("Error adding PR Center:", error);
+      const message = error.response?.data?.message || "Failed to add PR Center";
+      alert(message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,7 +115,6 @@ export default function AddPrCenter({ onCancel }) {
           </div>
         </div>
 
-        {/* Buttons */}
         <div className="flex justify-end space-x-4 pt-4">
           <button
             type="button"
@@ -106,10 +126,13 @@ export default function AddPrCenter({ onCancel }) {
           </button>
           <button
             type="submit"
-            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
+            className={`flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white ${
+              loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             <FaSave className="mr-2" />
-            Add PR Center
+            {loading ? "Saving..." : "Add PR Center"}
           </button>
         </div>
       </form>

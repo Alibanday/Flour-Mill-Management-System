@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { FaSave, FaTimes, FaPhone, FaWhatsapp, FaMapMarkerAlt, FaWallet } from "react-icons/fa";
 
 export default function AccountCreationForm({ onCancel }) {
@@ -10,19 +10,9 @@ export default function AccountCreationForm({ onCancel }) {
     creditLimit: "",
     address: ""
   });
-  const [accountId, setAccountId] = useState("");
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Generate unique account ID on component mount
-  useEffect(() => {
-    generateAccountId();
-  }, []);
-
-  const generateAccountId = () => {
-    const randomId = Math.floor(100000 + Math.random() * 900000);
-    setAccountId(`ACC-${randomId}`);
-  };
+  const [apiError, setApiError] = useState(null);
 
   const accountTypes = [
     { value: "Payable", label: "Payable" },
@@ -34,16 +24,14 @@ export default function AccountCreationForm({ onCancel }) {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
     if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: null
-      });
+      setErrors(prev => ({ ...prev, [name]: null }));
     }
+    if (apiError) setApiError(null);
   };
 
   const validateForm = () => {
@@ -59,22 +47,41 @@ export default function AccountCreationForm({ onCancel }) {
     if (formData.creditLimit && isNaN(formData.creditLimit)) {
       newErrors.creditLimit = "Credit limit must be a number";
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      setIsSubmitting(true);
-      // Simulate API call
-      setTimeout(() => {
-        console.log("Account created:", { accountId, ...formData });
-        setIsSubmitting(false);
-        alert("Account created successfully!");
-        onCancel(); // Use onCancel instead of navigate
-      }, 1500);
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setApiError(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:8000/api/accounts", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create account");
+      }
+
+      const data = await response.json();
+      alert("Account created successfully!");
+      onCancel(); // Close form or navigate back
+
+    } catch (error) {
+      setApiError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -88,28 +95,16 @@ export default function AccountCreationForm({ onCancel }) {
         <button
           onClick={onCancel}
           className="text-gray-500 hover:text-gray-700"
+          type="button"
         >
           <FaTimes className="text-xl" />
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Account ID (read-only) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Account ID
-            </label>
-            <input
-              type="text"
-              value={accountId}
-              readOnly
-              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
-            />
-            <p className="text-xs text-gray-500 mt-1">Auto-generated account ID</p>
-          </div>
 
-          {/* Account Type */}
+        {/* Account Type */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Account Type <span className="text-red-500">*</span>
@@ -133,26 +128,26 @@ export default function AccountCreationForm({ onCancel }) {
               <p className="text-red-500 text-xs mt-1">{errors.accountType}</p>
             )}
           </div>
-        </div>
 
-        {/* Account Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Account Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="accountName"
-            value={formData.accountName}
-            onChange={handleChange}
-            placeholder="Enter account name"
-            className={`w-full px-4 py-2 border rounded-md text-black ${
-              errors.accountName ? "border-red-500" : "border-gray-300"
-            }`}
-          />
-          {errors.accountName && (
-            <p className="text-red-500 text-xs mt-1">{errors.accountName}</p>
-          )}
+          {/* Account Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Account Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="accountName"
+              value={formData.accountName}
+              onChange={handleChange}
+              placeholder="Enter account name"
+              className={`w-full px-4 py-2 border rounded-md text-black ${
+                errors.accountName ? "border-red-500" : "border-gray-300"
+              }`}
+            />
+            {errors.accountName && (
+              <p className="text-red-500 text-xs mt-1">{errors.accountName}</p>
+            )}
+          </div>
         </div>
 
         {/* Contact Information */}
@@ -234,6 +229,10 @@ export default function AccountCreationForm({ onCancel }) {
           />
         </div>
 
+        {apiError && (
+          <p className="text-red-600 text-sm mt-2">{apiError}</p>
+        )}
+
         {/* Form Actions */}
         <div className="flex justify-end space-x-4 pt-4">
           <button
@@ -247,10 +246,10 @@ export default function AccountCreationForm({ onCancel }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400"
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
           >
             <FaSave className="mr-2" />
-            {isSubmitting ? "Creating..." : "Create Account"}
+            {isSubmitting ? "Saving..." : "Save"}
           </button>
         </div>
       </form>

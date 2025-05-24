@@ -17,13 +17,15 @@ export default function GovernmentPurchase() {
   const [prCenters, setPrCenters] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const handleClick = (id) => {
+    navigate(`/prcenter/${id}`);
+  };
+
   const fetchPrCenters = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
       const res = await axios.get("http://localhost:8000/api/prcenter/all", {
-        params: { search: searchTerm },
-        headers: { Authorization: `Bearer ${token}` }
+        params: { search: searchTerm }
       });
       setPrCenters(res.data);
     } catch (error) {
@@ -51,14 +53,14 @@ export default function GovernmentPurchase() {
   ];
 
   const purchaseActions = [
-    { name: "New Invoice", icon: <FaPlus />, action: () => console.log("New Invoice") },
+    { name: "New Invoice", icon: <FaPlus />, action: () => navigate("/govpurchase") },
     { name: "Search Records", icon: <FaSearch />, action: () => console.log("Search Records") },
     { name: "Stock Update", icon: <FaBoxes />, action: () => console.log("Stock Update") }
   ];
 
   const prCenterActions = [
     { name: "Add PR Center", icon: <FaPlus />, action: () => setShowAddPrCenter(true) },
-    { name: "Search PR Centers", icon: <FaSearch />, action: () => console.log("Search PR Centers") }
+    { name: "Search PR Centers", icon: <FaSearch />, action: () => {} }
   ];
 
   const handleMenuClick = (menuName) => {
@@ -70,7 +72,7 @@ export default function GovernmentPurchase() {
   return (
     <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
          style={{ backgroundImage: "url('/dashboard.jpg')" }}>
-      
+
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
         <div className="px-6 py-3 flex items-center justify-between w-full">
@@ -95,7 +97,7 @@ export default function GovernmentPurchase() {
       </header>
 
       <div className="flex w-full">
-        {/* Purchase Sidebar */}
+        {/* Sidebar */}
         <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
           <div className="p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">GOVERNMENT PURCHASE</h3>
@@ -119,7 +121,7 @@ export default function GovernmentPurchase() {
         <main className="flex-1 p-6 w-full">
           {showPrCenters ? (
             <>
-              {/* PR Centers Actions */}
+              {/* PR Center Actions */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
                 {prCenterActions.map((button, index) => (
                   <button
@@ -172,7 +174,7 @@ export default function GovernmentPurchase() {
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {prCenters.map((center) => (
-                            <tr key={center._id} className="hover:bg-blue-50 cursor-pointer">
+                            <tr onClick={() => handleClick(center._id)}  key={center._id} className="hover:bg-blue-50 cursor-pointer">
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{center._id}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{center.name}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{center.location}</td>
@@ -188,7 +190,7 @@ export default function GovernmentPurchase() {
             </>
           ) : (
             <>
-              {/* Quick Actions */}
+              {/* Default Purchase Actions */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
                 {purchaseActions.map((button, index) => (
                   <button
@@ -204,7 +206,7 @@ export default function GovernmentPurchase() {
                 ))}
               </div>
 
-              {/* Purchase Overview */}
+              {/* Dummy Table */}
               <div className="bg-white rounded-xl shadow-sm p-6 w-full">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-gray-800">Recent Government Purchases</h2>

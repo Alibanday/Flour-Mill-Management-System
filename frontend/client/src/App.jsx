@@ -24,6 +24,11 @@ import WarehouseDetail from "./pages/WarehouseDetail";
 import EditWarehouse from "./pages/EditWarehouse";
 import AccountCreationForm from "./components/AccountCreationForm";
 import AddPrCenter from "./components/Addprcenter";
+import AccountDetail from "./pages/AccountDetail";
+import PrCenterDetail from "./pages/PrCenterDetail";
+import EditPrCenter from "./pages/EditPrCenter";
+import EditAccountForm from "./pages/EditAccountForm";
+import GovPurchaseForm from "./components/GovPurchaseForm";
 
 function App() {
   return (
@@ -62,6 +67,13 @@ function App() {
 
           <Route path="/warehouse/:id" element={<WarehouseDetail />} />
           <Route path="/warehouse/edit/:id" element={<EditWarehouse />} />
+
+          <Route path="/account/:id" element={<AccountDetail />} />
+          <Route path="/prcenter/:id" element={<PrCenterDetail />} />
+          <Route path="/prcenter/edit/:id" element={<EditPrCenter />} />
+          <Route path="/account/edit/:id" element={<EditAccountForm />} />
+          <Route path="/govpurchase" element={<GovPurchaseForm />} />
+
         </Route>
       </Routes>
     </Router>
