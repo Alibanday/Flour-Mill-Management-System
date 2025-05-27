@@ -10,6 +10,7 @@ import stockRoutes from "./routes/stockRoutes.js";
 import fileUpload from "express-fileupload";
 import prCenterRoutes from "./routes/prCenterRoutes.js";
 import accountRoutes from "./routes/accountRoutes.js";
+import invoiceRoutes from "./routes/invoiceRoutes.js";
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
 
@@ -46,6 +47,8 @@ app.use("/api/stock", stockRoutes);
 app.use("/api/prcenter", prCenterRoutes);
 
 app.use("/api/accounts", accountRoutes);
+
+app.use("/api/invoice", invoiceRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {

@@ -1,21 +1,30 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { FaSave, FaTimes, FaPhone, FaWhatsapp, FaMapMarkerAlt, FaWallet, FaUserGraduate, FaUserShield, FaMoneyBillWave, FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaSave, FaTimes, FaPhone, FaMapMarkerAlt, FaWallet, FaUserGraduate, FaUserShield, FaMoneyBillWave } from "react-icons/fa";
 
-export default function AddUserForm() {
+export default function UserEdit() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    firstName: "", lastName: "", email: "", password: "",
-    role: "Labor", status: "active", cnic: "", education: "", address: "",
-    mobile: "", bankAccount: "", guardianName: "", guardianContact: "", salary: "",
-    profileImage: null, warehouse: ""
+    firstName: "",
+    lastName: "",
+    email: "",
+    mobile: "",
+    cnic: "",
+    role: "Labor",
+    status: "active",
+    education: "",
+    address: "",
+    bankAccount: "",
+    guardianName: "",
+    guardianContact: "",
+    salary: "",
+    warehouse: ""
   });
-  const [previewImage, setPreviewImage] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [warehouses, setWarehouses] = useState([]);
-  const [showPassword, setShowPassword] = useState(false);
+  const [warehouses, setWarehouses] = useState({ warehouses: [] });
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -30,65 +39,59 @@ export default function AddUserForm() {
       }
     };
     fetchWarehouses();
-  }, []);
+
+    const fetchUser = async () => {
+      try {
+        const res = await axios.get(`http://localhost:8000/api/users/${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const user = res.data.user;
+        setFormData({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          mobile: user.mobile || "",
+          cnic: user.cnic || "",
+          role: user.role || "Labor",
+          status: user.status || "active",
+          education: user.education || "",
+          address: user.address || "",
+          bankAccount: user.bankAccount || "",
+          guardianName: user.guardianName || "",
+          guardianContact: user.guardianContact || "",
+          salary: user.salary || "",
+          warehouse: user.warehouse || ""
+        });
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load user for editing");
+      }
+    };
+    fetchUser();
+  }, [id]);
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === "profileImage") {
-      const file = files[0];
-      if (file) {
-        setFormData((prev) => ({ ...prev, profileImage: file }));
-        setPreviewImage(URL.createObjectURL(file));
-      }
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    setFormData({...formData, [e.target.name]: e.target.value});
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      const data = new FormData();
-
-      for (let key in formData) {
-        const value = formData[key];
-        if (value !== null && value !== "") {
-          if (typeof value === "string") {
-            data.append(key, value.toLowerCase());
-          } else {
-            data.append(key, value);
-          }
-        }
-      }
-
       const token = localStorage.getItem("token");
-
-      const response = await axios.post(
-        "http://localhost:8000/api/users/create",
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.status === 201) {
-        alert("User registered successfully!");
-        navigate(-1);
-      } else {
-        setError("Failed to create user. Please try again.");
-      }
+      await axios.put(`http://localhost:8000/api/users/${id}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert("User updated successfully");
+      navigate(`/users`);
     } catch (err) {
       console.error(err);
       if (axios.isAxiosError(err)) {
-        const message = err.response?.data?.message || "Server error. Please try again.";
+        const message = err.response?.data?.message || "Failed to update user";
         setError(message);
       } else {
-        setError("Unexpected error occurred. Please refresh and try again.");
+        setError("Failed to update user");
       }
     } finally {
       setLoading(false);
@@ -102,7 +105,7 @@ export default function AddUserForm() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800 flex items-center">
               <FaWallet className="mr-2" />
-              Create New User
+              Edit User
             </h2>
             <button
               onClick={() => navigate(-1)}
@@ -111,16 +114,6 @@ export default function AddUserForm() {
               <FaTimes className="text-xl" />
             </button>
           </div>
-
-          {previewImage && (
-            <div className="flex justify-center mb-6">
-              <img 
-                src={previewImage} 
-                alt="Preview" 
-                className="w-32 h-32 object-cover rounded-full border-4 border-white shadow-md"
-              />
-            </div>
-          )}
 
           {error && (
             <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md text-center">
@@ -136,17 +129,6 @@ export default function AddUserForm() {
                 Basic Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Profile Picture</label>
-                  <input
-                    type="file"
-                    name="profileImage"
-                    accept="image/*"
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
-                  />
-                </div>
-                
                 {[
                   { label: "First Name", name: "firstName" },
                   { label: "Last Name", name: "lastName" },
@@ -158,6 +140,7 @@ export default function AddUserForm() {
                     <input
                       type={field.type || "text"}
                       name={field.name}
+                      value={formData[field.name]}
                       placeholder={field.placeholder || field.label}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -165,28 +148,6 @@ export default function AddUserForm() {
                     />
                   </div>
                 ))}
-
-                {/* Password field with toggle */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="Password"
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm pr-10"
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -202,6 +163,7 @@ export default function AddUserForm() {
                   <input
                     type="text"
                     name="education"
+                    value={formData.education}
                     placeholder="Highest education degree"
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -215,6 +177,7 @@ export default function AddUserForm() {
                   <input
                     type="text"
                     name="mobile"
+                    value={formData.mobile}
                     placeholder="+92XXXXXXXXXX"
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -248,6 +211,7 @@ export default function AddUserForm() {
                   <input
                     type="text"
                     name="guardianName"
+                    value={formData.guardianName}
                     placeholder="Guardian's full name"
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -259,6 +223,7 @@ export default function AddUserForm() {
                   <input
                     type="text"
                     name="guardianContact"
+                    value={formData.guardianContact}
                     placeholder="Guardian's phone number"
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -279,6 +244,7 @@ export default function AddUserForm() {
                   <input
                     type="text"
                     name="bankAccount"
+                    value={formData.bankAccount}
                     placeholder="Bank account number"
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -290,6 +256,7 @@ export default function AddUserForm() {
                   <input
                     type="number"
                     name="salary"
+                    value={formData.salary}
                     placeholder="Monthly salary"
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
@@ -308,12 +275,12 @@ export default function AddUserForm() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
                   <select
                     name="warehouse"
+                    value={formData.warehouse}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
-                    required
                   >
                     <option value="">Select a Warehouse</option>
-                    {warehouses?.warehouses && warehouses.warehouses.map((warehouse) => (
+                    {warehouses.warehouses.map((warehouse) => (
                       <option key={warehouse._id} value={warehouse._id}>
                         {warehouse.name} - {warehouse.location}
                       </option>
@@ -325,9 +292,9 @@ export default function AddUserForm() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                   <select
                     name="role"
+                    value={formData.role}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
-                    value={formData.role}
                   >
                     <option value="labor">Labour</option>
                     <option value="admin">Admin</option>
@@ -342,9 +309,9 @@ export default function AddUserForm() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                   <select
                     name="status"
+                    value={formData.status}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black text-sm"
-                    value={formData.status}
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -365,12 +332,12 @@ export default function AddUserForm() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
                     </svg>
-                    Creating...
+                    Saving...
                   </>
                 ) : (
                   <>
                     <FaSave />
-                    Create User
+                    Save Changes
                   </>
                 )}
               </button>

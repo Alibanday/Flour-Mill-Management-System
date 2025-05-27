@@ -15,6 +15,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
     totalAmount: "",
     remainingAmount: "",
     date: new Date(),
+    status: "pending", // Added status field with default value
   });
 
   const [prCenters, setPrCenters] = useState([]);
@@ -92,6 +93,10 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
 
     try {
       const token = localStorage.getItem("token");
+      console.log('token', token)
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
 
       const payload = {
         prCenter: form.prCenter,
@@ -103,14 +108,17 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
         totalAmount: parseFloat(form.totalAmount),
         remainingAmount: parseFloat(form.remainingAmount),
         date: form.date,
+        status: form.status, // Added status to payload
+        type:'government',
       };
 
       const response = await axios.post(
-        "http://localhost:8000/api/gov-purchases",
+        "http://localhost:8000/api/invoice",
         payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
           },
         }
       );
@@ -129,6 +137,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
         totalAmount: "",
         remainingAmount: "",
         date: new Date(),
+        status: "pending", // Reset status to default
       });
     } catch (err) {
       console.error(err);
@@ -304,6 +313,22 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
             rows={3}
             className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
           />
+        </div>
+
+        {/* Status Dropdown - Moved to the end of the form */}
+        <div className="w-full md:w-1/2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Status
+          </label>
+          <select
+            name="status"
+            value={form.status}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+          >
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+          </select>
         </div>
 
         {/* Buttons */}

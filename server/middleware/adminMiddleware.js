@@ -19,3 +19,25 @@ export const authAdmin = (req, res, next) => {
   }
 };
 
+export const authAdminOrSales = (req, res, next) => {
+  console.log('--- Middleware Debug ---');
+  
+  if (!req.user) {
+    console.log('No user found in request');
+    return res.status(403).json({ message: "Access denied - no user" });
+  }
+
+  console.log('User role:', req.user.role);
+  
+  if (!["admin", "sale manager"].includes(req.user.role)) {
+    console.log(`Role '${req.user.role}' not allowed`);
+    return res.status(403).json({ 
+      message: `Access denied. Your role: ${req.user.role}` 
+    });
+  }
+
+  console.log('Access granted');
+  next();
+};
+
+

@@ -11,9 +11,10 @@ import GovPurchaseForm from "../components/GovPurchaseForm";
 
 export default function GovernmentPurchase() {
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState("Purchase Invoice");
+  const [activeMenu, setActiveMenu] = useState("");
   const [showPrCenters, setShowPrCenters] = useState(false);
   const [showAddPrCenter, setShowAddPrCenter] = useState(false);
+  const [showPurchaseForm, setShowPurchaseForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [prCenters, setPrCenters] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +55,7 @@ export default function GovernmentPurchase() {
   ];
 
   const purchaseActions = [
-    { name: "New Invoice", icon: <FaPlus />, action: () => setActiveMenu("Purchase Invoice") },
+    { name: "New Invoice", icon: <FaPlus />, action: () => setShowPurchaseForm(true) },
     { name: "Search Records", icon: <FaSearch />, action: () => console.log("Search Records") },
     { name: "Stock Update", icon: <FaBoxes />, action: () => console.log("Stock Update") }
   ];
@@ -68,13 +69,16 @@ export default function GovernmentPurchase() {
     setActiveMenu(menuName);
     setShowPrCenters(menuName === "PR Centers");
     setShowAddPrCenter(false);
+    setShowPurchaseForm(false);
+  };
+
+  const handleCancelPurchaseForm = () => {
+    setShowPurchaseForm(false);
   };
 
   return (
-     <div
-        className="min-h-screen w-full bg-white bg-opacity-30 backdrop-blur-sm bg-cover bg-no-repeat bg-center"
-        style={{ backgroundImage: "url('/dashboard.jpg')" }}
-      >
+    <div className="min-h-screen w-full bg-white bg-opacity-30 backdrop-blur-sm bg-cover bg-no-repeat bg-center"
+      style={{ backgroundImage: "url('/dashboard.jpg')" }}>
 
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
@@ -122,24 +126,8 @@ export default function GovernmentPurchase() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          {activeMenu === "Purchase Invoice" ? (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-                {purchaseActions.map((button, index) => (
-                  <button
-                    key={index}
-                    onClick={button.action}
-                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-                  >
-                    <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                      {button.icon}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
-                  </button>
-                ))}
-              </div>
-              <GovPurchaseForm />
-            </>
+          {showPurchaseForm ? (
+            <GovPurchaseForm onCancel={handleCancelPurchaseForm} />
           ) : showPrCenters ? (
             <>
               {/* PR Center Actions */}
