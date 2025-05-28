@@ -106,7 +106,7 @@ export default function AddUserForm() {
             </h2>
             <button
               onClick={() => navigate(-1)}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-blue-500 !bg-gray-200 hover:text-blue-700"
             >
               <FaTimes className="text-xl" />
             </button>
@@ -180,7 +180,7 @@ export default function AddUserForm() {
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center !bg-blue-200 text-gray-500 hover:text-gray-700"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -357,7 +357,7 @@ export default function AddUserForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors duration-200"
+                className="w-full !bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center justify-center gap-2 transition-colors duration-200"
               >
                 {loading ? (
                   <>

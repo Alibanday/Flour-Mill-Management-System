@@ -39,8 +39,8 @@ export default function EmployeePage() {
   // Quick actions similar to warehouse page
   const employeeActions = [
     { name: "Add Employee", icon: <FaUserPlus />, action: () => setActiveTab("registration") },
-    { name: "Search", icon: <FaSearch />, action: () => console.log("Search Employees") },
-    { name: "Export Data", icon: <FaFileExport />, action: () => console.log("Export Data") }
+    // { name: "Search", icon: <FaSearch />, action: () => console.log("Search Employees") },
+    // { name: "Export Data", icon: <FaFileExport />, action: () => console.log("Export Data") }
   ];
 
   return (

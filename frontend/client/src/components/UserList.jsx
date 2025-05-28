@@ -98,7 +98,7 @@ export default function UserList() {
   }, []);
 
   if (loading) return (
-    <div className="flex justify-center items-center h-screen">
+    <div className="flex justify-center items-cent *:er h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
   );
@@ -193,7 +193,7 @@ export default function UserList() {
       <div className="flex justify-center items-center space-x-2">
         <button
           onClick={prevPage}
-          className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          className="px-3 py-1 !bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
         >
           Previous
         </button>
@@ -201,14 +201,14 @@ export default function UserList() {
           <button
             key={idx + 1}
             onClick={() => setCurrentPage(idx + 1)}
-            className={`px-3 py-1 rounded ${currentPage === idx + 1 ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+            className={`px-3 py-1 rounded ${currentPage === idx + 1 ? "!bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
           >
             {idx + 1}
           </button>
         ))}
         <button
           onClick={nextPage}
-          className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+          className="px-3 py-1 !bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
         >
           Next
         </button>
