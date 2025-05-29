@@ -45,8 +45,10 @@ const invoiceSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "PrCenter",
   },
-  sellerName: String,
-  sellerDescription: String,
+   seller: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Account",
+  },
 }, { timestamps: true });
 
 const Invoice = mongoose.model("Invoice", invoiceSchema);

@@ -3,15 +3,24 @@ import Invoice from "../model/Invoice.js";
 // 🔍 Get All Invoices with Pagination + Search
 export const getAllInvoices = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
+    const { page = 1, limit = 10, search = "", type } = req.query;
 
     const query = {
-      $or: [
-        { sellerName: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { sellerDescription: { $regex: search, $options: "i" } },
+      $and: [
+        {
+          $or: [
+            { sellerName: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { sellerDescription: { $regex: search, $options: "i" } },
+          ],
+        },
       ],
     };
+
+    // If `type` is provided, add it to query
+    if (type) {
+      query.$and.push({ type: { $regex: type, $options: "i" } }); // case-insensitive
+    }
 
     const total = await Invoice.countDocuments(query);
     const invoices = await Invoice.find(query)
@@ -32,6 +41,7 @@ export const getAllInvoices = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 // 🔍 Get Invoice by ID
 export const getInvoiceById = async (req, res) => {

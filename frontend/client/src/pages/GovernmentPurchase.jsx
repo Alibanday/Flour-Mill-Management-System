@@ -17,10 +17,15 @@ export default function GovernmentPurchase() {
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [prCenters, setPrCenters] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const handleClick = (id) => {
     navigate(`/prcenter/${id}`);
+  };
+
+  const handleClickInvoice = (id) => {
+    navigate(`/govpurchasedetail/${id}`);
   };
 
   const fetchPrCenters = async () => {
@@ -37,9 +42,26 @@ export default function GovernmentPurchase() {
     }
   };
 
+  const fetchInvoices = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get("http://localhost:8000/api/invoice", {
+        params: { search: searchTerm, type: 'government' }
+      });
+      setInvoices(res?.data?.invoices);
+      console.log('invoice res.data)', res?.data?.invoices)
+    } catch (error) {
+      console.error("Failed to fetch invoices:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (showPrCenters) {
       fetchPrCenters();
+    } else {
+      fetchInvoices();
     }
   }, [searchTerm, showPrCenters, showAddPrCenter]);
 
@@ -74,6 +96,11 @@ export default function GovernmentPurchase() {
 
   const handleCancelPurchaseForm = () => {
     setShowPurchaseForm(false);
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
   return (
@@ -215,7 +242,7 @@ export default function GovernmentPurchase() {
                 ))}
               </div>
 
-              {/* Dummy Table */}
+              {/* Invoices Table */}
               <div className="bg-white rounded-xl shadow-sm p-6 w-full">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold text-gray-800">Recent Government Purchases</h2>
@@ -223,6 +250,8 @@ export default function GovernmentPurchase() {
                     <FaSearch className="absolute left-3 top-3 text-gray-400" />
                     <input
                       type="text"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
                       placeholder="Search purchases..."
                       className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
                     />
@@ -234,35 +263,41 @@ export default function GovernmentPurchase() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wheat Quantity</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      <tr className="hover:bg-blue-50 cursor-pointer">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#1</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Govt. Food Dept</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. 150,000</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2024-03-20</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            Pending
-                          </span>
-                        </td>
-                      </tr>
-                      <tr className="hover:bg-blue-50 cursor-pointer">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#2</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Wheat Board</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. 200,000</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2024-03-18</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Completed
-                          </span>
-                        </td>
-                      </tr>
+                      {loading ? (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">Loading...</td>
+                        </tr>
+                      ) : invoices.length > 0 ? (
+                        invoices.map((invoice) => (
+                          <tr onClick={() => handleClickInvoice(invoice?._id)}  key={invoice._id} className="hover:bg-blue-50 cursor-pointer">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{invoice._id}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{invoice.paymentMethod}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {invoice.wheatQuantity} kg @ Rs. {invoice.ratePerKg}/kg
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. {invoice.totalAmount}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(invoice.date)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                ${invoice.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                {invoice.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">No invoices found</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

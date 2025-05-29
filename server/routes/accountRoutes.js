@@ -26,10 +26,10 @@ const accountValidationRules = [
     .optional()
     .matches(/^\d{10,15}$/)
     .withMessage("Invalid WhatsApp number"),
-  body("creditLimit")
-    .optional()
-    .isNumeric()
-    .withMessage("Credit limit must be a number"),
+body("creditLimit")
+  .optional({ checkFalsy: true }) 
+  .isNumeric()
+  .withMessage("Credit limit must be a number"),
   body("address").notEmpty().withMessage("Address is required"),
 ];
 

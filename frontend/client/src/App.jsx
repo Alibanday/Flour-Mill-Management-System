@@ -29,6 +29,8 @@ import PrCenterDetail from "./pages/PrCenterDetail";
 import EditPrCenter from "./pages/EditPrCenter";
 import EditAccountForm from "./pages/EditAccountForm";
 import GovPurchaseForm from "./components/GovPurchaseForm";
+import PrivatePurchaseForm from "./components/PrivatePurchaseForm";
+import GovPurchaseDetail from "./pages/GovPurchasedetail";
 
 function App() {
   return (
@@ -73,6 +75,8 @@ function App() {
           <Route path="/prcenter/edit/:id" element={<EditPrCenter />} />
           <Route path="/account/edit/:id" element={<EditAccountForm />} />
           <Route path="/govpurchase" element={<GovPurchaseForm />} />
+          <Route path="/pvtpurchase" element={<PrivatePurchaseForm />} />
+            <Route path="/govpurchasedetail/:id" element={<GovPurchaseDetail />} />
 
         </Route>
       </Routes>

@@ -45,13 +45,22 @@ export const createAccount = async (req, res) => {
 
 export const getAllAccounts = async (req, res) => {
   try {
-    const accounts = await Account.find().sort({ createdAt: -1 });
+    const { type } = req.query;
+    let filter = {};
+
+    if (type) {
+      // Match case-insensitive
+      filter.accountType = new RegExp(`^${type}$`, 'i');
+    }
+
+    const accounts = await Account.find(filter).sort({ createdAt: -1 });
     return res.json(accounts);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Server error" });
   }
 };
+
 
 export const getAccountById = async (req, res) => {
   try {
