@@ -69,8 +69,10 @@ export default function PrivatePurchase() {
   };
 
   return (
-    <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
-         style={{ backgroundImage: "url('/dashboard.jpg')" }}>
+    <div
+      className="min-h-screen w-full bg-white bg-opacity-30 backdrop-blur-sm bg-cover bg-no-repeat bg-center"
+      style={{ backgroundImage: "url('/dashboard.jpg')" }}
+    >
       
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
@@ -173,7 +175,12 @@ export default function PrivatePurchase() {
                       </tr>
                     ) : invoices.length > 0 ? (
                       invoices.map((invoice) => (
-                        <tr key={invoice._id} className="hover:bg-blue-50 cursor-pointer">
+                        <tr 
+                            key={invoice._id} 
+                            className="hover:bg-blue-50 cursor-pointer"
+                            onClick={() => navigate(`/privatepurchasedetail/${invoice._id}`)}
+                          >
+
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{invoice._id}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{invoice.paymentMethod}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

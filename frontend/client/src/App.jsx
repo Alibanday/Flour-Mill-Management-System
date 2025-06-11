@@ -31,6 +31,7 @@ import EditAccountForm from "./pages/EditAccountForm";
 import GovPurchaseForm from "./components/GovPurchaseForm";
 import PrivatePurchaseForm from "./components/PrivatePurchaseForm";
 import GovPurchaseDetail from "./pages/GovPurchasedetail";
+import PrivatePurchaseDetail from "./pages/PrivatePurchaseDetail";
 
 function App() {
   return (
@@ -76,7 +77,10 @@ function App() {
           <Route path="/account/edit/:id" element={<EditAccountForm />} />
           <Route path="/govpurchase" element={<GovPurchaseForm />} />
           <Route path="/pvtpurchase" element={<PrivatePurchaseForm />} />
-            <Route path="/govpurchasedetail/:id" element={<GovPurchaseDetail />} />
+          <Route path="/govpurchasedetail/:id" element={<GovPurchaseDetail />} />
+          <Route path="/privatepurchasedetail/:id" element={< PrivatePurchaseDetail/>} />
+
+
 
         </Route>
       </Routes>
