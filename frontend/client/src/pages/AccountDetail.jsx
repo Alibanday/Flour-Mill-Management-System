@@ -79,7 +79,7 @@ const AccountDetail = () => {
         {/* Header with back button and actions */}
         <div className="flex justify-between items-center mb-6">
           <button
-            onClick={() => navigate("/account")}
+            onClick={() => navigate("/AccountsPage")}
             className="flex items-center text-blue-600 hover:text-blue-800"
           >
             <FaArrowLeft className="mr-2" />
