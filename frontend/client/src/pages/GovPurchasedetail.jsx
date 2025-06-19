@@ -109,14 +109,14 @@ export default function GovPurchaseDetail() {
         <div className="flex space-x-3">
           <button
             onClick={handleEdit}
-            className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
+            className="flex items-center px-4 py-2 !bg-yellow-500 text-white rounded-md hover:bg-yellow-600"
           >
             <FaEdit className="mr-2" />
             Edit
           </button>
           <button
             onClick={handlePrint}
-            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            className="flex items-center px-4 py-2 !bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
             <FaPrint className="mr-2" />
             Print

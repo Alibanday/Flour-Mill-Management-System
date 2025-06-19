@@ -238,7 +238,7 @@ export default function AccountCreationForm({ onCancel }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-white !bg-black hover:bg-gray-50"
           >
             <FaTimes className="mr-2" />
             Cancel
@@ -246,7 +246,8 @@ export default function AccountCreationForm({ onCancel }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center px-4 py-2 !bg-blue-600 text-white rounded-md 
+            hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
             <FaSave className="mr-2" />
             {isSubmitting ? "Saving..." : "Save"}
