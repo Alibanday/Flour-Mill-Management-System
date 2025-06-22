@@ -336,14 +336,14 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
           <button
             type="button"
             onClick={onCancel}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 !bg-gray-200 hover:bg-gray-50"
           >
             <FaTimes className="mr-2" />
             Cancel
           </button>
           <button
             type="submit"
-            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white !bg-blue-600 hover:bg-blue-700"
           >
             <FaSave className="mr-2" />
             Record Purchase

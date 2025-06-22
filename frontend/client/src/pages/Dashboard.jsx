@@ -19,8 +19,16 @@ export default function Dashboard() {
   };
 
   const mastersMenu = [
-    { name: "Ledger", icon: <FaBook className="mr-3" /> },
-    { name: "Bags", icon: <FaShoppingBag className="mr-3" /> },
+    { name: "Ledger", 
+      icon: <FaBook className="mr-3" />,
+      
+      
+
+     },
+    { name: "Bags",
+       icon: <FaShoppingBag className="mr-3" />,
+      action: ()=> navigate ("/bags-screen")
+    },
     { 
       name: "Gov Purchase", 
       icon: <FaIndustry className="mr-3" />,
