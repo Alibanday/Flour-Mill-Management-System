@@ -34,6 +34,9 @@ import GovPurchaseDetail from "./pages/GovPurchasedetail";
 import PrivatePurchaseDetail from "./pages/PrivatePurchaseDetail";
 import GovPurchaseEditForm from "./pages/GovPurchaseEditForm";
 import BagsScreen from "./pages/BagsScreen";
+import BagPurchaseInvoice from "./components/BagPurchaseInvoice";
+import BagSalesInvoice from "./components/BagSalesInvoice";
+import FoodArrivalDetail from "./pages/FoodArrivalDetail";
 
 function App() {
   return (
@@ -84,8 +87,9 @@ function App() {
           <Route path="/govpurchasedetail/:id" element={<GovPurchaseEditForm />} />
 
           <Route path="/privatepurchasedetail/:id" element={< PrivatePurchaseDetail/>} />
-
-
+          <Route path="/bagpurchaseinvoice" element={<BagPurchaseInvoice />} />
+          <Route path="/bagsalesinvoice" element={<BagSalesInvoice />} />
+          <Route path="/foodarrival/:id" element={<FoodArrivalDetail />} />
 
         </Route>
       </Routes>

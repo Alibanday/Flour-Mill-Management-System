@@ -2,6 +2,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { FaBoxes } from "react-icons/fa";
 
 const WarehouseDetail = () => {
   const { id } = useParams();
@@ -9,6 +10,7 @@ const WarehouseDetail = () => {
   const [warehouse, setWarehouse] = useState(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [bagStock, setBagStock] = useState([]);
 
   useEffect(() => {
     const fetchWarehouse = async () => {
@@ -20,6 +22,13 @@ const WarehouseDetail = () => {
           }
         });
         setWarehouse(res.data);
+
+        const stockRes = await axios.get("http://localhost:8000/api/stock", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 500, warehouse: id }
+        });
+        const bags = stockRes.data.stocks.filter(s=>s.itemType==="bags");
+        setBagStock(bags);
       } catch (err) {
         console.error("Error fetching warehouse:", err);
       } finally {
@@ -114,6 +123,17 @@ const WarehouseDetail = () => {
                   </svg>
                 } />
               </div>
+
+              {/* Bag stock table */}
+              {bagStock.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="text-xl font-semibold flex items-center mb-3"><FaBoxes className="mr-2"/>Bag Stock</h2>
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left">Item</th><th className="px-4 py-2 text-left">Subtype</th><th className="px-4 py-2 text-left">Qty (bags)</th></tr></thead>
+                    <tbody>{bagStock.map((s,i)=>(<tr key={i}><td className="px-4 py-2">{s.itemName}</td><td className="px-4 py-2">{s.subType}</td><td className="px-4 py-2">{s.quantity?.value}</td></tr>))}</tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

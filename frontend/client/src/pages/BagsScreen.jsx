@@ -5,6 +5,9 @@ import {
   FaChartLine, FaSearch, FaFileExport, FaEdit, FaTrash,
   FaShoppingBag, FaReceipt, FaBoxes, FaWarehouse
 } from "react-icons/fa";
+import BagPurchaseInvoice from "../components/BagPurchaseInvoice";
+import BagSalesInvoice from "../components/BagSalesInvoice";
+import BagStock from "../components/BagStock";
 
 
 export default function BagsScreen() {
@@ -15,19 +18,17 @@ export default function BagsScreen() {
   const [loading, setLoading] = useState(true);
 
   const bagsMenu = [
-    { name: "Add Bag", icon: <FaPlus className="mr-3" /> },
-    { name: "All Bags", icon: <FaList className="mr-3" /> },
+    
     { name: "Sales Invoice", icon: <FaReceipt className="mr-3" /> },
     { name: "Purchase Invoice", icon: <FaMoneyCheckAlt className="mr-3" /> },
     { name: "Stock", icon: <FaBoxes className="mr-3" /> },
     { name: "Warehouse", icon: <FaWarehouse className="mr-3" /> },
-    { name: "Reports", icon: <FaChartLine className="mr-3" /> }
+    
   ];
 
   const bagActions = [
     { name: "New Bag", icon: <FaPlus />, action: () => setActiveMenu("Add Bag") },
-    { name: "Search Bags", icon: <FaSearch />, action: () => console.log("Search Bags") },
-    { name: "Export Data", icon: <FaFileExport />, action: () => console.log("Export Data") }
+   
   ];
 
   const handleClick = (id) => {
@@ -126,6 +127,12 @@ export default function BagsScreen() {
         <main className="flex-1 p-6 w-full">
           {activeMenu === "Add Bag" ? (
             <BagCreationForm onCancel={() => setActiveMenu("AllBags")} />
+          ) : activeMenu === "Purchase Invoice" ? (
+            <BagPurchaseInvoice onCancel={() => setActiveMenu("AllBags")} />
+          ) : activeMenu === "Sales Invoice" ? (
+            <BagSalesInvoice onCancel={() => setActiveMenu("AllBags")} />
+          ) : activeMenu === "Stock" ? (
+            <BagStock onCancel={() => setActiveMenu("AllBags")} />
           ) : (
             <>
               {/* Quick Actions */}

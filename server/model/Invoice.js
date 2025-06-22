@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const invoiceSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ["government", "private"],
+    enum: ["government", "private", "bag"],
     required: true,
   },
   paymentMethod: {
@@ -18,11 +18,15 @@ const invoiceSchema = new mongoose.Schema({
   description: String,
   wheatQuantity: {
     type: Number,
-    required: true,
+    required: function () {
+      return this.type !== "bag";
+    },
   },
   ratePerKg: {
     type: Number,
-    required: true,
+    required: function () {
+      return this.type !== "bag";
+    },
   },
   totalAmount: {
     type: Number,
@@ -48,6 +52,25 @@ const invoiceSchema = new mongoose.Schema({
    seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Account",
+  },
+  items: [
+    {
+      bagType: {
+        type: String,
+        enum: ["Ata", "Maida", "Suji", "Fine"],
+      },
+      weight: Number, // kg
+      quantity: Number,
+      pricePerBag: Number,
+    },
+  ],
+  gatepass: {
+    type: Boolean,
+    default: false,
+  },
+  warehouse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Warehouse",
   },
 }, { timestamps: true });
 

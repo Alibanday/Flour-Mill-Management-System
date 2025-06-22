@@ -8,6 +8,7 @@ import {
 } from "react-icons/fa";
 import AddPrCenter from "../components/Addprcenter";
 import GovPurchaseForm from "../components/GovPurchaseForm";
+import FoodArrivalEntry from "../components/FoodArrivalEntry";
 
 export default function GovernmentPurchase() {
   const navigate = useNavigate();
@@ -15,10 +16,16 @@ export default function GovernmentPurchase() {
   const [showPrCenters, setShowPrCenters] = useState(false);
   const [showAddPrCenter, setShowAddPrCenter] = useState(false);
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
+  const [showArrival, setShowArrival] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [prCenters, setPrCenters] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filterToday, setFilterToday] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const handleClick = (id) => {
     navigate(`/prcenter/${id}`);
@@ -45,11 +52,18 @@ export default function GovernmentPurchase() {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:8000/api/invoice", {
-        params: { search: searchTerm, type: 'government' }
-      });
+      const params = { search: searchTerm, type:'government', limit:10, page };
+      if(filterToday){
+        const today = new Date().toISOString().slice(0,10);
+        params.startDate=today;
+        params.endDate=today;
+      } else if(rangeFrom && rangeTo){
+        params.startDate=rangeFrom;
+        params.endDate=rangeTo;
+      }
+      const res = await axios.get("http://localhost:8000/api/invoice", { params });
       setInvoices(res?.data?.invoices);
-      console.log('invoice res.data)', res?.data?.invoices)
+      setTotalPages(res?.data?.totalPages||1);
     } catch (error) {
       console.error("Failed to fetch invoices:", error.message);
     } finally {
@@ -63,7 +77,7 @@ export default function GovernmentPurchase() {
     } else {
       fetchInvoices();
     }
-  }, [searchTerm, showPrCenters, showAddPrCenter]);
+  }, [searchTerm, showPrCenters, showAddPrCenter, filterToday, rangeFrom, rangeTo, page]);
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -72,7 +86,7 @@ export default function GovernmentPurchase() {
   const purchaseMenu = [
     { name: "Purchase Invoice", icon: <FaClipboardList className="mr-3" /> },
     { name: "Food Arrival Entry", icon: <FaTruck className="mr-3" /> },
-    { name: "Reports", icon: <FaChartLine className="mr-3" /> },
+    
     { name: "PR Centers", icon: <FaBuilding className="mr-3" /> }
   ];
 
@@ -92,6 +106,7 @@ export default function GovernmentPurchase() {
     setShowPrCenters(menuName === "PR Centers");
     setShowAddPrCenter(false);
     setShowPurchaseForm(false);
+    setShowArrival(menuName === "Food Arrival Entry");
   };
 
   const handleCancelPurchaseForm = () => {
@@ -155,6 +170,8 @@ export default function GovernmentPurchase() {
         <main className="flex-1 p-6 w-full">
           {showPurchaseForm ? (
             <GovPurchaseForm onCancel={handleCancelPurchaseForm} />
+          ) : showArrival ? (
+            <FoodArrivalEntry />
           ) : showPrCenters ? (
             <>
               {/* PR Center Actions */}
@@ -244,17 +261,32 @@ export default function GovernmentPurchase() {
 
               {/* Invoices Table */}
               <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
                   <h2 className="text-lg font-semibold text-gray-800">Recent Government Purchases</h2>
-                  <div className="relative">
-                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={handleSearchChange}
-                      placeholder="Search purchases..."
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                    />
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        setFilterToday(!filterToday);
+                        setRangeFrom("");
+                        setRangeTo("");
+                      }}
+                      className={`px-3 py-2 text-sm rounded ${filterToday ? '!bg-blue-600 text-white' : '!bg-gray-200 hover:!bg-gray-300'}`}
+                    >
+                      Today
+                    </button>
+                    <input type="date" value={rangeFrom} onChange={e=>{setRangeFrom(e.target.value);setFilterToday(false);}} className="border px-2 py-1 text-sm"/>
+                    <span className="text-gray-500">to</span>
+                    <input type="date" value={rangeTo} onChange={e=>{setRangeTo(e.target.value);setFilterToday(false);}} className="border px-2 py-1 text-sm"/>
+                    <div className="relative">
+                      <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        placeholder="Search purchases..."
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -300,6 +332,12 @@ export default function GovernmentPurchase() {
                       )}
                     </tbody>
                   </table>
+                  {/* Pagination */}
+                  <div className="mt-4 flex justify-center gap-3">
+                    <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="px-3 py-1 border rounded !bg-gray-100 hover:!bg-blue-600 hover:text-white disabled:opacity-50">Prev</button>
+                    <span className="px-2 py-1">Page {page} of {totalPages}</span>
+                    <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="px-3 py-1 border rounded !bg-gray-100 hover:!bg-blue-600 hover:text-white disabled:opacity-50">Next</button>
+                  </div>
                 </div>
               </div>
             </>

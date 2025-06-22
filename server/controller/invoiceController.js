@@ -1,25 +1,33 @@
 import Invoice from "../model/Invoice.js";
+import Stock from "../model/stock.js";
 
 // 🔍 Get All Invoices with Pagination + Search
 export const getAllInvoices = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", type } = req.query;
+    const { page = 1, limit = 10, search = "", type, status, startDate, endDate } = req.query;
 
-    const query = {
-      $and: [
-        {
-          $or: [
-            { sellerName: { $regex: search, $options: "i" } },
-            { description: { $regex: search, $options: "i" } },
-            { sellerDescription: { $regex: search, $options: "i" } },
-          ],
-        },
-      ],
-    };
+    const query = {};
 
-    // If `type` is provided, add it to query
+    if (search) {
+      query.$or = [
+        { sellerName: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { sellerDescription: { $regex: search, $options: "i" } },
+      ];
+    }
+
     if (type) {
-      query.$and.push({ type: { $regex: type, $options: "i" } }); // case-insensitive
+      query.type = { $regex: type, $options: "i" };
+    }
+
+    if (status) {
+      query.status = { $regex: status, $options: "i" };
+    }
+
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate);
     }
 
     const total = await Invoice.countDocuments(query);
@@ -56,11 +64,47 @@ export const getInvoiceById = async (req, res) => {
   }
 };
 
+// helper to update bag stock
+const adjustBagStock = async (warehouseId, items, isPurchase) => {
+  if (!warehouseId) return;
+  for (const it of items) {
+    const filter = {
+      warehouse: warehouseId,
+      itemName: it.bagType,
+      itemType: "bags",
+      subType: `${it.weight}kg`,
+    };
+    let stock = await Stock.findOne(filter);
+    const delta = (isPurchase ? 1 : -1) * Number(it.quantity || 0);
+    if (!stock) {
+      if (delta < 0) continue; // cannot deduct
+      stock = new Stock({
+        ...filter,
+        quantity: { value: delta, unit: "bags" },
+        date: new Date(),
+      });
+    } else {
+      stock.quantity.value = (stock.quantity.value || 0) + delta;
+      if (stock.quantity.value < 0) stock.quantity.value = 0;
+    }
+    await stock.save();
+  }
+};
+
 // ✅ Create Invoice (Admin or Sales Manager)
 export const createInvoice = async (req, res) => {
   try {
     const invoice = new Invoice(req.body);
     await invoice.save();
+
+    // Auto adjust stock for bag purchases / sales
+    if (invoice.type === "bag" && invoice.warehouse) {
+      await adjustBagStock(invoice.warehouse, invoice.items || [], true);
+    }
+    if (invoice.type === "bagsale" && invoice.warehouse) {
+      await adjustBagStock(invoice.warehouse, invoice.items || [], false);
+    }
+
     res.status(201).json({ message: "Invoice created", invoice });
   } catch (err) {
     console.error("Create Invoice Error:", err);

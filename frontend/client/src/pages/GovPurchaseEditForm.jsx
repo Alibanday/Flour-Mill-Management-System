@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { FaWallet, FaTimes, FaSave } from "react-icons/fa";
-import { useParams, useNavigate } from "react-router-dom";
 
 export default function GovPurchaseEditForm() {
   const { id } = useParams();
@@ -25,71 +25,50 @@ export default function GovPurchaseEditForm() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
 
-  // Fetch PR Centers from API
   useEffect(() => {
-    const fetchPrCenters = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:8000/api/prcenter", {
-          headers: {
-            Authorization: Bearer ${token},
-          },
-        });
-        setPrCenters(response.data);
-      } catch (err) {
-        console.error("Failed to fetch PR Centers:", err);
-        setError("Failed to load PR Centers");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPrCenters();
-  }, []);
-
-  // Fetch existing purchase data
-  useEffect(() => {
-    const fetchPurchaseData = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        const response = await axios.get(http://localhost:8000/api/invoice/${id}, {
-          headers: {
-            Authorization: Bearer ${token},
-          },
-        });
         
-        const purchaseData = response.data;
-        setForm({
-          prCenter: purchaseData.prCenter._id,
-          paymentMethod: purchaseData.paymentMethod,
-          initialPayment: purchaseData.initialPayment.toString(),
-          description: purchaseData.description,
-          wheatQuantity: purchaseData.wheatQuantity.toString(),
-          ratePerKg: purchaseData.ratePerKg.toString(),
-          totalAmount: purchaseData.totalAmount.toString(),
-          remainingAmount: purchaseData.remainingAmount.toString(),
-          date: new Date(purchaseData.date),
-          status: purchaseData.status,
+        // Fetch PR Centers
+        const centersResponse = await axios.get("http://localhost:8000/api/prcenter", {
+          headers: { Authorization: `Bearer ${token}` }
         });
+        setPrCenters(centersResponse.data);
+
+        // Fetch Purchase Data if editing
+        if (id) {
+          const purchaseResponse = await axios.get(`http://localhost:8000/api/invoice/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const purchaseData = purchaseResponse.data;
+          setForm({
+            prCenter: purchaseData.prCenter._id,
+            paymentMethod: purchaseData.paymentMethod,
+            initialPayment: purchaseData.initialPayment.toString(),
+            description: purchaseData.description,
+            wheatQuantity: purchaseData.wheatQuantity.toString(),
+            ratePerKg: purchaseData.ratePerKg.toString(),
+            totalAmount: purchaseData.totalAmount.toString(),
+            remainingAmount: purchaseData.remainingAmount.toString(),
+            date: new Date(purchaseData.date),
+            status: purchaseData.status,
+          });
+        }
       } catch (err) {
-        console.error("Failed to fetch purchase data:", err);
-        setError("Failed to load purchase data");
+        console.error("Error fetching data:", err);
+        setError(err.response?.data?.message || "Failed to load data");
       } finally {
         setLoading(false);
-        setInitialLoad(false);
       }
     };
 
-    if (id) {
-      fetchPurchaseData();
-    }
+    fetchData();
   }, [id]);
 
-  // Calculate total amount and remaining amount when values change
   useEffect(() => {
     if (form.wheatQuantity && form.ratePerKg) {
       const total = parseFloat(form.wheatQuantity) * parseFloat(form.ratePerKg);
@@ -105,7 +84,7 @@ export default function GovPurchaseEditForm() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm(prev => ({ ...prev, [name]: value }));
     setError(null);
   };
 
@@ -129,10 +108,9 @@ export default function GovPurchaseEditForm() {
     }
 
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      if (!token) throw new Error("No authentication token found");
 
       const payload = {
         prCenter: form.prCenter,
@@ -148,29 +126,41 @@ export default function GovPurchaseEditForm() {
         type: 'government',
       };
 
-      const response = await axios.put(
-        http://localhost:8000/api/invoice/${id},
-        payload,
-        {
-          headers: {
-            Authorization: Bearer ${token},
-            'Content-Type': 'application/json'
-          },
+      const endpoint = id 
+        ? `http://localhost:8000/api/invoice/${id}`
+        : "http://localhost:8000/api/invoice";
+      
+      const method = id ? 'put' : 'post';
+      
+      await axios[method](endpoint, payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
-      setSuccess("Government purchase updated successfully!");
+      setSuccess(id 
+        ? "Purchase updated successfully!" 
+        : "Purchase recorded successfully!");
+      
       setTimeout(() => {
-        navigate(-1); // Go back to previous page after success
+        navigate(id ? `/government-purchases/${id}` : "/government-purchases");
       }, 1500);
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Failed to update purchase.");
+      setError(err.response?.data?.message || 
+        (id ? "Failed to update purchase" : "Failed to record purchase"));
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (initialLoad) {
-    return <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">Loading...</div>;
+  if (loading && !form.prCenter) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   return (
@@ -178,7 +168,7 @@ export default function GovPurchaseEditForm() {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center">
           <FaWallet className="mr-2" />
-          Edit Government Wheat Purchase
+          {id ? "Edit Government Purchase" : "New Government Purchase"}
         </h2>
         <button
           onClick={() => navigate(-1)}
@@ -188,8 +178,8 @@ export default function GovPurchaseEditForm() {
         </button>
       </div>
 
-      {error && <p className="text-red-600 mb-4">{error}</p>}
-      {success && <p className="text-green-600 mb-4">{success}</p>}
+      {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">{error}</div>}
+      {success && <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">{success}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -200,8 +190,8 @@ export default function GovPurchaseEditForm() {
             </label>
             <DatePicker
               selected={form.date}
-              onChange={(date) => setForm((prev) => ({ ...prev, date }))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              onChange={(date) => setForm(prev => ({ ...prev, date }))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
               required
             />
           </div>
@@ -215,19 +205,16 @@ export default function GovPurchaseEditForm() {
               name="prCenter"
               value={form.prCenter}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
               required
+              disabled={loading}
             >
               <option value="">Select PR Center</option>
-              {loading ? (
-                <option disabled>Loading PR Centers...</option>
-              ) : (
-                prCenters.map((center) => (
-                  <option key={center._id} value={center._id}>
-                    {center.name}
-                  </option>
-                ))
-              )}
+              {prCenters.map((center) => (
+                <option key={center._id} value={center._id}>
+                  {center.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -239,13 +226,13 @@ export default function GovPurchaseEditForm() {
             <input
               type="number"
               name="wheatQuantity"
-              placeholder="Enter quantity in kg"
               value={form.wheatQuantity}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
               step="0.01"
               min="0"
               required
+              disabled={loading}
             />
           </div>
 
@@ -256,13 +243,13 @@ export default function GovPurchaseEditForm() {
             <input
               type="number"
               name="ratePerKg"
-              placeholder="Enter rate per kg"
               value={form.ratePerKg}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
               step="0.01"
               min="0"
               required
+              disabled={loading}
             />
           </div>
 
@@ -276,7 +263,7 @@ export default function GovPurchaseEditForm() {
               name="totalAmount"
               value={form.totalAmount || "0.00"}
               readOnly
-              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100"
             />
           </div>
 
@@ -289,7 +276,8 @@ export default function GovPurchaseEditForm() {
               name="paymentMethod"
               value={form.paymentMethod}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
+              disabled={loading}
             >
               <option value="cash">Cash</option>
               <option value="bank">Bank Account</option>
@@ -304,12 +292,12 @@ export default function GovPurchaseEditForm() {
             <input
               type="number"
               name="initialPayment"
-              placeholder="Enter initial payment"
               value={form.initialPayment}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md"
               step="0.01"
               min="0"
+              disabled={loading}
             />
           </div>
 
@@ -323,7 +311,7 @@ export default function GovPurchaseEditForm() {
               name="remainingAmount"
               value={form.remainingAmount || "0.00"}
               readOnly
-              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100"
             />
           </div>
         </div>
@@ -335,11 +323,11 @@ export default function GovPurchaseEditForm() {
           </label>
           <textarea
             name="description"
-            placeholder="Enter purchase description"
             value={form.description}
             onChange={handleChange}
             rows={3}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+            className="w-full px-4 py-2 border border-gray-300 rounded-md"
+            disabled={loading}
           />
         </div>
 
@@ -352,7 +340,8 @@ export default function GovPurchaseEditForm() {
             name="status"
             value={form.status}
             onChange={handleChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+            className="w-full px-4 py-2 border border-gray-300 rounded-md"
+            disabled={loading}
           >
             <option value="pending">Pending</option>
             <option value="completed">Completed</option>
@@ -365,6 +354,7 @@ export default function GovPurchaseEditForm() {
             type="button"
             onClick={() => navigate(-1)}
             className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            disabled={loading}
           >
             <FaTimes className="mr-2" />
             Cancel
@@ -372,9 +362,22 @@ export default function GovPurchaseEditForm() {
           <button
             type="submit"
             className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
           >
-            <FaSave className="mr-2" />
-            Update Purchase
+            {loading ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </>
+            ) : (
+              <>
+                <FaSave className="mr-2" />
+                {id ? "Update Purchase" : "Record Purchase"}
+              </>
+            )}
           </button>
         </div>
       </form>
