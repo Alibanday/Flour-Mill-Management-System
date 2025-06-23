@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   FaBoxes, FaPallet, FaClipboardList, FaTruckLoading,
-  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome
+  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome, FaEdit, FaTrash
 } from "react-icons/fa";
 import AddWarehouse from "../components/AddWarehouse";
 
@@ -51,6 +51,28 @@ export default function WarehousePage() {
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
     setPage(1); // Reset to page 1 on new search
+  };
+
+  const handleEdit = (id) => {
+    navigate(`/warehouse/edit/${id}`);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Are you sure you want to delete this warehouse?")) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.delete(`http://localhost:8000/api/warehouse/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        alert("Warehouse deleted successfully!");
+        fetchWarehouses(); // Refresh the list
+      } catch (error) {
+        console.error("Failed to delete warehouse:", error);
+        alert(error.response?.data?.message || "Failed to delete warehouse");
+      }
+    }
   };
 
   const warehouseMenu = [
@@ -162,7 +184,7 @@ export default function WarehousePage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {warehouses.map((wh, i) => (
-                    <div key={i} onClick={() => handleClick(wh._id)}  className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
+                    <div key={i} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-medium text-gray-800">{wh.name}</h3>
                         <span className="text-sm text-gray-500">{wh.warehouseNumber}</span>
@@ -173,7 +195,28 @@ export default function WarehousePage() {
                       <div className="text-sm text-gray-600 mb-1">
                         <strong>Status:</strong> {wh.status}
                       </div>
-                      <div className="text-xs text-gray-500 italic">{wh.description}</div>
+                      <div className="text-sm text-gray-600 mb-1">
+                        <strong>Manager:</strong> {wh.manager ? `${wh.manager.firstName} ${wh.manager.lastName}` : 'Not Assigned'}
+                      </div>
+                      <div className="text-xs text-gray-500 italic mb-3">{wh.description}</div>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => handleEdit(wh._id)}
+                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                          title="Edit Warehouse"
+                        >
+                          <FaEdit className="text-sm" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(wh._id)}
+                          className="p-2 text-red-600 hover:bg-red-100 rounded-md transition-colors"
+                          title="Delete Warehouse"
+                        >
+                          <FaTrash className="text-sm" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -1,5 +1,6 @@
 import Invoice from "../model/Invoice.js";
 import Stock from "../model/stock.js";
+import Account from "../model/Account.js";
 
 // 🔍 Get All Invoices with Pagination + Search
 export const getAllInvoices = async (req, res) => {
@@ -91,9 +92,74 @@ const adjustBagStock = async (warehouseId, items, isPurchase) => {
   }
 };
 
+// helper to update wheat stock
+const adjustWheatStock = async (warehouseId, wheatQuantity, description = "Government Purchase") => {
+  if (!warehouseId || !wheatQuantity) {
+    console.log("adjustWheatStock: Missing warehouseId or wheatQuantity", { warehouseId, wheatQuantity });
+    return;
+  }
+  
+  console.log("adjustWheatStock: Adding wheat stock", { warehouseId, wheatQuantity, description });
+  
+  const filter = {
+    warehouse: warehouseId,
+    itemName: "Wheat",
+    itemType: "wheat",
+  };
+  
+  let stock = await Stock.findOne(filter);
+  const quantity = Number(wheatQuantity);
+  
+  if (!stock) {
+    console.log("adjustWheatStock: Creating new wheat stock entry");
+    stock = new Stock({
+      ...filter,
+      sellerName: "Government",
+      sellerDescription: description,
+      quantity: { value: quantity, unit: "kg" },
+      date: new Date(),
+      itemDescription: "Wheat from government purchase",
+    });
+  } else {
+    console.log("adjustWheatStock: Updating existing wheat stock", { 
+      currentQuantity: stock.quantity.value, 
+      addingQuantity: quantity,
+      newTotal: stock.quantity.value + quantity 
+    });
+    stock.quantity.value = (stock.quantity.value || 0) + quantity;
+    stock.date = new Date(); // Update the date to reflect latest addition
+  }
+  
+  await stock.save();
+  console.log("adjustWheatStock: Wheat stock updated successfully", { 
+    warehouseId, 
+    finalQuantity: stock.quantity.value 
+  });
+};
+
 // ✅ Create Invoice (Admin or Sales Manager)
 export const createInvoice = async (req, res) => {
   try {
+    const { buyer, totalAmount, type } = req.body;
+    
+    // Only validate buyer for invoice types that require it
+    if (type === "bagsale" || type === "private") {
+      if (!buyer) return res.status(400).json({ message: "Buyer (account) is required" });
+
+      // Fetch buyer account
+      const account = await Account.findById(buyer);
+      if (!account) return res.status(404).json({ message: "Account not found" });
+
+      // Calculate outstanding (sum of remainingAmount for all unpaid invoices)
+      const unpaidInvoices = await Invoice.find({ buyer, status: { $in: ["pending", "overdue"] } });
+      const outstanding = unpaidInvoices.reduce((sum, inv) => sum + (inv.remainingAmount || 0), 0);
+      const creditLimit = account.creditLimit || 0;
+      const remainingAmount = req.body.remainingAmount || 0;
+      if ((outstanding + remainingAmount) > creditLimit) {
+        return res.status(400).json({ message: `Credit limit exceeded. Outstanding: Rs. ${outstanding}, New Remaining: Rs. ${remainingAmount}, Credit Limit: Rs. ${creditLimit}` });
+      }
+    }
+
     const invoice = new Invoice(req.body);
     await invoice.save();
 
@@ -103,6 +169,11 @@ export const createInvoice = async (req, res) => {
     }
     if (invoice.type === "bagsale" && invoice.warehouse) {
       await adjustBagStock(invoice.warehouse, invoice.items || [], false);
+    }
+    
+    // Auto adjust wheat stock for government purchases
+    if (invoice.type === "government" && invoice.warehouse && invoice.wheatQuantity) {
+      await adjustWheatStock(invoice.warehouse, invoice.wheatQuantity, invoice.description);
     }
 
     res.status(201).json({ message: "Invoice created", invoice });
@@ -136,6 +207,18 @@ export const deleteInvoice = async (req, res) => {
     res.status(200).json({ message: "Invoice deleted" });
   } catch (err) {
     console.error("Delete Invoice Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get all invoices for a specific account (buyer)
+export const getInvoicesByAccount = async (req, res) => {
+  try {
+    const { accountId } = req.params;
+    const invoices = await Invoice.find({ buyer: accountId }).sort({ date: -1 });
+    res.status(200).json({ invoices });
+  } catch (err) {
+    console.error("Get Invoices By Account Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

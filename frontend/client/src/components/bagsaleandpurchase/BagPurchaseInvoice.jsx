@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaPlus, FaSearch } from "react-icons/fa";
-import BagsPurchaseInvoiceForm from "./BagsPurchaseInvoiceForm";
+import BagPurchaseInvoiceForm from "./BagPurchaseInvoiceForm";
 
 const formatDate = (dateString) => {
   if (!dateString) return "";
@@ -38,7 +38,7 @@ export default function BagPurchaseInvoice({ onCancel }) {
 
   if (showForm) {
     return (
-      <BagsPurchaseInvoiceForm
+      <BagPurchaseInvoiceForm
         onInvoiceCreated={(inv) => {
           setShowForm(false);
           if (inv) setInvoices([inv, ...invoices]);

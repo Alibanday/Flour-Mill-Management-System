@@ -7,6 +7,7 @@ import { FaWallet, FaTimes, FaSave } from "react-icons/fa";
 export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
   const [form, setForm] = useState({
     prCenter: "",
+    warehouse: "",
     paymentMethod: "cash",
     initialPayment: "",
     description: "",
@@ -19,6 +20,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
   });
 
   const [prCenters, setPrCenters] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -44,6 +46,26 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
     };
 
     fetchPrCenters();
+  }, []);
+
+  // Fetch Warehouses from API
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get("http://localhost:8000/api/warehouse/all", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setWarehouses(response.data.warehouses || response.data);
+      } catch (err) {
+        console.error("Failed to fetch Warehouses:", err);
+        setError("Failed to load Warehouses");
+      }
+    };
+
+    fetchWarehouses();
   }, []);
 
   // Calculate total amount and remaining amount when values change
@@ -82,6 +104,10 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
       setError("PR Center is required");
       return;
     }
+    if (!form.warehouse) {
+      setError("Warehouse is required");
+      return;
+    }
     if (!form.wheatQuantity || isNaN(form.wheatQuantity)) {
       setError("Please enter a valid wheat quantity");
       return;
@@ -100,6 +126,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
 
       const payload = {
         prCenter: form.prCenter,
+        warehouse: form.warehouse,
         paymentMethod: form.paymentMethod,
         initialPayment: parseFloat(form.initialPayment) || 0,
         description: form.description,
@@ -129,6 +156,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
       // Reset form but keep the date
       setForm({
         prCenter: "",
+        warehouse: "",
         paymentMethod: "cash",
         initialPayment: "",
         description: "",
@@ -197,6 +225,31 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
                 prCenters.map((center) => (
                   <option key={center._id} value={center._id}>
                     {center.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Warehouse Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Warehouse <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="warehouse"
+              value={form.warehouse}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              required
+            >
+              <option value="">Select Warehouse</option>
+              {loading ? (
+                <option disabled>Loading Warehouses...</option>
+              ) : (
+                warehouses.map((warehouse) => (
+                  <option key={warehouse._id} value={warehouse._id}>
+                    {warehouse.name}
                   </option>
                 ))
               )}

@@ -7,7 +7,7 @@ export const addWarehouse = async (req, res) => {
       return res.status(403).json({ message: "Only admin can add warehouses" });
     }
 
-    const { warehouseNumber, name, location, status, description } = req.body;
+    const { warehouseNumber, name, location, status, description, manager } = req.body;
 
     const newWarehouse = new Warehouse({
       warehouseNumber,
@@ -15,6 +15,7 @@ export const addWarehouse = async (req, res) => {
       location,
       status,
       description,
+      manager,
     });
 
     await newWarehouse.save();
@@ -47,7 +48,7 @@ export const getAllWarehouses = async (req, res) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     const [warehouses, total] = await Promise.all([
-      Warehouse.find(filter).skip(skip).limit(Number(limit)).sort({ createdAt: -1 }),
+      Warehouse.find(filter).populate('manager', 'firstName lastName email').skip(skip).limit(Number(limit)).sort({ createdAt: -1 }),
       Warehouse.countDocuments(filter)
     ]);
 
@@ -65,7 +66,7 @@ export const getAllWarehouses = async (req, res) => {
 // Get a single warehouse by ID (All users)
 export const getWarehouseById = async (req, res) => {
   try {
-    const warehouse = await Warehouse.findById(req.params.id);
+    const warehouse = await Warehouse.findById(req.params.id).populate('manager', 'firstName lastName email');
     if (!warehouse) {
       return res.status(404).json({ message: "Warehouse not found" });
     }
@@ -82,11 +83,11 @@ export const updateWarehouse = async (req, res) => {
       return res.status(403).json({ message: "Only admin can update warehouses" });
     }
 
-    const { warehouseNumber, name, location, status, description } = req.body;
+    const { warehouseNumber, name, location, status, description, manager } = req.body;
 
     const updatedWarehouse = await Warehouse.findByIdAndUpdate(
       req.params.id,
-      { warehouseNumber, name, location, status, description },
+      { warehouseNumber, name, location, status, description, manager },
       { new: true }
     );
 
@@ -139,7 +140,7 @@ export const searchWarehouses = async (req, res) => {
 // Get only active warehouses (All users)
 export const getActiveWarehouses = async (req, res) => {
   try {
-    const activeWarehouses = await Warehouse.find({ status: "Active" });
+    const activeWarehouses = await Warehouse.find({ status: "Active" }).populate('manager', 'firstName lastName email');
     res.status(200).json(activeWarehouses);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving active warehouses", error });

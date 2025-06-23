@@ -39,6 +39,8 @@ import BagSalesInvoice from "./components/bagsaleandpurchase/BagSalesInvoice";
 import FoodArrivalDetail from "./pages/FoodArrivalDetail";
 import DailyProductionDetail from "./pages/production/DailyProductionDetail";
 import RegisterItemsPage from "./pages/registeritems/RegisterItemsPage";
+import AddItemPage from "./pages/registeritems/AddItemPage";
+import EditItemForm from "./components/registeritems/EditItemForm";
 
 function App() {
   return (
@@ -97,6 +99,8 @@ function App() {
           <Route path="/production/daily/:id" element={<DailyProductionDetail />} />
 
           <Route path="/register-items" element={<RegisterItemsPage />} />
+          <Route path="/register-items/add" element={<AddItemPage />} />
+          <Route path="/register-items/edit/:id" element={<EditItemForm />} />
 
         </Route>
       </Routes>

@@ -26,11 +26,6 @@ export default function BagsScreen() {
     
   ];
 
-  const bagActions = [
-    { name: "New Bag", icon: <FaPlus />, action: () => setActiveMenu("Add Bag") },
-   
-  ];
-
   const handleClick = (id) => {
     navigate(`/bag/${id}`);
   };
@@ -125,99 +120,20 @@ export default function BagsScreen() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          {activeMenu === "Add Bag" ? (
-            <BagCreationForm onCancel={() => setActiveMenu("AllBags")} />
-          ) : activeMenu === "Purchase Invoice" ? (
+          {activeMenu === "Purchase Invoice" ? (
             <BagPurchaseInvoice onCancel={() => setActiveMenu("AllBags")} />
           ) : activeMenu === "Sales Invoice" ? (
             <BagSalesInvoice onCancel={() => setActiveMenu("AllBags")} />
           ) : activeMenu === "Stock" ? (
             <BagStock onCancel={() => setActiveMenu("AllBags")} />
           ) : (
-            <>
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-                {bagActions.map((button, index) => (
-                  <button
-                    key={index}
-                    onClick={button.action}
-                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-                  >
-                    <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                      {button.icon}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
-                  </button>
-                ))}
+            <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+              <div className="text-center py-12">
+                <FaShoppingBag className="mx-auto text-4xl mb-4 text-gray-300" />
+                <h2 className="text-xl font-semibold text-gray-600 mb-2">Welcome to Bags Management</h2>
+                <p className="text-gray-500">Select an option from the sidebar to get started.</p>
               </div>
-
-              {/* Bags Table */}
-              <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-800">Bag List</h2>
-                  <div className="relative">
-                    <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search bags..."
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bag Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weight</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {loading ? (
-                        <tr>
-                          <td colSpan="5" className="text-center py-4 text-gray-500">
-                            Loading bags...
-                          </td>
-                        </tr>
-                      ) : filteredBags.length > 0 ? (
-                        filteredBags.map((bag) => (
-                          <tr onClick={() => handleClick(bag._id)} key={bag._id || bag.id} className="hover:bg-blue-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{bag.bagName || "—"}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{bag.bagType || "—"}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {bag.weight || "0"} kg
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {bag.quantity || "0"}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <button className="text-blue-600 hover:text-blue-800 mr-3">
-                                <FaEdit />
-                              </button>
-                              <button className="text-red-600 hover:text-red-800">
-                                <FaTrash />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" className="text-center py-4 text-gray-500">
-                            No bags found.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
+            </div>
           )}
         </main>
       </div>

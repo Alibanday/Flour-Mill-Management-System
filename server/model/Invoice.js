@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const invoiceSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ["government", "private", "bag"],
+    enum: ["government", "private", "bag", "bagsale"],
     required: true,
   },
   paymentMethod: {
@@ -19,13 +19,13 @@ const invoiceSchema = new mongoose.Schema({
   wheatQuantity: {
     type: Number,
     required: function () {
-      return this.type !== "bag";
+      return this.type === "government" || this.type === "private";
     },
   },
   ratePerKg: {
     type: Number,
     required: function () {
-      return this.type !== "bag";
+      return this.type === "government" || this.type === "private";
     },
   },
   totalAmount: {
@@ -52,6 +52,13 @@ const invoiceSchema = new mongoose.Schema({
    seller: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Account",
+  },
+  buyer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Account",
+    required: function() {
+      return this.type === "bagsale" || this.type === "private";
+    }
   },
   items: [
     {

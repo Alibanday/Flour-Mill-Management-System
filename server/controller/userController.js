@@ -61,6 +61,23 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
+// Get Users by Role (accessible to any authenticated user)
+export const getUsersByRole = async (req, res) => {
+  try {
+    const { role } = req.params;
+    
+    if (!role) {
+      return res.status(400).json({ message: "Role parameter is required" });
+    }
+
+    const users = await User.find({ role: role, status: 'active' }).select('-password');
+    res.status(200).json(users);
+  } catch (err) {
+    console.error("Error fetching users by role:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 // Get Single User (accessible to any authenticated user)
 export const getUser = async (req, res) => {

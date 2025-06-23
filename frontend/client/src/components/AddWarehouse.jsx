@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { FaWarehouse, FaSave, FaTimes } from "react-icons/fa";
+import { FaWarehouse, FaSave, FaTimes, FaUser } from "react-icons/fa";
 
 export default function AddWarehouse({ onCancel }) {
   const [formData, setFormData] = useState({
@@ -8,28 +8,64 @@ export default function AddWarehouse({ onCancel }) {
     name: "",
     location: "",
     status: "Active",
-    description: ""
+    description: "",
+    manager: ""
   });
+
+  const [warehouseManagers, setWarehouseManagers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  // Fetch warehouse managers
+  useEffect(() => {
+    const fetchWarehouseManagers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get("http://localhost:8000/api/users/role/warehouse manager", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        setWarehouseManagers(response.data);
+      } catch (err) {
+        console.error("Failed to fetch warehouse managers:", err);
+        setError("Failed to load warehouse managers");
+      }
+    };
+
+    fetchWarehouseManagers();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setError(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+
     try {
-      const token = await localStorage.getItem("token");
-      await axios.post("http://localhost:8000/api/warehouse/create", formData, {
+      const token = localStorage.getItem("token");
+      const response = await axios.post("http://localhost:8000/api/warehouse/create", formData, {
         headers: {
           Authorization: `Bearer ${token}`,
         }
       });
-      alert("Warehouse added successfully!");
-      onCancel();
+      
+      setSuccess("Warehouse added successfully!");
+      setTimeout(() => {
+        onCancel();
+      }, 1500);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Failed to add warehouse");
+      setError(error.response?.data?.message || "Failed to add warehouse");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,6 +83,9 @@ export default function AddWarehouse({ onCancel }) {
           <FaTimes className="text-xl" />
         </button>
       </div>
+
+      {error && <p className="text-red-600 mb-4">{error}</p>}
+      {success && <p className="text-green-600 mb-4">{success}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -109,6 +148,30 @@ export default function AddWarehouse({ onCancel }) {
               <option value="Inactive">Inactive</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Warehouse Manager
+            </label>
+            <select
+              name="manager"
+              value={formData.manager}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+            >
+              <option value="">Select Warehouse Manager</option>
+              {warehouseManagers.map((manager) => (
+                <option key={manager._id} value={manager._id}>
+                  {manager.firstName} {manager.lastName} - {manager.email}
+                </option>
+              ))}
+            </select>
+            {warehouseManagers.length === 0 && (
+              <p className="text-sm text-gray-500 mt-1">
+                No warehouse managers found. Please add warehouse managers first.
+              </p>
+            )}
+          </div>
         </div>
 
         <div>
@@ -137,10 +200,11 @@ export default function AddWarehouse({ onCancel }) {
           </button>
           <button
             type="submit"
-            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
+            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
             <FaSave className="mr-2" />
-            Add Warehouse
+            {loading ? "Adding..." : "Add Warehouse"}
           </button>
         </div>
       </form>
