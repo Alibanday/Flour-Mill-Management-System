@@ -12,6 +12,7 @@ import prCenterRoutes from "./routes/prCenterRoutes.js";
 import accountRoutes from "./routes/accountRoutes.js";
 import invoiceRoutes from "./routes/invoiceRoutes.js";
 import bagRoutes from "./routes/bagRoutes.js";
+import dailyProductionRoutes from "./routes/dailyProductionRoutes.js";
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
 
@@ -52,6 +53,8 @@ app.use("/api/accounts", accountRoutes);
 app.use("/api/invoice", invoiceRoutes);
 
 app.use("/api/bags", bagRoutes);
+
+app.use("/api/dailyproduction", dailyProductionRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {

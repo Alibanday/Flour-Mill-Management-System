@@ -16,7 +16,6 @@ const stockSchema = new mongoose.Schema({
   },
   subType: {
     type: String,
-    enum: ['flour', 'mada', 'choker', 'suji', 'fine', null],
     default: null
   },
   itemDescription: String,

@@ -4,10 +4,11 @@ import {
   FaHome, FaIndustry, FaExchangeAlt, FaClipboardList,
   FaChartLine, FaPlus, FaSearch, FaDolly, FaBoxes
 } from "react-icons/fa";
+import DailyProduction from "./DailyProduction";
 
 export default function ProductionPage() {
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState("DailyProduction");
+  const [activeMenu, setActiveMenu] = useState("Daily Production");
 
   const productionMenu = [
     { name: "Daily Production", icon: <FaIndustry className="mr-3" /> },
@@ -80,56 +81,11 @@ export default function ProductionPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-            {productionActions.map((button, index) => (
-              <button
-                key={index}
-                onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-              >
-                <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                  {button.icon}
-                </div>
-                <span className="text-sm font-medium text-gray-700">{button.name}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Production Overview */}
-          <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Production Batches</h2>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search production..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                />
-              </div>
-            </div>
-
-            {/* Production Items Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {productionData.map((item) => (
-                <div key={item.id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-800">{item.product}</h3>
-                    <span className="text-sm text-gray-500">{item.date}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Quantity:</span>
-                    <span className="text-blue-600 font-medium">{item.quantity}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-gray-600">Batch ID:</span>
-                    <span className="text-gray-500">#{item.id}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          {activeMenu === "Daily Production" ? (
+            <DailyProduction />
+          ) : (
+            <div className="text-center text-gray-500 mt-10">Select an option from the sidebar.</div>
+          )}
         </main>
       </div>
     </div>
