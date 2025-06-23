@@ -2,7 +2,7 @@
 import mongoose from "mongoose";
 
 const stockSchema = new mongoose.Schema({
-  sellerName: { type: String, required: true },
+  sellerName: { type: String },
   sellerDescription: String,
   itemName: { type: String, required: true },
   itemType: { 

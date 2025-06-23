@@ -7,7 +7,6 @@ const wheatOptions = ["Wheat Private", "Wheat Government"];
 const weightOptions = [10, 15, 20, 40, 80];
 
 export default function DailyProductionForm({ onCancel, onSave }) {
-  const [productionId, setProductionId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [warehouse, setWarehouse] = useState("");
 
@@ -86,7 +85,6 @@ export default function DailyProductionForm({ onCancel, onSave }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const payload = {
-      productionId,
       date,
       wheatWarehouse: warehouse,
       grindingDetails,
@@ -119,16 +117,6 @@ export default function DailyProductionForm({ onCancel, onSave }) {
           <div className="pt-0">
             <h3 className="text-base font-semibold text-blue-700 mb-4">Batch Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Production ID</label>
-                <input
-                  type="text"
-                  value={productionId}
-                  onChange={(e) => setProductionId(e.target.value)}
-                  className="w-full border border-gray-300 focus:ring-blue-500 focus:border-blue-500 px-3 py-2 rounded-md text-sm shadow-sm"
-                  required
-                />
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
                 <input
@@ -189,8 +177,8 @@ export default function DailyProductionForm({ onCancel, onSave }) {
               <h3 className="text-base font-semibold text-blue-700">Production Details</h3>
               <div className="flex items-center gap-3">
                 <label className="text-sm">Output Warehouse:</label>
-                <select value={outputWarehouse} onChange={(e) => setOutputWarehouse(e.target.value)} className="border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500">
-                  <option value="">Select Warehouse</option>
+                <select value={outputWarehouse} onChange={(e) => setOutputWarehouse(e.target.value)} required className="border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500">
+                  <option value="" disabled>Select Warehouse</option>
                   {warehouseOptions.map(w => (
                     <option key={w._id || w.name} value={w._id || w.name}>{w.name}</option>
                   ))}

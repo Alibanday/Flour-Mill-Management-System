@@ -188,7 +188,32 @@ export default function BagSalesInvoiceForm({ onInvoiceCreated, onCancel }) {
         <input type="number" placeholder="Price" value={itemInput.pricePerBag} onChange={(e)=>setItemInput({...itemInput,pricePerBag:e.target.value})} className="border px-2 py-1"/>
         <button onClick={addItem} className="!bg-green-600 text-white px-2 py-1 rounded">Add</button>
       </div>
-      {items.length>0 && <table className="w-full mb-4 text-sm"><thead><tr><th>#</th><th>Item</th><th>W</th><th>Qty</th><th>Price</th><th>Amt</th></tr></thead><tbody>{items.map((it,i)=><tr key={i}><td>{i+1}</td><td>{it.bagType}</td><td>{it.weight}</td><td>{it.quantity}</td><td>{it.pricePerBag}</td><td>{(it.quantity*it.pricePerBag).toFixed(2)}</td></tr>)}</tbody></table>}
+      {items.length > 0 && (
+        <table className="w-full mb-4 text-sm divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-2 text-left">#</th>
+              <th className="px-4 py-2 text-left">Item</th>
+              <th className="px-4 py-2 text-left">Wt (kg)</th>
+              <th className="px-4 py-2 text-left">Qty</th>
+              <th className="px-4 py-2 text-left">Price</th>
+              <th className="px-4 py-2 text-left">Amount</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {items.map((it, i) => (
+              <tr key={i}>
+                <td className="px-4 py-2">{i + 1}</td>
+                <td className="px-4 py-2 capitalize">{it.bagType}</td>
+                <td className="px-4 py-2">{it.weight}</td>
+                <td className="px-4 py-2">{it.quantity}</td>
+                <td className="px-4 py-2">{it.pricePerBag}</td>
+                <td className="px-4 py-2">{(it.quantity * it.pricePerBag).toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       <div className="text-right font-semibold mb-4">Total: Rs. {totalPrice.toFixed(2)} | Remaining: Rs. {remainingAmount.toFixed(2)}</div>
 

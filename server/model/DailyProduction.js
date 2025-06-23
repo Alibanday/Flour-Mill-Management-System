@@ -13,7 +13,7 @@ const productItemSchema = new mongoose.Schema({
 }, { _id: false });
 
 const dailyProductionSchema = new mongoose.Schema({
-  productionId: { type: String, required: true, unique: true },
+  productionId: { type: String, unique: true },
   date: { type: Date, required: true },
   wheatWarehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse", required: true },
   grindingDetails: [grindingSchema],
@@ -23,6 +23,23 @@ const dailyProductionSchema = new mongoose.Schema({
   grossWeightExcludingBran: { type: Number },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   createdAt: { type: Date, default: Date.now }
+});
+
+// Auto-generate productionId
+dailyProductionSchema.pre('validate', async function(next){
+  if(this.productionId) return next();
+  try {
+    const last = await this.constructor.findOne().sort({ createdAt: -1 }).select('productionId');
+    let nextNum = 1;
+    if(last && last.productionId){
+      const num = parseInt(last.productionId,10);
+      if(!isNaN(num)) nextNum = num + 1;
+    }
+    this.productionId = String(nextNum).padStart(3,'0');
+    next();
+  } catch(err){
+    next(err);
+  }
 });
 
 const DailyProduction = mongoose.model("DailyProduction", dailyProductionSchema);

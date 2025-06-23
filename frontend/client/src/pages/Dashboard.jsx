@@ -4,7 +4,7 @@ import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
   FaCog, FaSignOutAlt, FaUserCog, FaChartBar, FaHome, FaWarehouse,
-  FaWeightHanging, FaUsers
+  FaWeightHanging, FaUsers, FaClipboardList
 } from "react-icons/fa";
 
 export default function Dashboard() {
@@ -19,6 +19,7 @@ export default function Dashboard() {
   };
 
   const mastersMenu = [
+    { name: "Register Items", icon: <FaClipboardList className="mr-3" />, action: () => navigate("/register-items") },
     { name: "Ledger", 
       icon: <FaBook className="mr-3" />,
       

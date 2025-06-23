@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FaPlus } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import DailyProductionForm from "../components/DailyProductionForm";
 import axios from "axios";
 
@@ -13,6 +14,7 @@ export default function DailyProduction() {
   const [production, setProduction] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const fetchData = async () => {
     try {
@@ -73,7 +75,7 @@ export default function DailyProduction() {
                   </tr>
                 ) : production.length > 0 ? (
                   production.map((batch) => (
-                    <tr key={batch._id} className="hover:bg-blue-50 cursor-pointer">
+                    <tr key={batch._id} className="hover:bg-blue-50 cursor-pointer" onClick={() => navigate(`/production/daily/${batch._id}`)}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{batch.productionId}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{batch.totalWheatUsed}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{batch.grossWeightExcludingBran}</td>

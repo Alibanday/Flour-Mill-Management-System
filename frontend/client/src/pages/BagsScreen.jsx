@@ -5,8 +5,8 @@ import {
   FaChartLine, FaSearch, FaFileExport, FaEdit, FaTrash,
   FaShoppingBag, FaReceipt, FaBoxes, FaWarehouse
 } from "react-icons/fa";
-import BagPurchaseInvoice from "../components/BagPurchaseInvoice";
-import BagSalesInvoice from "../components/BagSalesInvoice";
+import BagPurchaseInvoice from "../components/bagsaleandpurchase/BagPurchaseInvoice";
+import BagSalesInvoice from "../components/bagsaleandpurchase/BagSalesInvoice";
 import BagStock from "../components/BagStock";
 
 

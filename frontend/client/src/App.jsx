@@ -34,9 +34,11 @@ import GovPurchaseDetail from "./pages/GovPurchasedetail";
 import PrivatePurchaseDetail from "./pages/PrivatePurchaseDetail";
 import GovPurchaseEditForm from "./pages/GovPurchaseEditForm";
 import BagsScreen from "./pages/BagsScreen";
-import BagPurchaseInvoice from "./components/BagPurchaseInvoice";
-import BagSalesInvoice from "./components/BagSalesInvoice";
+import BagPurchaseInvoice from "./components/bagsaleandpurchase/BagPurchaseInvoice";
+import BagSalesInvoice from "./components/bagsaleandpurchase/BagSalesInvoice";
 import FoodArrivalDetail from "./pages/FoodArrivalDetail";
+import DailyProductionDetail from "./pages/production/DailyProductionDetail";
+import RegisterItemsPage from "./pages/registeritems/RegisterItemsPage";
 
 function App() {
   return (
@@ -90,6 +92,11 @@ function App() {
           <Route path="/bagpurchaseinvoice" element={<BagPurchaseInvoice />} />
           <Route path="/bagsalesinvoice" element={<BagSalesInvoice />} />
           <Route path="/foodarrival/:id" element={<FoodArrivalDetail />} />
+
+          {/* Production detail */}
+          <Route path="/production/daily/:id" element={<DailyProductionDetail />} />
+
+          <Route path="/register-items" element={<RegisterItemsPage />} />
 
         </Route>
       </Routes>
