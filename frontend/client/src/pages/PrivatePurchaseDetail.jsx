@@ -11,7 +11,7 @@ export default function PrivatePurchaseDetail() {
   const [purchase, setPurchase] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sellerAccount, setSellerAccount] = useState(null);
+  const [buyerAccount, setBuyerAccount] = useState(null);
 
   useEffect(() => {
     const fetchPurchaseDetails = async () => {
@@ -25,14 +25,14 @@ export default function PrivatePurchaseDetail() {
         
         setPurchase(response.data);
         
-        // Fetch seller account details if available
-        if (response.data.seller) {
-          const sellerRes = await axios.get(`http://localhost:8000/api/accounts/${response.data.seller}`, {
+        // Fetch buyer account details if available
+        if (response.data.buyer) {
+          const buyerRes = await axios.get(`http://localhost:8000/api/accounts/${response.data.buyer}`, {
             headers: {
               Authorization: `Bearer ${token}`,
             },
           });
-          setSellerAccount(sellerRes.data);
+          setBuyerAccount(buyerRes.data);
         }
       } catch (err) {
         console.error("Failed to fetch purchase details:", err);
@@ -176,12 +176,12 @@ export default function PrivatePurchaseDetail() {
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-600">Seller Name:</span>
-                    <span className="font-medium text-black">{sellerAccount?.accountName || "N/A"}</span>
+                    <span className="text-gray-600">Buyer Name:</span>
+                    <span className="font-medium text-black">{buyerAccount?.accountName || "N/A"}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-100 pb-2">
-                    <span className="text-gray-600">Seller Account ID:</span>
-                    <span className="font-medium text-black">{sellerAccount?.accountId || "N/A"}</span>
+                    <span className="text-gray-600">Buyer Account ID:</span>
+                    <span className="font-medium text-black">{buyerAccount?.accountId || "N/A"}</span>
                   </div>
                   <div className="flex justify-between border-b border-gray-100 pb-2">
                     <span className="text-gray-600">Date:</span>

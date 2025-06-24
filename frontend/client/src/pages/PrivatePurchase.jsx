@@ -28,7 +28,6 @@ export default function PrivatePurchase() {
 
   const purchaseMenu = [
     { name: "Private Purchase Invoice", icon: <FaClipboardList className="mr-3" /> },
-    { name: "Private Arrival Entry", icon: <FaTruck className="mr-3" /> },
     { name: "Reports", icon: <FaChartLine className="mr-3" /> }
   ];
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { FaWallet, FaTimes, FaSave, FaPrint } from "react-icons/fa";
+import { FaWallet, FaTimes, FaSave, FaPrint, FaCalendarAlt, FaBuilding, FaWarehouse, FaWeightHanging, FaMoneyBillWave, FaCreditCard } from "react-icons/fa";
 
 export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
   const [form, setForm] = useState({
@@ -16,7 +16,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
     totalAmount: "",
     remainingAmount: "",
     date: new Date(),
-    status: "pending", // Added status field with default value
+    status: "pending",
   });
 
   const [prCenters, setPrCenters] = useState([]);
@@ -24,14 +24,6 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  // Inventory state
-  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
-  const [selectedStockType, setSelectedStockType] = useState(null);
-  const [stockData, setStockData] = useState([]);
-  const [stockLoading, setStockLoading] = useState(false);
-  const [totalStock, setTotalStock] = useState(0);
-  const [categorizedBags, setCategorizedBags] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
 
@@ -82,7 +74,8 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
   useEffect(() => {
     if (form.wheatQuantity && form.ratePerKg) {
       const total = parseFloat(form.wheatQuantity) * parseFloat(form.ratePerKg);
-      const remaining = total - (parseFloat(form.initialPayment) || 0);
+      const paid = parseFloat(form.initialPayment) || 0;
+      const remaining = total - paid;
       
       setForm(prev => ({ 
         ...prev, 
@@ -129,10 +122,9 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
 
     try {
       const token = localStorage.getItem("token");
-      console.log('token', token)
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
 
       const payload = {
         prCenter: form.prCenter,
@@ -145,8 +137,8 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
         totalAmount: parseFloat(form.totalAmount),
         remainingAmount: parseFloat(form.remainingAmount),
         date: form.date,
-        status: form.status, // Added status to payload
-        type:'government',
+        status: form.status,
+        type: 'government',
       };
 
       const response = await axios.post(
@@ -163,8 +155,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
       setSuccess("Government purchase recorded successfully!");
       onPurchaseAdded && onPurchaseAdded(response.data);
       
-      // Show floating confirmation and close form
-      showFloatingConfirmation("Government purchase recorded and invoice printed successfully!");
+      showFloatingConfirmation("Government purchase recorded successfully!");
       
       // Reset form but keep the date
       setForm({
@@ -227,7 +218,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
         remainingAmount: parseFloat(form.remainingAmount),
         date: form.date,
         status: form.status,
-        type:'government',
+        type: 'government',
       };
 
       const response = await axios.post(
@@ -247,7 +238,6 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
       // Print the invoice
       printInvoice(payload, response.data._id);
       
-      // Show floating confirmation and close form
       showFloatingConfirmation("Government purchase recorded and invoice printed successfully!");
       
       // Reset form but keep the date
@@ -382,7 +372,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
                 <div class="detail-value">${formData.paymentMethod.charAt(0).toUpperCase() + formData.paymentMethod.slice(1)}</div>
               </div>
               <div class="detail-group">
-                <div class="detail-label">Initial Payment:</div>
+                <div class="detail-label">Amount Paid:</div>
                 <div class="detail-value">Rs. ${formData.initialPayment.toLocaleString()}</div>
               </div>
               <div class="detail-group">
@@ -566,7 +556,7 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
                 <div class="detail-value">${form.paymentMethod.charAt(0).toUpperCase() + form.paymentMethod.slice(1)}</div>
               </div>
               <div class="detail-group">
-                <div class="detail-label">Initial Payment:</div>
+                <div class="detail-label">Amount Paid:</div>
                 <div class="detail-value">Rs. ${(parseFloat(form.initialPayment) || 0).toLocaleString()}</div>
               </div>
               <div class="detail-group">
@@ -620,6 +610,8 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
     }, 2000);
   };
 
+  const isFullyPaid = parseFloat(form.totalAmount) > 0 && parseFloat(form.initialPayment) >= parseFloat(form.totalAmount);
+
   return (
     <>
       {/* Floating Confirmation Message */}
@@ -645,47 +637,62 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <FaWallet className="mr-2" />
-            Government Wheat Purchase
-          </h2>
+      <div className="max-w-6xl mx-auto p-6 bg-white rounded-xl shadow-lg">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center">
+            <div className="p-3 bg-blue-100 rounded-full mr-4">
+              <FaWallet className="text-2xl text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-gray-800">Government Wheat Purchase</h2>
+              <p className="text-gray-600 mt-1">Record new government wheat purchase transaction</p>
+            </div>
+          </div>
           <button
             onClick={onCancel}
-            className="text-gray-500 hover:text-gray-700"
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200"
           >
             <FaTimes className="text-xl" />
           </button>
         </div>
 
-        {error && <p className="text-red-600 mb-4">{error}</p>}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-600 font-medium">{error}</p>
+          </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Top Row - Date, PR Center, Warehouse */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Purchase Date <span className="text-red-500">*</span>
+            <div className="lg:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <FaCalendarAlt className="mr-2 text-blue-500" />
+                Purchase Date <span className="text-red-500 ml-1">*</span>
               </label>
-              <DatePicker
-                selected={form.date}
-                onChange={(date) => setForm((prev) => ({ ...prev, date }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
-                required
-              />
+              <div className="relative">
+                <DatePicker
+                  selected={form.date}
+                  onChange={(date) => setForm((prev) => ({ ...prev, date }))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                  required
+                />
+              </div>
             </div>
 
-            {/* PR Center Dropdown */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                PR Center <span className="text-red-500">*</span>
+            {/* PR Center */}
+            <div className="lg:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <FaBuilding className="mr-2 text-blue-500" />
+                PR Center <span className="text-red-500 ml-1">*</span>
               </label>
               <select
                 name="prCenter"
                 value={form.prCenter}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
                 required
               >
                 <option value="">Select PR Center</option>
@@ -701,16 +708,17 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
               </select>
             </div>
 
-            {/* Warehouse Dropdown */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Warehouse <span className="text-red-500">*</span>
+            {/* Warehouse */}
+            <div className="lg:col-span-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <FaWarehouse className="mr-2 text-blue-500" />
+                Warehouse <span className="text-red-500 ml-1">*</span>
               </label>
               <select
                 name="warehouse"
                 value={form.warehouse}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
                 required
               >
                 <option value="">Select Warehouse</option>
@@ -725,11 +733,15 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
                 )}
               </select>
             </div>
+          </div>
 
-            {/* Wheat Quantity and Rate */}
+          {/* Wheat Details Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Wheat Quantity */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Wheat Quantity (kg) <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <FaWeightHanging className="mr-2 text-blue-500" />
+                Wheat Quantity (kg) <span className="text-red-500 ml-1">*</span>
               </label>
               <input
                 type="number"
@@ -737,16 +749,18 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
                 placeholder="Enter quantity in kg"
                 value={form.wheatQuantity}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
                 step="0.01"
                 min="0"
                 required
               />
             </div>
 
+            {/* Rate Per Kg */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rate Per Kg (Rs.) <span className="text-red-500">*</span>
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <FaMoneyBillWave className="mr-2 text-blue-500" />
+                Rate Per Kg (Rs.) <span className="text-red-500 ml-1">*</span>
               </label>
               <input
                 type="number"
@@ -754,138 +768,163 @@ export default function GovPurchaseForm({ onPurchaseAdded, onCancel }) {
                 placeholder="Enter rate per kg"
                 value={form.ratePerKg}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
                 step="0.01"
                 min="0"
                 required
               />
             </div>
+          </div>
 
-            {/* Total Amount */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Amount (Rs.)
-              </label>
-              <input
-                type="text"
-                name="totalAmount"
-                value={form.totalAmount || "0.00"}
-                readOnly
-                className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
-              />
-            </div>
-
+          {/* Payment Details Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Payment Method */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                <FaCreditCard className="mr-2 text-blue-500" />
                 Payment Method
               </label>
               <select
                 name="paymentMethod"
                 value={form.paymentMethod}
                 onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
               >
                 <option value="cash">Cash</option>
                 <option value="bank">Bank Account</option>
               </select>
             </div>
 
-            {/* Initial Payment */}
+            {/* Total Amount */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Initial Payment (Rs.)
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Total Amount (Rs.)
               </label>
-              <input
-                type="number"
-                name="initialPayment"
-                placeholder="Enter initial payment"
-                value={form.initialPayment}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
-                step="0.01"
-                min="0"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  name="totalAmount"
+                  value={form.totalAmount || "0.00"}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 font-semibold"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <span className="text-gray-500 text-sm">₹</span>
+                </div>
+              </div>
             </div>
 
-            {/* Remaining Amount */}
+            {/* Amount Paid */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Remaining Amount (Rs.)
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Amount Paid (Rs.)
               </label>
-              <input
-                type="text"
-                name="remainingAmount"
-                value={form.remainingAmount || "0.00"}
-                readOnly
-                className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-black"
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  name="initialPayment"
+                  placeholder="Enter amount paid"
+                  value={form.initialPayment}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                  step="0.01"
+                  min="0"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <span className="text-gray-500 text-sm">₹</span>
+                </div>
+              </div>
             </div>
           </div>
 
+          {/* Remaining Amount - Only show if not fully paid */}
+          {!isFullyPaid && parseFloat(form.totalAmount) > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div></div> {/* Spacer */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Remaining Amount (Rs.)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="remainingAmount"
+                    value={form.remainingAmount || "0.00"}
+                    readOnly
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-yellow-50 text-gray-900 font-semibold"
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <span className="text-gray-500 text-sm">₹</span>
+                  </div>
+                </div>
+              </div>
+              <div></div> {/* Spacer */}
+            </div>
+          )}
+
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
               Description
             </label>
             <textarea
               name="description"
-              placeholder="Enter purchase description"
+              placeholder="Enter purchase description (optional)"
               value={form.description}
               onChange={handleChange}
               rows={3}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white resize-none"
             />
           </div>
 
-          {/* Status Dropdown - Moved to the end of the form */}
-          <div className="w-full md:w-1/2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          {/* Status */}
+          <div className="w-full md:w-1/3">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
               Status
             </label>
             <select
               name="status"
               value={form.status}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
             >
               <option value="pending">Pending</option>
               <option value="completed">Completed</option>
             </select>
           </div>
 
-          {/* Buttons */}
-          <div className="flex justify-end space-x-4 pt-4">
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-gray-200">
             <button
               type="button"
               onClick={onCancel}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 !bg-gray-200 hover:bg-gray-50"
+              className="flex items-center justify-center px-6 py-3 border border-gray-300 rounded-lg text-gray-700 !bg-white hover:!bg-gray-50 transition-all duration-200 font-medium"
             >
               <FaTimes className="mr-2" />
               Cancel
             </button>
             <button
+              type="button"
+              onClick={printCurrentForm}
+              className="flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-white !bg-yellow-600 hover:!bg-yellow-700 transition-all duration-200 font-medium"
+            >
+              <FaPrint className="mr-2" />
+              Print Draft
+            </button>
+            <button
               type="submit"
-              className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white !bg-blue-600 hover:bg-blue-700"
+              className="flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-white !bg-blue-600 hover:!bg-blue-700 transition-all duration-200 font-medium"
             >
               <FaSave className="mr-2" />
-              Save
+              Save Purchase
             </button>
             <button
               type="button"
               onClick={handlePrintAndSave}
-              className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white !bg-green-600 hover:bg-green-700"
+              className="flex items-center justify-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-white !bg-green-600 hover:!bg-green-700 transition-all duration-200 font-medium"
             >
               <FaSave className="mr-2" />
-              Print & Save
-            </button>
-            <button
-              type="button"
-              onClick={printCurrentForm}
-              className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white !bg-yellow-600 hover:bg-yellow-700"
-            >
-              <FaPrint className="mr-2" />
-              Print Draft
+              Save & Print
             </button>
           </div>
         </form>

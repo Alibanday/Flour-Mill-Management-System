@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { FaEdit, FaSave, FaTimes } from "react-icons/fa";
 
 export default function EditPrCenter({ onCancel }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     location: "",
@@ -61,7 +62,8 @@ export default function EditPrCenter({ onCancel }) {
       });
 
       alert("PR Center updated successfully!");
-      onCancel(); // Or navigate back if used in a full page
+      // Navigate back to PR Center detail page
+      navigate(`/prcenter/${id}`);
     } catch (error) {
       console.error("Error updating PR Center:", error);
       const message = error.response?.data?.message || "Failed to update PR Center";
@@ -69,6 +71,11 @@ export default function EditPrCenter({ onCancel }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    // Navigate back to PR Center detail page
+    navigate(`/prcenter/${id}`);
   };
 
   if (fetching) {
@@ -87,7 +94,7 @@ export default function EditPrCenter({ onCancel }) {
           Edit PR Center
         </h2>
         <button
-          onClick={onCancel}
+          onClick={handleCancel}
           className="text-gray-500 hover:text-gray-700"
         >
           <FaTimes className="text-xl" />
@@ -142,8 +149,8 @@ export default function EditPrCenter({ onCancel }) {
         <div className="flex justify-end space-x-4 pt-4">
           <button
             type="button"
-            onClick={onCancel}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            onClick={handleCancel}
+            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 !bg-white hover:bg-gray-50"
           >
             <FaTimes className="mr-2" />
             Cancel
@@ -152,7 +159,7 @@ export default function EditPrCenter({ onCancel }) {
             type="submit"
             disabled={loading}
             className={`flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white ${
-              loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              loading ? "!bg-gray-400 cursor-not-allowed" : "!bg-blue-600 hover:bg-blue-700"
             }`}
           >
             <FaSave className="mr-2" />

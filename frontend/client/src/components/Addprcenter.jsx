@@ -128,7 +128,7 @@ export default function AddPrCenter({ onCancel }) {
             type="submit"
             disabled={loading}
             className={`flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-white ${
-              loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              loading ? "bg-gray-400 cursor-not-allowed" : "!bg-blue-400 hover:bg-blue-700"
             }`}
           >
             <FaSave className="mr-2" />

@@ -34,6 +34,7 @@ export const getAllInvoices = async (req, res) => {
     const total = await Invoice.countDocuments(query);
     const invoices = await Invoice.find(query)
       .populate("prCenter", "name location")
+      .populate("warehouse", "name location")
       .skip((page - 1) * limit)
       .limit(Number(limit))
       .sort({ createdAt: -1 });
@@ -55,7 +56,9 @@ export const getAllInvoices = async (req, res) => {
 // 🔍 Get Invoice by ID
 export const getInvoiceById = async (req, res) => {
   try {
-    const invoice = await Invoice.findById(req.params.id).populate("prCenter");
+    const invoice = await Invoice.findById(req.params.id)
+      .populate("prCenter", "name location")
+      .populate("warehouse", "name location");
     if (!invoice) return res.status(404).json({ message: "Invoice not found" });
 
     res.status(200).json(invoice);
@@ -140,7 +143,7 @@ const adjustWheatStock = async (warehouseId, wheatQuantity, description = "Gover
 // ✅ Create Invoice (Admin or Sales Manager)
 export const createInvoice = async (req, res) => {
   try {
-    const { buyer, totalAmount, type } = req.body;
+    const { buyer, totalAmount, type, status } = req.body;
     
     // Only validate buyer for invoice types that require it
     if (type === "bagsale" || type === "private") {
@@ -163,17 +166,20 @@ export const createInvoice = async (req, res) => {
     const invoice = new Invoice(req.body);
     await invoice.save();
 
-    // Auto adjust stock for bag purchases / sales
-    if (invoice.type === "bag" && invoice.warehouse) {
-      await adjustBagStock(invoice.warehouse, invoice.items || [], true);
-    }
-    if (invoice.type === "bagsale" && invoice.warehouse) {
-      await adjustBagStock(invoice.warehouse, invoice.items || [], false);
-    }
-    
-    // Auto adjust wheat stock for government purchases
-    if (invoice.type === "government" && invoice.warehouse && invoice.wheatQuantity) {
-      await adjustWheatStock(invoice.warehouse, invoice.wheatQuantity, invoice.description);
+    // Only adjust stock if status is "completed"
+    if (status === "completed") {
+      // Auto adjust stock for bag purchases / sales
+      if (invoice.type === "bag" && invoice.warehouse) {
+        await adjustBagStock(invoice.warehouse, invoice.items || [], true);
+      }
+      if (invoice.type === "bagsale" && invoice.warehouse) {
+        await adjustBagStock(invoice.warehouse, invoice.items || [], false);
+      }
+      
+      // Auto adjust wheat stock for government purchases
+      if (invoice.type === "government" && invoice.warehouse && invoice.wheatQuantity) {
+        await adjustWheatStock(invoice.warehouse, invoice.wheatQuantity, invoice.description);
+      }
     }
 
     res.status(201).json({ message: "Invoice created", invoice });
@@ -194,6 +200,53 @@ export const updateInvoice = async (req, res) => {
     res.status(200).json({ message: "Invoice updated", invoice });
   } catch (err) {
     console.error("Update Invoice Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// 🔄 Update Invoice Status and Handle Stock Adjustment
+export const updateInvoiceStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id } = req.params;
+
+    // Get the current invoice
+    const currentInvoice = await Invoice.findById(id);
+    if (!currentInvoice) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+
+    // Update the invoice status
+    const updatedInvoice = await Invoice.findByIdAndUpdate(
+      id, 
+      { status }, 
+      { new: true }
+    );
+
+    // If status is changing to "completed" and it was previously "pending"
+    if (status === "completed" && currentInvoice.status === "pending") {
+      // Adjust stock for government purchases
+      if (updatedInvoice.type === "government" && updatedInvoice.warehouse && updatedInvoice.wheatQuantity) {
+        await adjustWheatStock(updatedInvoice.warehouse, updatedInvoice.wheatQuantity, updatedInvoice.description);
+      }
+      
+      // Adjust stock for bag purchases
+      if (updatedInvoice.type === "bag" && updatedInvoice.warehouse) {
+        await adjustBagStock(updatedInvoice.warehouse, updatedInvoice.items || [], true);
+      }
+      
+      // Adjust stock for bag sales
+      if (updatedInvoice.type === "bagsale" && updatedInvoice.warehouse) {
+        await adjustBagStock(updatedInvoice.warehouse, updatedInvoice.items || [], false);
+      }
+    }
+
+    res.status(200).json({ 
+      message: "Invoice status updated successfully", 
+      invoice: updatedInvoice 
+    });
+  } catch (err) {
+    console.error("Update Invoice Status Error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

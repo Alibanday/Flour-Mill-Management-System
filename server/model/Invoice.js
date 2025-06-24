@@ -49,15 +49,11 @@ const invoiceSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "PrCenter",
   },
-   seller: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Account",
-  },
   buyer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Account",
     required: function() {
-      return this.type === "bagsale" || this.type === "private";
+      return this.type === "bagsale";
     }
   },
   items: [

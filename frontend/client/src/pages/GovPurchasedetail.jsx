@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaArrowLeft, FaPrint, FaEdit, FaWallet, FaMoneyBillWave, FaCalendarAlt, FaInfoCircle } from "react-icons/fa";
+import { FaArrowLeft, FaPrint, FaEdit, FaWallet, FaMoneyBillWave, FaCalendarAlt, FaInfoCircle, FaCheckCircle } from "react-icons/fa";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -12,6 +12,7 @@ export default function GovPurchaseDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [prCenterName, setPrCenterName] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   useEffect(() => {
     const fetchPurchaseDetails = async () => {
@@ -204,6 +205,40 @@ export default function GovPurchaseDetail() {
     navigate(`/government-purchases/edit/${id}`);
   };
 
+  const handleStatusUpdate = async () => {
+    if (purchase.status === "completed") {
+      toast.warning("Purchase is already completed!");
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to mark this purchase as completed? This will add the wheat stock to the warehouse.")) {
+      return;
+    }
+
+    try {
+      setUpdatingStatus(true);
+      const token = localStorage.getItem("token");
+      const response = await axios.patch(
+        `http://localhost:8000/api/invoice/${id}/status`,
+        { status: "completed" },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
+
+      setPurchase(response.data.invoice);
+      toast.success("Purchase status updated to completed! Stock has been added to warehouse.");
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      toast.error(err.response?.data?.message || "Failed to update purchase status");
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
@@ -254,6 +289,16 @@ export default function GovPurchaseDetail() {
           Back to Purchases
         </button>
         <div className="flex space-x-3">
+          {purchase.status === "pending" && (
+            <button
+              onClick={handleStatusUpdate}
+              disabled={updatingStatus}
+              className="flex items-center px-4 py-2 !bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FaCheckCircle className="mr-2" />
+              {updatingStatus ? "Updating..." : "Complete Purchase"}
+            </button>
+          )}
           <button
             onClick={handleEdit}
             className="flex items-center px-4 py-2 !bg-yellow-500 text-white rounded-md hover:bg-yellow-600"

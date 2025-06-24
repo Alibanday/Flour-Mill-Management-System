@@ -261,84 +261,187 @@ export default function GovernmentPurchase() {
 
               {/* Invoices Table */}
               <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-3">
-                  <h2 className="text-lg font-semibold text-gray-800">Recent Government Purchases</h2>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => {
-                        setFilterToday(!filterToday);
-                        setRangeFrom("");
-                        setRangeTo("");
-                      }}
-                      className={`px-3 py-2 text-sm rounded ${filterToday ? '!bg-blue-600 text-white' : '!bg-gray-200 hover:!bg-gray-300'}`}
-                    >
-                      Today
-                    </button>
-                    <input type="date" value={rangeFrom} onChange={e=>{setRangeFrom(e.target.value);setFilterToday(false);}} className="border px-2 py-1 text-sm"/>
-                    <span className="text-gray-500">to</span>
-                    <input type="date" value={rangeTo} onChange={e=>{setRangeTo(e.target.value);setFilterToday(false);}} className="border px-2 py-1 text-sm"/>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                  <h2 className="text-xl font-bold text-gray-800">Recent Government Purchases</h2>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setFilterToday(!filterToday);
+                          setRangeFrom("");
+                          setRangeTo("");
+                        }}
+                        className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                          filterToday 
+                            ? '!bg-blue-600 text-white shadow-md' 
+                            : '!bg-gray-100 text-gray-700 hover:!bg-gray-200 border border-gray-200'
+                        }`}
+                      >
+                        Today
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="date" 
+                          value={rangeFrom} 
+                          onChange={e=>{setRangeFrom(e.target.value);setFilterToday(false);}} 
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        />
+                        <span className="text-gray-500 font-medium">to</span>
+                        <input 
+                          type="date" 
+                          value={rangeTo} 
+                          onChange={e=>{setRangeTo(e.target.value);setFilterToday(false);}} 
+                          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        />
+                      </div>
+                    </div>
                     <div className="relative">
-                      <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                      <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
                         value={searchTerm}
                         onChange={handleSearchChange}
                         placeholder="Search purchases..."
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 w-full sm:w-64"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-hidden rounded-lg border border-gray-200">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice #</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wheat Quantity</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Invoice #</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Payment Method</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Wheat Details</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Total Amount</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-gray-100">
                       {loading ? (
                         <tr>
-                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">Loading...</td>
+                          <td colSpan="6" className="px-6 py-8 text-center">
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                              <span className="ml-2 text-sm text-gray-500">Loading purchases...</span>
+                            </div>
+                          </td>
                         </tr>
                       ) : invoices.length > 0 ? (
                         invoices.map((invoice) => (
-                          <tr onClick={() => handleClickInvoice(invoice?._id)}  key={invoice._id} className="hover:bg-blue-50 cursor-pointer">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{invoice._id}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{invoice.paymentMethod}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {invoice.wheatQuantity} kg @ Rs. {invoice.ratePerKg}/kg
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Rs. {invoice.totalAmount}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(invoice.date)}</td>
+                          <tr 
+                            onClick={() => handleClickInvoice(invoice?._id)}  
+                            key={invoice._id} 
+                            className="hover:bg-blue-50 cursor-pointer transition-colors duration-150 group"
+                          >
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                ${invoice.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                {invoice.status}
+                              <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                                #{invoice._id.slice(-8)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  invoice.paymentMethod === 'cash' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {invoice.paymentMethod.charAt(0).toUpperCase() + invoice.paymentMethod.slice(1)}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                <div className="font-medium">{invoice.wheatQuantity?.toLocaleString()} kg</div>
+                                <div className="text-gray-500">@ Rs. {invoice.ratePerKg?.toLocaleString()}/kg</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-semibold text-gray-900">
+                                Rs. {invoice.totalAmount?.toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {formatDate(invoice.date)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                invoice.status === 'completed' 
+                                  ? 'bg-green-100 text-green-800 ring-1 ring-green-200' 
+                                  : 'bg-yellow-100 text-yellow-800 ring-1 ring-yellow-200'
+                              }`}>
+                                <span className={`w-2 h-2 rounded-full mr-2 ${
+                                  invoice.status === 'completed' ? 'bg-green-400' : 'bg-yellow-400'
+                                }`}></span>
+                                {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                               </span>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-500">No invoices found</td>
+                          <td colSpan="6" className="px-6 py-12 text-center">
+                            <div className="flex flex-col items-center">
+                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                <FaFileInvoiceDollar className="text-2xl text-gray-400" />
+                              </div>
+                              <p className="text-gray-500 font-medium">No purchases found</p>
+                              <p className="text-gray-400 text-sm mt-1">Try adjusting your search or date filters</p>
+                            </div>
+                          </td>
                         </tr>
                       )}
                     </tbody>
                   </table>
-                  {/* Pagination */}
-                  <div className="mt-4 flex justify-center gap-3">
-                    <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="px-3 py-1 border rounded !bg-gray-100 hover:!bg-blue-600 hover:text-white disabled:opacity-50">Prev</button>
-                    <span className="px-2 py-1">Page {page} of {totalPages}</span>
-                    <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="px-3 py-1 border rounded !bg-gray-100 hover:!bg-blue-600 hover:text-white disabled:opacity-50">Next</button>
-                  </div>
                 </div>
+                
+                {/* Enhanced Pagination */}
+                {invoices.length > 0 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <div className="text-sm text-gray-700">
+                      Showing page {page} of {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={()=>setPage(p=>Math.max(1,p-1))} 
+                        disabled={page===1} 
+                        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 !bg-white text-gray-700 hover:!bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          const pageNum = Math.max(1, Math.min(totalPages - 4, page - 2)) + i;
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setPage(pageNum)}
+                              className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                                page === pageNum
+                                  ? '!bg-blue-600 text-white'
+                                  : '!bg-gray-100 text-gray-700 hover:!bg-gray-200'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button 
+                        onClick={()=>setPage(p=>Math.min(totalPages,p+1))} 
+                        disabled={page===totalPages} 
+                        className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 !bg-white text-gray-700 hover:!bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}

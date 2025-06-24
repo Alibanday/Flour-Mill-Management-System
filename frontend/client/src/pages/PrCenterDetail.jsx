@@ -36,7 +36,7 @@ const PrCenterDetail = () => {
       await axios.delete(`http://localhost:8000/api/prcenter/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      navigate("/prcenter");
+      navigate("/government-purchases");
     } catch (err) {
       console.error("Error deleting PR Center:", err);
     }
@@ -69,13 +69,13 @@ const PrCenterDetail = () => {
                 <div className="flex space-x-3">
                   <button
                     onClick={handleEdit}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center"
+                    className="px-4 py-2 !bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200 flex items-center"
                   >
                     ✏️ Edit
                   </button>
                   <button
                     onClick={() => setShowConfirm(true)}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-200 flex items-center"
+                    className="px-4 py-2 !bg-red-500 text-white rounded-lg hover:bg-red-600 transition duration-200 flex items-center"
                   >
                     🗑️ Delete
                   </button>
@@ -102,13 +102,13 @@ const PrCenterDetail = () => {
               <div className="flex justify-center space-x-4">
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition duration-200"
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 !bg-white hover:bg-gray-100 transition duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200"
+                  className="px-6 py-2 !bg-red-600 text-white rounded-lg hover:bg-red-700 transition duration-200"
                 >
                   Delete
                 </button>

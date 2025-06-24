@@ -6,7 +6,7 @@ import { FaWallet, FaTimes, FaSave } from "react-icons/fa";
 
 export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
   const [form, setForm] = useState({
-    sellerAccount: "",
+    buyer: "",
     paymentMethod: "cash",
     initialPayment: "",
     description: "",
@@ -18,14 +18,14 @@ export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
     status: "pending",
   });
 
-  const [sellerAccounts, setSellerAccounts] = useState([]);
+  const [buyerAccounts, setBuyerAccounts] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch Payable Seller Accounts from API
+  // Fetch Receivable Buyer Accounts from API
   useEffect(() => {
-    const fetchSellerAccounts = async () => {
+    const fetchBuyerAccounts = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem("token");
@@ -34,19 +34,19 @@ export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
             Authorization: `Bearer ${token}`,
           },
           params: {
-            type: "payable" 
+            type: "receivable" 
           }
         });
-        setSellerAccounts(response.data);
+        setBuyerAccounts(response.data);
       } catch (err) {
-        console.error("Failed to fetch Seller Accounts:", err);
-        setError("Failed to load Seller Accounts");
+        console.error("Failed to fetch Buyer Accounts:", err);
+        setError("Failed to load Buyer Accounts");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSellerAccounts();
+    fetchBuyerAccounts();
   }, []);
 
   // Calculate total amount and remaining amount when values change
@@ -81,8 +81,8 @@ export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
     setSuccess(null);
 
     // Validation
-    if (!form.sellerAccount) {
-      setError("Seller Account is required");
+    if (!form.buyer) {
+      setError("Buyer Account is required");
       return;
     }
     if (!form.wheatQuantity || isNaN(form.wheatQuantity)) {
@@ -101,7 +101,7 @@ export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
       }
 
       const payload = {
-        seller: form.sellerAccount,
+        buyer: form.buyer,
         paymentMethod: form.paymentMethod,
         initialPayment: parseFloat(form.initialPayment) || 0,
         description: form.description,
@@ -130,7 +130,7 @@ export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
       
       // Reset form but keep the date
       setForm({
-        sellerAccount: "",
+        buyer: "",
         paymentMethod: "cash",
         initialPayment: "",
         description: "",
@@ -180,23 +180,23 @@ export default function PrivatePurchaseForm({ onPurchaseAdded, onCancel }) {
             />
           </div>
 
-          {/* Seller Account Dropdown */}
+          {/* Buyer Account Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Seller Account <span className="text-red-500">*</span>
+              Buyer Account <span className="text-red-500">*</span>
             </label>
             <select
-              name="sellerAccount"
-              value={form.sellerAccount}
+              name="buyer"
+              value={form.buyer}
               onChange={handleChange}
               className="w-full px-4 py-2 border border-gray-300 rounded-md text-black"
               required
             >
-              <option value="">Select Seller Account</option>
+              <option value="">Select Buyer Account</option>
               {loading ? (
-                <option disabled>Loading Seller Accounts...</option>
+                <option disabled>Loading Buyer Accounts...</option>
               ) : (
-                sellerAccounts.map((account) => (
+                buyerAccounts.map((account) => (
                   <option key={account._id} value={account._id}>
                     {account.accountName} ({account.accountId})
                   </option>

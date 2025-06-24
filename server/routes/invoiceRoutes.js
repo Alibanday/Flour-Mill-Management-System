@@ -4,6 +4,7 @@ import {
   getInvoiceById,
   createInvoice,
   updateInvoice,
+  updateInvoiceStatus,
   deleteInvoice,
   getInvoicesByAccount,
   getDashboardStats
@@ -20,7 +21,8 @@ router.get("/", getAllInvoices); // View + Search for all
 router.get("/:id", getInvoiceById); // View one
 
 router.post("/",protect, authAdminOrSales, createInvoice); // Admin/Sales
-router.put("/:id", authAdminOrSales, updateInvoice);
-router.delete("/:id", authAdminOrSales, deleteInvoice);
+router.put("/:id", protect, authAdminOrSales, updateInvoice);
+router.patch("/:id/status", protect, authAdminOrSales, updateInvoiceStatus); // Update status specifically
+router.delete("/:id", protect, authAdminOrSales, deleteInvoice);
 
 export default router;
