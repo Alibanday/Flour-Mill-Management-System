@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
@@ -11,6 +12,45 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
+  const [dashboardStats, setDashboardStats] = useState({
+    cashInHand: 0,
+    totalDebit: 0,
+    totalCredit: 0,
+    totalBags: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      
+      // Fetch dashboard stats
+      const statsRes = await axios.get("http://localhost:8000/api/invoice/dashboard/stats", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // Fetch total bags stock
+      const bagsRes = await axios.get("http://localhost:8000/api/stock/total-bags", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setDashboardStats({
+        cashInHand: statsRes.data.cashInHand || 0,
+        totalDebit: statsRes.data.totalDebit || 0,
+        totalCredit: statsRes.data.totalCredit || 0,
+        totalBags: bagsRes.data.totalBags || 0
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -149,27 +189,31 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 w-full">
             <DashboardCard 
               title="Cash in Hand" 
-              value="Rs. 0" 
+              value={`Rs. ${dashboardStats.cashInHand.toLocaleString()}`}
               icon={<FaCashRegister />}
               trend="up"
+              loading={loading}
             />
             <DashboardCard 
               title="Total Debit" 
-              value="Rs. 0" 
+              value={`Rs. ${dashboardStats.totalDebit.toLocaleString()}`}
               icon={<FaChartBar />}
               trend="down"
+              loading={loading}
             />
             <DashboardCard 
               title="Total Credit" 
-              value="Rs. 0" 
+              value={`Rs. ${dashboardStats.totalCredit.toLocaleString()}`}
               icon={<FaChartBar />}
               trend="up"
+              loading={loading}
             />
             <DashboardCard 
               title="Total Stock" 
-              value="0 Units" 
+              value={`${dashboardStats.totalBags.toLocaleString()} Bags`}
               icon={<FaBoxes />}
               trend="neutral"
+              loading={loading}
             />
           </div>
         </main>
@@ -208,7 +252,7 @@ export default function Dashboard() {
   );
 }
 
-function DashboardCard({ title, value, icon, trend }) {
+function DashboardCard({ title, value, icon, trend, loading }) {
   const trendColors = {
     up: "text-green-500",
     down: "text-red-500",
@@ -219,7 +263,11 @@ function DashboardCard({ title, value, icon, trend }) {
     <div className="bg-white rounded-xl shadow-sm p-6 flex items-start justify-between hover:shadow-md transition-shadow border border-gray-100">
       <div>
         <div className="text-sm font-medium text-gray-500 mb-1">{title}</div>
-        <div className="text-2xl font-semibold text-gray-800">{value}</div>
+        {loading ? (
+          <div className="animate-pulse bg-gray-200 h-8 w-24 rounded"></div>
+        ) : (
+          <div className="text-2xl font-semibold text-gray-800">{value}</div>
+        )}
       </div>
       <div className={`p-3 rounded-full ${trend === 'up' ? 'bg-green-100' : trend === 'down' ? 'bg-red-100' : 'bg-gray-100'} ${trendColors[trend]}`}>
         {icon}

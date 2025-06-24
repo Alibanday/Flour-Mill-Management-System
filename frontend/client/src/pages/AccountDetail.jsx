@@ -33,7 +33,7 @@ const AccountDetail = () => {
     const fetchInvoices = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`http://localhost:8000/api/invoices/account/${id}`, {
+        const res = await axios.get(`http://localhost:8000/api/invoice/account/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setInvoices(res.data.invoices || []);

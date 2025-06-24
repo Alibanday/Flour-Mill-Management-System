@@ -222,3 +222,64 @@ export const getInvoicesByAccount = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// Get dashboard statistics
+export const getDashboardStats = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Cash in hand - sum of today's cash sales (bagsale invoices with cash payment)
+    const cashInHand = await Invoice.aggregate([
+      {
+        $match: {
+          type: "bagsale",
+          paymentMethod: "cash",
+          date: { $gte: today, $lt: tomorrow }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$initialPayment" }
+        }
+      }
+    ]);
+
+    // Total Debit - sum of all pending/overdue remaining amounts (money owed to us)
+    const totalDebit = await Invoice.aggregate([
+      {
+        $match: {
+          status: { $in: ["pending", "overdue"] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$remainingAmount" }
+        }
+      }
+    ]);
+
+    // Total Credit - sum of all accounts' credit limits
+    const totalCredit = await Account.aggregate([
+      {
+        $group: {
+          _id: null,
+          total: { $sum: { $ifNull: ["$creditLimit", 0] } }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      cashInHand: cashInHand[0]?.total || 0,
+      totalDebit: totalDebit[0]?.total || 0,
+      totalCredit: totalCredit[0]?.total || 0
+    });
+  } catch (err) {
+    console.error("Get Dashboard Stats Error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

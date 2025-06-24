@@ -14,6 +14,7 @@ import invoiceRoutes from "./routes/invoiceRoutes.js";
 import bagRoutes from "./routes/bagRoutes.js";
 import dailyProductionRoutes from "./routes/dailyProductionRoutes.js";
 import itemRoutes from "./routes/itemRoutes.js";
+import attendanceRoutes from "./routes/attendancesystem/attendanceRoutes.js";
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
 
@@ -58,6 +59,8 @@ app.use("/api/bags", bagRoutes);
 app.use("/api/dailyproduction", dailyProductionRoutes);
 
 app.use("/api/items", itemRoutes);
+
+app.use("/api/attendance", attendanceRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {

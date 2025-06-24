@@ -77,22 +77,40 @@ export const deleteStock = async (req, res) => {
 };
 export const getAllStocks = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "" } = req.query;
+    const { page = 1, limit = 10, search = "", warehouse, itemType } = req.query;
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const filter = {
-      $or: [
+    // Build filter object
+    const filter = {};
+    
+    // Add warehouse filter if provided
+    if (warehouse) {
+      filter.warehouse = warehouse;
+    }
+    
+    // Add itemType filter if provided
+    if (itemType) {
+      filter.itemType = itemType;
+    }
+    
+    // Add search filter if provided
+    if (search) {
+      filter.$or = [
         { itemName: { $regex: search, $options: "i" } },
         { itemType: { $regex: search, $options: "i" } },
         { subType: { $regex: search, $options: "i" } },
         { sellerName: { $regex: search, $options: "i" } },
         { sellerDescription: { $regex: search, $options: "i" } }
-      ]
-    };
+      ];
+    }
 
     const [stocks, total] = await Promise.all([
-      Stock.find(filter).skip(skip).limit(Number(limit)).sort({ createdAt: -1 }),
+      Stock.find(filter)
+        .populate('warehouse', 'name warehouseNumber')
+        .skip(skip)
+        .limit(Number(limit))
+        .sort({ createdAt: -1 }),
       Stock.countDocuments(filter)
     ]);
 
@@ -150,5 +168,31 @@ export const transferStockToWarehouse = async (req, res) => {
     res.json({ message: `Transferred ${transferQuantity} units to warehouse ${warehouse.name}`, stock });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+// Get total bags stock across all warehouses
+export const getTotalBagsStock = async (req, res) => {
+  try {
+    const totalBags = await Stock.aggregate([
+      {
+        $match: {
+          itemType: "bags"
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$quantity.value" }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      totalBags: totalBags[0]?.total || 0
+    });
+  } catch (err) {
+    console.error("Get Total Bags Stock Error:", err);
+    res.status(500).json({ message: "Server error" });
   }
 };

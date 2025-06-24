@@ -3,31 +3,20 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
   FaBoxes, FaPallet, FaClipboardList, FaTruckLoading,
-  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome, FaEdit, FaTrash, FaSeedling, FaShoppingBag
+  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome, FaSeedling, FaShoppingBag
 } from "react-icons/fa";
-import AddWarehouse from "../components/AddWarehouse";
 
-export default function WarehousePage() {
+export default function InventoryPage() {
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState("Warehouse");
-  const [showAddWarehouse, setShowAddWarehouse] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [activeMenu, setActiveMenu] = useState("Inventory");
   const [warehouses, setWarehouses] = useState([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  
-  // Inventory state
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
-  const [selectedStockType, setSelectedStockType] = useState(null);
+  const [selectedStockType, setSelectedStockType] = useState(null); // 'wheat' or 'bags'
+  const [loading, setLoading] = useState(false);
   const [stockData, setStockData] = useState([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [totalStock, setTotalStock] = useState(0);
   const [categorizedBags, setCategorizedBags] = useState({});
-
-  const handleClick = (id) => {
-    navigate(`/warehouse/${id}`);
-  };
 
   const fetchWarehouses = async () => {
     try {
@@ -35,64 +24,18 @@ export default function WarehousePage() {
       const token = localStorage.getItem("token");
       const res = await axios.get(`http://localhost:8000/api/warehouse/all`, {
         params: {
-          search: searchTerm,
-          page: page,
-          limit: 6
+          page: 1,
+          limit: 50
         },
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       setWarehouses(res.data.warehouses);
-      setTotalPages(res.data.totalPages);
     } catch (error) {
       console.error("Failed to fetch warehouses:", error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWarehouses();
-  }, [searchTerm, page, showAddWarehouse]);
-
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-    setPage(1); // Reset to page 1 on new search
-  };
-
-  const handleEdit = (id) => {
-    navigate(`/warehouse/edit/${id}`);
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this warehouse?")) {
-      try {
-        const token = localStorage.getItem("token");
-        await axios.delete(`http://localhost:8000/api/warehouse/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        alert("Warehouse deleted successfully!");
-        fetchWarehouses(); // Refresh the list
-      } catch (error) {
-        console.error("Failed to delete warehouse:", error);
-        alert(error.response?.data?.message || "Failed to delete warehouse");
-      }
-    }
-  };
-
-  const handleMenuClick = (menuName) => {
-    setActiveMenu(menuName);
-    if (menuName === "Warehouse") {
-      setShowAddWarehouse(false);
-      setSelectedWarehouse(null);
-      setSelectedStockType(null);
-    } else if (menuName === "Inventory") {
-      setShowAddWarehouse(false);
-      setSelectedWarehouse(null);
-      setSelectedStockType(null);
     }
   };
 
@@ -156,27 +99,49 @@ export default function WarehousePage() {
     }
   };
 
+  useEffect(() => {
+    fetchWarehouses();
+  }, []);
+
+  useEffect(() => {
+    if (selectedWarehouse && selectedStockType) {
+      fetchStockData(selectedWarehouse._id, selectedStockType);
+    }
+  }, [selectedWarehouse, selectedStockType]);
+
+  const handleWarehouseClick = (warehouse) => {
+    setSelectedWarehouse(warehouse);
+    setSelectedStockType(null); // Reset stock type when warehouse changes
+    setStockData([]); // Clear stock data
+  };
+
+  const handleStockTypeClick = (stockType) => {
+    setSelectedStockType(stockType);
+  };
+
+  const inventoryMenu = [
+    { name: "Inventory", icon: <FaBoxes className="mr-3" /> },
+    { name: "Stock Items", icon: <FaPallet className="mr-3" /> },
+    { name: "Categories", icon: <FaClipboardList className="mr-3" /> },
+    { name: "Suppliers", icon: <FaTruckLoading className="mr-3" /> },
+    { name: "Transactions", icon: <FaChartLine className="mr-3" /> }
+  ];
+
+  const inventoryActions = [
+    { name: "Add Stock", icon: <FaPlus />, action: () => console.log("Add Stock") },
+    { name: "Stock Check", icon: <FaSearch />, action: () => console.log("Stock Check") },
+    { name: "Transfer", icon: <FaTruckLoading />, action: () => console.log("Transfer") }
+  ];
+
   const stockTypes = [
     { name: "Wheat Stock", icon: <FaSeedling className="text-green-600" />, type: "wheat" },
     { name: "Bags Stock", icon: <FaShoppingBag className="text-blue-600" />, type: "bags" }
   ];
 
-  const warehouseMenu = [
-    { name: "Warehouse", icon: <FaWarehouse className="mr-3" /> },
-    { name: "Inventory", icon: <FaBoxes className="mr-3" /> }
-  ];
-
-  const warehouseActions = [
-    { name: "New Entry", icon: <FaPlus />, action: () => setShowAddWarehouse(true) },
-    { name: "Stock Check", icon: <FaSearch />, action: () => console.log("Stock Check") },
-    { name: "Dispatch", icon: <FaTruckLoading />, action: () => console.log("Dispatch") }
-  ];
-
   return (
-   <div
-        className="min-h-screen w-full bg-white bg-opacity-30 backdrop-blur-sm bg-cover bg-no-repeat bg-center"
-        style={{ backgroundImage: "url('/dashboard.jpg')" }}
-      >
+    <div className="min-h-screen w-full bg-white bg-opacity-30 backdrop-blur-sm bg-cover bg-no-repeat bg-center"
+      style={{ backgroundImage: "url('/dashboard.jpg')" }}>
+      
       {/* Top Navigation */}
       <header className="bg-white shadow-sm w-full">
         <div className="px-6 py-3 flex items-center justify-between w-full">
@@ -194,22 +159,22 @@ export default function WarehousePage() {
           </div>
           <div className="flex items-center space-x-4">
             <button className="p-2 rounded-full !bg-gray-100 text-gray-600 hover:bg-gray-200">
-              <FaWarehouse className="text-lg" />
+              <FaBoxes className="text-lg" />
             </button>
           </div>
         </div>
       </header>
 
       <div className="flex w-full">
-        {/* Sidebar */}
+        {/* Left Sidebar */}
         <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
           <div className="p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">WAREHOUSE MENU</h3>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">INVENTORY MENU</h3>
             <ul className="space-y-1">
-              {warehouseMenu.map((item, index) => (
+              {inventoryMenu.map((item, index) => (
                 <li key={index}>
                   <button
-                    onClick={() => handleMenuClick(item.name)}
+                    onClick={() => setActiveMenu(item.name)}
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
                   >
                     {item.icon}
@@ -221,170 +186,53 @@ export default function WarehousePage() {
           </div>
         </aside>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <main className="flex-1 p-6 w-full">
-          {activeMenu === "Warehouse" ? (
-            // Warehouse Content
-            <>
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-                {warehouseActions.map((button, index) => (
-                  <button
-                    key={index}
-                    onClick={button.action}
-                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-                  >
-                    <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                      {button.icon}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Add Warehouse Form */}
-              {showAddWarehouse && (
-                <AddWarehouse onCancel={() => setShowAddWarehouse(false)} />
-              )}
-
-              {/* Warehouse List - Show by default when not adding warehouse */}
-              {!showAddWarehouse && (
-                <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-gray-800">All Warehouses</h2>
-                    <div className="relative">
-                      <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={handleSearchChange}
-                        placeholder="Search warehouses..."
-                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  {loading ? (
-                    <p className="text-gray-500 text-sm">Loading...</p>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {warehouses.map((wh, i) => (
-                        <div key={i} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-gray-800">{wh.name}</h3>
-                            <span className="text-sm text-gray-500">{wh.warehouseNumber}</span>
-                          </div>
-                          <div className="text-sm text-gray-600 mb-1">
-                            <strong>Location:</strong> {wh.location}
-                          </div>
-                          <div className="text-sm text-gray-600 mb-1">
-                            <strong>Status:</strong> {wh.status}
-                          </div>
-                          <div className="text-sm text-gray-600 mb-1">
-                            <strong>Manager:</strong> {wh.manager ? `${wh.manager.firstName} ${wh.manager.lastName}` : 'Not Assigned'}
-                          </div>
-                          <div className="text-xs text-gray-500 italic mb-3">{wh.description}</div>
-                          
-                          {/* Action Buttons */}
-                          <div className="flex justify-end space-x-2">
-                            <button
-                              onClick={() => handleEdit(wh._id)}
-                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
-                              title="Edit Warehouse"
-                            >
-                              <FaEdit className="text-sm" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(wh._id)}
-                              className="p-2 text-red-600 hover:bg-red-100 rounded-md transition-colors"
-                              title="Delete Warehouse"
-                            >
-                              <FaTrash className="text-sm" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Pagination */}
-                  <div className="flex justify-center mt-6 space-x-2">
-                    <button
-                      disabled={page === 1}
-                      onClick={() => setPage(page - 1)}
-                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-                    >
-                      Prev
-                    </button>
-                    {[...Array(totalPages)].map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setPage(i + 1)}
-                        className={`px-3 py-1 rounded ${page === i + 1 ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
-                    <button
-                      disabled={page === totalPages}
-                      onClick={() => setPage(page + 1)}
-                      className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-                    >
-                      Next
-                    </button>
-                  </div>
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
+            {inventoryActions.map((button, index) => (
+              <button
+                key={index}
+                onClick={button.action}
+                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+              >
+                <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
+                  {button.icon}
                 </div>
-              )}
-            </>
-          ) : (
-            // Inventory Content
-            <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-800">Inventory Management</h2>
-              </div>
+                <span className="text-sm font-medium text-gray-700">{button.name}</span>
+              </button>
+            ))}
+          </div>
 
-              <div className="flex gap-6">
-                {/* Left Side - Inventory Overview */}
-                <div className="flex-1">
-                  {!selectedWarehouse ? (
-                    <div className="text-center py-8">
-                      <div className="text-gray-400 mb-2">
-                        <FaBoxes className="mx-auto h-12 w-12" />
-                      </div>
-                      <h4 className="text-lg font-medium text-gray-900 mb-2">Select a Warehouse</h4>
-                      <p className="text-gray-500">
-                        Choose a warehouse from the list to view its inventory.
-                      </p>
-                    </div>
-                  ) : !selectedStockType ? (
+          {/* Main Content and Warehouse List */}
+          <div className="flex gap-6">
+            {/* Main Content Area */}
+            <div className="flex-1 bg-white rounded-xl shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-4">Inventory Overview</h2>
+              
+              {selectedWarehouse ? (
+                <div>
+                  <h3 className="text-md font-medium text-gray-700 mb-4">
+                    Selected: {selectedWarehouse.name} ({selectedWarehouse.warehouseNumber})
+                  </h3>
+                  
+                  {!selectedStockType ? (
                     <div>
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-medium text-gray-800">
-                          {selectedWarehouse.name} - Select Stock Type
-                        </h4>
-                        <button
-                          onClick={() => setSelectedWarehouse(null)}
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          ← Back to Warehouses
-                        </button>
-                      </div>
                       <p className="text-gray-600 mb-4">Select a stock type to view inventory:</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {stockTypes.map((option) => (
                           <button
                             key={option.type}
-                            onClick={() => {
-                              setSelectedStockType(option.type);
-                              fetchStockData(selectedWarehouse._id, option.type);
-                            }}
-                            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                            onClick={() => handleStockTypeClick(option.type)}
+                            className="p-6 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors border border-gray-200 hover:border-blue-300"
                           >
-                            <div className="mr-4 text-2xl">
-                              {option.icon}
-                            </div>
-                            <div className="text-left">
-                              <h4 className="font-medium text-gray-800">{option.name}</h4>
+                            <div className="flex items-center space-x-4">
+                              <div className="text-blue-600">
+                                {option.icon}
+                              </div>
+                              <div className="text-left">
+                                <h4 className="font-medium text-gray-800">{option.name}</h4>
+                              </div>
                             </div>
                           </button>
                         ))}
@@ -544,32 +392,62 @@ export default function WarehousePage() {
                     </div>
                   )}
                 </div>
-
-                {/* Right Side - Warehouse List */}
-                <div className="w-80 bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-800 mb-4">Warehouses</h3>
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {warehouses.map((warehouse) => (
-                      <button
-                        key={warehouse._id}
-                        onClick={() => setSelectedWarehouse(warehouse)}
-                        className={`w-full text-left p-3 rounded-lg transition-colors ${
-                          selectedWarehouse?._id === warehouse._id
-                            ? "bg-blue-100 text-blue-800 border border-blue-200"
-                            : "bg-white hover:bg-gray-100 border border-gray-200"
-                        }`}
-                      >
-                        <div className="font-medium text-sm">{warehouse.name}</div>
-                        <div className="text-xs text-gray-500">{warehouse.location}</div>
-                      </button>
-                    ))}
-                  </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FaBoxes className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Warehouse</h3>
+                  <p className="text-gray-500">
+                    Choose a warehouse from the list on the right to view its inventory.
+                  </p>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+
+            {/* Warehouse List Sidebar */}
+            <div className="w-80 bg-white rounded-xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Warehouses</h3>
+                <FaWarehouse className="text-gray-400" />
+              </div>
+
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading warehouses...</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {warehouses.map((warehouse) => (
+                    <div
+                      key={warehouse._id}
+                      onClick={() => handleWarehouseClick(warehouse)}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                        selectedWarehouse?._id === warehouse._id
+                          ? 'bg-blue-100 border-l-4 border-blue-500'
+                          : 'bg-gray-50 hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="font-medium text-gray-800">
+                        {warehouse.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {warehouse.warehouseNumber}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {warehouses.length === 0 && !loading && (
+                <div className="text-center py-8">
+                  <FaWarehouse className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+                  <p className="text-gray-500">No warehouses found</p>
+                </div>
+              )}
+            </div>
+          </div>
         </main>
       </div>
     </div>
   );
-}
+} 

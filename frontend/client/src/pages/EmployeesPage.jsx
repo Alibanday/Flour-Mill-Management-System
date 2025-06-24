@@ -19,6 +19,10 @@ export default function EmployeePage() {
     navigate("/login");
   };
 
+  const handleAttendanceClick = () => {
+    navigate("/attendance");
+  };
+
   const employeeData = [
     { id: 1, name: "John Doe", position: "Manager", department: "Admin", salary: "50,000", status: "Active" },
     { id: 2, name: "Jane Smith", position: "Accountant", department: "Finance", salary: "35,000", status: "Active" },
@@ -39,6 +43,7 @@ export default function EmployeePage() {
   // Quick actions similar to warehouse page
   const employeeActions = [
     { name: "Add Employee", icon: <FaUserPlus />, action: () => setActiveTab("registration") },
+    { name: "Attendance", icon: <FaUserClock />, action: handleAttendanceClick },
     // { name: "Search", icon: <FaSearch />, action: () => console.log("Search Employees") },
     // { name: "Export Data", icon: <FaFileExport />, action: () => console.log("Export Data") }
   ];
@@ -95,7 +100,7 @@ export default function EmployeePage() {
               </li>
               <li>
                 <button
-                  onClick={() => setActiveTab("attendance")}
+                  onClick={handleAttendanceClick}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${activeTab === "attendance" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
                 >
                   <FaUserClock className="mr-3" />
@@ -154,56 +159,16 @@ export default function EmployeePage() {
             )}
 
             {activeTab === "attendance" && (
-              <div>
-                <div className="mb-4 flex justify-between">
-                  <div className="relative w-64">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <FaSearch className="text-gray-400" />
-                    </div>
-                    <input
-                      type="text"
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                      placeholder="Search attendance..."
-                    />
-                  </div>
-                  <div className="flex space-x-2">
-                    <input
-                      type="date"
-                      className="block pl-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check In</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check Out</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {attendanceData.map((record) => (
-                        <tr key={record.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.id}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{record.name}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.date}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === "Present" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-                              {record.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.checkIn}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.checkOut}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="text-center py-12">
+                <FaUserClock className="mx-auto text-4xl text-gray-300 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Attendance Management</h3>
+                <p className="text-gray-500 mb-6">Click the "Attendance" button above to access the attendance system.</p>
+                <button
+                  onClick={handleAttendanceClick}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Go to Attendance
+                </button>
               </div>
             )}
 

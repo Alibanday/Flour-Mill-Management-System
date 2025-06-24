@@ -50,7 +50,154 @@ export default function GovPurchaseDetail() {
   }, [id]);
 
   const handlePrint = () => {
-    window.print();
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Government Purchase Invoice</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              background-color: white;
+            }
+            .invoice-header {
+              text-align: center;
+              border-bottom: 2px solid #333;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .invoice-title {
+              font-size: 24px;
+              font-weight: bold;
+              color: #333;
+              margin-bottom: 10px;
+            }
+            .invoice-subtitle {
+              font-size: 16px;
+              color: #666;
+            }
+            .invoice-details {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              margin-bottom: 30px;
+            }
+            .detail-group {
+              margin-bottom: 15px;
+            }
+            .detail-label {
+              font-weight: bold;
+              color: #333;
+              margin-bottom: 5px;
+            }
+            .detail-value {
+              color: #666;
+              padding: 8px;
+              background-color: #f9f9f9;
+              border-radius: 4px;
+            }
+            .amount-section {
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+              margin-top: 20px;
+            }
+            .total-amount {
+              font-size: 18px;
+              font-weight: bold;
+              color: #333;
+              text-align: right;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+            }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-header">
+            <div class="invoice-title">GOVERNMENT PURCHASE INVOICE</div>
+            <div class="invoice-subtitle">FlourMill Pro Management System</div>
+          </div>
+          
+          <div class="invoice-details">
+            <div>
+              <div class="detail-group">
+                <div class="detail-label">Date:</div>
+                <div class="detail-value">${formatDate(purchase.date)}</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">PR Center:</div>
+                <div class="detail-value">${prCenterName || 'N/A'}</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">Warehouse:</div>
+                <div class="detail-value">${purchase.warehouse ? (typeof purchase.warehouse === 'string' ? purchase.warehouse : purchase.warehouse.name) : 'N/A'}</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">Wheat Quantity:</div>
+                <div class="detail-value">${purchase.wheatQuantity.toLocaleString()} kg</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">Rate Per Kg:</div>
+                <div class="detail-value">Rs. ${purchase.ratePerKg.toLocaleString()}</div>
+              </div>
+            </div>
+            <div>
+              <div class="detail-group">
+                <div class="detail-label">Payment Method:</div>
+                <div class="detail-value">${purchase.paymentMethod.charAt(0).toUpperCase() + purchase.paymentMethod.slice(1)}</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">Initial Payment:</div>
+                <div class="detail-value">Rs. ${purchase.initialPayment.toLocaleString()}</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">Credit Amount:</div>
+                <div class="detail-value">Rs. ${purchase.remainingAmount.toLocaleString()}</div>
+              </div>
+              <div class="detail-group">
+                <div class="detail-label">Total Amount:</div>
+                <div class="detail-value">Rs. ${purchase.totalAmount.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="detail-group">
+            <div class="detail-label">Description:</div>
+            <div class="detail-value">${purchase.description || 'No description provided'}</div>
+          </div>
+          
+          <div class="amount-section">
+            <div class="total-amount">
+              Total Amount: Rs. ${purchase.totalAmount.toLocaleString()}
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>Invoice ID: ${purchase._id}</p>
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <p>This is a computer generated invoice</p>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const handleEdit = () => {

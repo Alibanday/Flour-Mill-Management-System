@@ -2,9 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { FaPlus, FaTrash, FaTimes } from "react-icons/fa";
 import axios from "axios";
 
-const itemOptions = ["Ata", "Maida", "Suji", "Fine", "Bran"];
 const wheatOptions = ["Wheat Private", "Wheat Government"];
-const weightOptions = [10, 15, 20, 40, 80];
 
 export default function DailyProductionForm({ onCancel, onSave }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -15,11 +13,17 @@ export default function DailyProductionForm({ onCancel, onSave }) {
   ]);
 
   const [productionItems, setProductionItems] = useState([
-    { item: "Ata", bagWeight: "10", bagQty: "" }
+    { item: "", bagWeight: "", bagQty: "" }
   ]);
 
   const [outputWarehouse, setOutputWarehouse] = useState("");
   const [warehouseOptions, setWarehouseOptions] = useState([]);
+  
+  // Dynamic item data
+  const [allItems, setAllItems] = useState([]);
+  const [itemNames, setItemNames] = useState([]);
+  const [itemWeights, setItemWeights] = useState([]);
+  const [itemCategory, setItemCategory] = useState("");
 
   useEffect(() => {
     const fetchWarehouses = async () => {
@@ -33,6 +37,47 @@ export default function DailyProductionForm({ onCancel, onSave }) {
     };
     fetchWarehouses();
   }, []);
+
+  // Fetch all items for production
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const allItemsRes = await axios.get("http://localhost:8000/api/items", { headers: { Authorization: `Bearer ${token}` } });
+        setAllItems(allItemsRes.data.items || []);
+        // Filter only bag items for dropdown (excluding wheat items)
+        const bagItemNames = [...new Set((allItemsRes.data.items || []).filter(i => i.category === 'bags').map(i => i.name))];
+        setItemNames(bagItemNames);
+      } catch (e) {
+        console.error("Failed to fetch items", e.message);
+      }
+    };
+    fetchItems();
+  }, []);
+
+  // Fetch weights and category when item changes
+  useEffect(() => {
+    if (!productionItems[0]?.item) {
+      setItemWeights([]);
+      setItemCategory("");
+      return;
+    }
+    const fetchWeights = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`http://localhost:8000/api/items/weights/${encodeURIComponent(productionItems[0].item)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setItemWeights(res.data.weights || []);
+        setItemCategory(res.data.category);
+      } catch (e) {
+        console.error("Failed to fetch weights", e.message);
+        setItemWeights([]);
+        setItemCategory("");
+      }
+    };
+    fetchWeights();
+  }, [productionItems[0]?.item]);
 
   // derived totals
   const totalWheatUsed = useMemo(() => {
@@ -75,20 +120,56 @@ export default function DailyProductionForm({ onCancel, onSave }) {
   };
 
   const addProdItemRow = () => {
-    setProductionItems((prev) => [...prev, { item: "Ata", bagWeight: "10", bagQty: "" }]);
+    setProductionItems((prev) => [...prev, { item: "", bagWeight: "", bagQty: "" }]);
   };
 
   const removeProdItemRow = (idx) => {
     setProductionItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  // Clean up empty production items
+  const cleanupEmptyProductionItems = () => {
+    setProductionItems(prev => prev.filter(item => 
+      item.item || item.bagWeight || item.bagQty
+    ));
+  };
+
+  // Clean up empty grinding details
+  const cleanupEmptyGrindingDetails = () => {
+    setGrindingDetails(prev => prev.filter(item => 
+      item.wheatType || item.quantity
+    ));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Filter out empty production items
+    const validProductionItems = productionItems.filter(item => 
+      item.item && item.bagWeight && item.bagQty && item.bagQty > 0
+    );
+    
+    // Validate that we have at least one production item
+    if (validProductionItems.length === 0) {
+      alert("Please add at least one production item with complete details");
+      return;
+    }
+    
+    // Validate grinding details
+    const validGrindingDetails = grindingDetails.filter(item => 
+      item.wheatType && item.quantity && item.quantity > 0
+    );
+    
+    if (validGrindingDetails.length === 0) {
+      alert("Please add at least one grinding detail with complete information");
+      return;
+    }
+    
     const payload = {
       date,
       wheatWarehouse: warehouse,
-      grindingDetails,
-      productionItems,
+      grindingDetails: validGrindingDetails,
+      productionItems: validProductionItems,
       outputWarehouse,
     };
 
@@ -146,28 +227,31 @@ export default function DailyProductionForm({ onCancel, onSave }) {
               <button type="button" onClick={addGrindingRow} className="flex items-center gap-1 text-sm text-blue-600 hover:underline"><FaPlus /> Add</button>
             </div>
             <div className="space-y-2">
-              {grindingDetails.map((g, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-6 gap-2 items-center bg-gray-50 p-2 rounded-lg shadow-sm">
-                  <select
-                    value={g.wheatType}
-                    onChange={(e) => handleGrindingChange(idx, "wheatType", e.target.value)}
-                    className="col-span-3 border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select Wheat</option>
-                    {wheatOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Quantity (kg)"
-                    value={g.quantity}
-                    onChange={(e) => handleGrindingChange(idx, "quantity", e.target.value)}
-                    className="col-span-2 border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button type="button" onClick={() => removeGrindingRow(idx)} className="text-red-500 hover:text-red-600"><FaTrash /></button>
-                </div>
-              ))}
+              {grindingDetails.map((g, idx) => {
+                const isIncomplete = !g.wheatType || !g.quantity;
+                return (
+                  <div key={idx} className={`grid grid-cols-1 sm:grid-cols-6 gap-2 items-center p-2 rounded-lg shadow-sm ${isIncomplete ? 'bg-red-50 border border-red-200' : 'bg-gray-50'}`}>
+                    <select
+                      value={g.wheatType}
+                      onChange={(e) => handleGrindingChange(idx, "wheatType", e.target.value)}
+                      className={`col-span-3 border px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 ${!g.wheatType ? 'border-red-300' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select Wheat</option>
+                      {wheatOptions.map((opt) => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Quantity (kg)"
+                      value={g.quantity}
+                      onChange={(e) => handleGrindingChange(idx, "quantity", e.target.value)}
+                      className={`col-span-2 border px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 ${!g.quantity ? 'border-red-300' : 'border-gray-300'}`}
+                    />
+                    <button type="button" onClick={() => removeGrindingRow(idx)} className="text-red-500 hover:text-red-600"><FaTrash /></button>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -187,43 +271,48 @@ export default function DailyProductionForm({ onCancel, onSave }) {
               </div>
             </div>
             <div className="space-y-2">
-              {productionItems.map((p, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-9 gap-2 items-center bg-gray-50 p-2 rounded-lg shadow-sm">
-                  <select
-                    value={p.item}
-                    onChange={(e) => handleProdItemChange(idx, "item", e.target.value)}
-                    className="col-span-2 border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {itemOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={p.bagWeight}
-                    onChange={(e) => handleProdItemChange(idx, "bagWeight", e.target.value)}
-                    className="col-span-1 border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {weightOptions.map(w => (
-                      <option key={w} value={w}>{w}kg</option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Bag Qty"
-                    value={p.bagQty}
-                    onChange={(e) => handleProdItemChange(idx, "bagQty", e.target.value)}
-                    className="col-span-1 border border-gray-300 px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <input
-                    type="number"
-                    value={grossWeights[idx]}
-                    readOnly
-                    className="col-span-4 border border-gray-300 px-2 py-1 text-sm rounded-md bg-gray-100"
-                    placeholder="Gross Weight"
-                  />
-                  <button type="button" onClick={() => removeProdItemRow(idx)} className="text-red-500 hover:text-red-600"><FaTrash /></button>
-                </div>
-              ))}
+              {productionItems.map((p, idx) => {
+                const isIncomplete = !p.item || !p.bagWeight || !p.bagQty;
+                return (
+                  <div key={idx} className={`grid grid-cols-1 sm:grid-cols-9 gap-2 items-center p-2 rounded-lg shadow-sm ${isIncomplete ? 'bg-red-50 border border-red-200' : 'bg-gray-50'}`}>
+                    <select
+                      value={p.item}
+                      onChange={(e) => handleProdItemChange(idx, "item", e.target.value)}
+                      className={`col-span-2 border px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 ${!p.item ? 'border-red-300' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select Item</option>
+                      {itemNames.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={p.bagWeight}
+                      onChange={(e) => handleProdItemChange(idx, "bagWeight", e.target.value)}
+                      className={`col-span-1 border px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 ${!p.bagWeight ? 'border-red-300' : 'border-gray-300'}`}
+                    >
+                      <option value="">Weight</option>
+                      {itemWeights.map(w => (
+                        <option key={w} value={w}>{w}kg</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      placeholder="Bag Qty"
+                      value={p.bagQty}
+                      onChange={(e) => handleProdItemChange(idx, "bagQty", e.target.value)}
+                      className={`col-span-1 border px-2 py-1 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 ${!p.bagQty ? 'border-red-300' : 'border-gray-300'}`}
+                    />
+                    <input
+                      type="number"
+                      value={grossWeights[idx]}
+                      readOnly
+                      className="col-span-4 border border-gray-300 px-2 py-1 text-sm rounded-md bg-gray-100"
+                      placeholder="Gross Weight"
+                    />
+                    <button type="button" onClick={() => removeProdItemRow(idx)} className="text-red-500 hover:text-red-600"><FaTrash /></button>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

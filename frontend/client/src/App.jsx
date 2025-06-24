@@ -11,6 +11,7 @@ import UserList from "./components/UserList";
 import UserDetail from "./pages/UserDetail";
 import UserEdit from "./pages/UserEdit";
 import WarehousePage from "./pages/WarehousePage";
+import InventoryPage from "./pages/InventoryPage";
 import ProductionPage from "./pages/ProductionPage";
 import ReportsPage from "./pages/ReportsPage";
 import StockPage from "./pages/StockPage";
@@ -41,6 +42,7 @@ import DailyProductionDetail from "./pages/production/DailyProductionDetail";
 import RegisterItemsPage from "./pages/registeritems/RegisterItemsPage";
 import AddItemPage from "./pages/registeritems/AddItemPage";
 import EditItemForm from "./components/registeritems/EditItemForm";
+import AttendancePage from "./pages/attendancesystem/AttendancePage";
 
 function App() {
   return (
@@ -60,6 +62,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/AccountsPage" element={<AccountsPage />} />
           <Route path="/EmployeesPage" element={<EmployeesPage />} />
+          <Route path="/attendance" element={<AttendancePage />} />
           <Route path="/users" element={<UserList />} />
           <Route path="/PrivatePurchase" element={<PrivatePurchase />} />
           <Route path="/user/:id" element={<UserDetail />} />
@@ -71,6 +74,7 @@ function App() {
           {/* <Route path="/edit-user/:id" element={<UserEdit />} /> */}
           <Route path="/edit-user/:id" element={<EditUserForm />} />
           <Route path="/warehouse" element={<WarehousePage />} /> 
+          <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/production" element={<ProductionPage />} />
           <Route path="/StockPage" element={<StockPage />} />
           <Route path="/accounts/create" element={<AccountCreationForm />} />
