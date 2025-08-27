@@ -9,6 +9,8 @@ import EmployeesPage from './pages/EmployeesPage';
 import SalesPage from './pages/SalesPage';
 import ProductionPage from './pages/ProductionPage';
 import ReportsPage from './pages/ReportsPage';
+import WarehousePage from './pages/WarehousePage';
+import InventoryPage from './pages/InventoryPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -91,33 +93,21 @@ function App() {
         />
         
         {/* Warehouse - Admin, Manager, and Employee */}
-        <Route 
-          path="/warehouse" 
+                <Route
+          path="/warehouse"
           element={
             <EmployeeRoute>
-              <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">Warehouse Management</h1>
-                  <p className="text-gray-600">This module will be implemented next.</p>
-                </div>
-              </div>
+              <WarehousePage />
             </EmployeeRoute>
-          } 
+          }
         />
-        
-        {/* Inventory - Admin, Manager, and Employee */}
-        <Route 
-          path="/inventory" 
+        <Route
+          path="/inventory"
           element={
             <EmployeeRoute>
-              <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">Inventory Management</h1>
-                  <p className="text-gray-600">This module will be implemented next.</p>
-                </div>
-              </div>
+              <InventoryPage />
             </EmployeeRoute>
-          } 
+          }
         />
         
         {/* Stock - Admin, Manager, and Employee */}

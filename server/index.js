@@ -6,6 +6,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
 import warehouseRoutes from "./routes/warehouseRoutes.js";
+import inventoryRoutes from "./routes/inventory.js";
 import stockRoutes from "./routes/stockRoutes.js";
 import fileUpload from "express-fileupload";
 
@@ -38,7 +39,9 @@ app.use("/api/auth", authRoutes);
 
 app.use("/api/users", userRoutes);
 
-app.use("/api/warehouse", warehouseRoutes);
+app.use("/api/warehouses", warehouseRoutes);
+
+app.use("/api/inventory", inventoryRoutes);
 
 app.use("/api/stock", stockRoutes);
 
@@ -55,6 +58,11 @@ const connectWithRetry = async () => {
     await mongoose.connect(process.env.MONGO_URL, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      ssl: true,
+      tls: true,
+      tlsAllowInvalidCertificates: true,
+      retryWrites: true,
+      w: 'majority'
     });
     console.log("✅ Connected to MongoDB");
   } catch (err) {

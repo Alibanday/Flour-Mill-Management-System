@@ -1,151 +1,258 @@
-import { useNavigate } from "react-router-dom";
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   FaBoxes, FaPallet, FaClipboardList, FaTruckLoading,
-  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome
+  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome,
+  FaMapMarkerAlt, FaPhone, FaClock, FaIndustry
 } from "react-icons/fa";
-import AddWarehouse from "../components/AddWarehouse";
+import WarehouseList from "../components/WarehouseManagement/WarehouseList";
+import WarehouseForm from "../components/WarehouseManagement/WarehouseForm";
+import { useAuth } from '../hooks/useAuth';
 
 export default function WarehousePage() {
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState("Inventory");
-  const [showAddWarehouse, setShowAddWarehouse] = useState(false); // NEW
-  const [formData, setFormData] = useState({
-    warehouseNumber: "",
-    name: "",
-    location: "",
-    status: "",
-    description: ""
-  });
+  const { user, isAdmin, isManager, isEmployee } = useAuth();
+  const [activeMenu, setActiveMenu] = useState("Warehouses");
+  const [showAddWarehouse, setShowAddWarehouse] = useState(false);
 
   const warehouseMenu = [
-    { name: "Warehouses", icon: <FaWarehouse className="mr-3" /> },
-    { name: "Inventory", icon: <FaBoxes className="mr-3" /> },
-    { name: "Categories", icon: <FaPallet className="mr-3" /> },
-    { name: "Suppliers", icon: <FaTruckLoading className="mr-3" /> },
-    { name: "Transactions", icon: <FaClipboardList className="mr-3" /> }
+    { name: "Warehouses", icon: <FaWarehouse className="mr-3" />, roles: ['Admin', 'Manager', 'Employee'] },
+    { name: "Inventory", icon: <FaBoxes className="mr-3" />, roles: ['Admin', 'Manager', 'Employee'] },
+    { name: "Stock", icon: <FaPallet className="mr-3" />, roles: ['Admin', 'Manager', 'Employee'] }
   ];
 
   const warehouseActions = [
-    { name: "New Entry", icon: <FaPlus />, action: () => setShowAddWarehouse(true) },
-    { name: "Stock Check", icon: <FaSearch />, action: () => console.log("Stock Check") },
-    { name: "Dispatch", icon: <FaTruckLoading />, action: () => console.log("Dispatch") }
+    { 
+      name: "New Warehouse", 
+      icon: <FaPlus />, 
+      action: () => setShowAddWarehouse(true),
+      roles: ['Admin'],
+      color: "bg-blue-100 text-blue-600"
+    },
+    { 
+      name: "Stock Check", 
+      icon: <FaSearch />, 
+      action: () => console.log("Stock Check"),
+      roles: ['Admin', 'Manager', 'Employee'],
+      color: "bg-green-100 text-green-600"
+    },
+    { 
+      name: "Dispatch", 
+      icon: <FaTruckLoading />, 
+      action: () => console.log("Dispatch"),
+      roles: ['Admin', 'Manager', 'Employee'],
+      color: "bg-orange-100 text-orange-600"
+    },
+    { 
+      name: "Reports", 
+      icon: <FaChartLine />, 
+      action: () => console.log("Reports"),
+      roles: ['Admin', 'Manager'],
+      color: "bg-purple-100 text-purple-600"
+    }
   ];
 
-  const inventoryItems = [
-    { id: 1, name: "Wheat Flour", quantity: "500 Bags", location: "A12" },
-    { id: 2, name: "Sugar", quantity: "300 Bags", location: "B34" },
-    { id: 3, name: "Rice", quantity: "700 Bags", location: "C56" },
-    { id: 4, name: "Salt", quantity: "200 Bags", location: "D78" }
+  // Mock data for warehouse statistics
+  const warehouseStats = [
+    { 
+      title: "Total Warehouses", 
+      value: "12", 
+      change: "+2", 
+      changeType: "positive",
+      icon: <FaWarehouse className="text-2xl" />,
+      color: "bg-blue-500"
+    },
+    { 
+      title: "Active Warehouses", 
+      value: "10", 
+      change: "+1", 
+      changeType: "positive",
+      icon: <FaIndustry className="text-2xl" />,
+      color: "bg-green-500"
+    },
+    { 
+      title: "Total Capacity", 
+      value: "2,500 tons", 
+      change: "+150", 
+      changeType: "positive",
+      icon: <FaBoxes className="text-2xl" />,
+      color: "bg-purple-500"
+    },
+    { 
+      title: "In Maintenance", 
+      value: "2", 
+      change: "-1", 
+      changeType: "negative",
+      icon: <FaClock className="text-2xl" />,
+      color: "bg-yellow-500"
+    }
   ];
+
+  const getFilteredMenu = () => {
+    return warehouseMenu.filter(item => item.roles.includes(user?.role));
+  };
+
+  const getFilteredActions = () => {
+    return warehouseActions.filter(action => action.roles.includes(user?.role));
+  };
 
   return (
-    <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0" style={{ backgroundImage: "url('/dashboard.jpg')" }}>
-      
-      {/* Top Navigation */}
-      <header className="bg-white shadow-sm w-full">
-        <div className="px-6 py-3 flex items-center justify-between w-full">
-          <div className="flex items-center">
-            <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
-            <nav className="hidden md:flex space-x-8">
-              <button 
-                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm flex items-center"
-                onClick={() => navigate("/Dashboard")}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="mr-4 p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <FaHome className="inline mr-2" />
-                Back to Dashboard
+                <FaHome className="h-5 w-5 text-gray-600" />
               </button>
-            </nav>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full !bg-gray-100 text-gray-600 hover:bg-gray-200">
-              <FaWarehouse className="text-lg" />
-            </button>
+                             <div>
+                 <h1 className="text-2xl font-bold text-gray-900">Warehouse Management</h1>
+                 <p className="text-gray-600">Manage warehouses, inventory, and stock</p>
+               </div>
+               {(isAdmin() || isManager()) && (
+                 <button
+                   onClick={() => setShowAddWarehouse(true)}
+                   className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                 >
+                   <FaPlus className="mr-2" />
+                   Add Warehouse
+                 </button>
+               )}
+            </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex w-full">
-        {/* Sidebar */}
-        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
-          <div className="p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">WAREHOUSE MENU</h3>
-            <ul className="space-y-1">
-              {warehouseMenu.map((item, index) => (
-                <li key={index}>
-                  <button
-                    onClick={() => setActiveMenu(item.name)}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
-                  >
-                    {item.icon}
-                    {item.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </aside>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {warehouseStats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="flex items-center">
+                <div className={`p-3 rounded-lg ${stat.color} text-white`}>
+                  {stat.icon}
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center">
+                <span className={`text-sm font-medium ${
+                  stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {stat.change}
+                </span>
+                <span className="text-sm text-gray-500 ml-2">from last month</span>
+              </div>
+            </div>
+          ))}
+        </div>
 
-        {/* Main Content */}
-        <main className="flex-1 p-6 w-full">
-          
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-            {warehouseActions.map((button, index) => (
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {getFilteredActions().map((action, index) => (
               <button
                 key={index}
-                onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                onClick={action.action}
+                className={`p-4 rounded-lg border-2 border-dashed ${action.color} hover:opacity-80 transition-opacity`}
               >
-                <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                  {button.icon}
+                <div className="flex flex-col items-center text-center">
+                  <div className="text-2xl mb-2">{action.icon}</div>
+                  <span className="text-sm font-medium">{action.name}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700">{button.name}</span>
               </button>
             ))}
           </div>
+        </div>
 
-          {/* Add Warehouse Form */}
-          {showAddWarehouse && (
-           <AddWarehouse />
-          )}
-
-          {/* Inventory Overview */}
-         {!showAddWarehouse && <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Current Inventory</h2>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search inventory..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {inventoryItems.map((item) => (
-                <div key={item.id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-800">{item.name}</h3>
-                    <span className="text-sm text-gray-500">#{item.id}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Quantity:</span>
-                    <span className="text-blue-600 font-medium">{item.quantity}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Location:</span>
-                    <span className="text-gray-500">{item.location}</span>
-                  </div>
-                </div>
+        {/* Main Content */}
+        <div className="bg-white rounded-lg shadow-sm border">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-8 px-6">
+              {getFilteredMenu().map((item) => (
+                <button
+                  key={item.name}
+                  onClick={() => setActiveMenu(item.name)}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeMenu === item.name
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  {item.icon}
+                  {item.name}
+                </button>
               ))}
-            </div>
-          </div>}
+            </nav>
+          </div>
 
-        </main>
-      </div>
-    </div>
-  );
-}
+          <div className="p-6">
+                         {activeMenu === "Warehouses" && (
+               <WarehouseList 
+                 onWarehouseAdded={() => {
+                   // This will be called when a warehouse is added/updated
+                   // The WarehouseList will refresh automatically
+                 }}
+               />
+             )}
+            {activeMenu === "Inventory" && (
+              <div className="text-center py-12">
+                <FaBoxes className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Inventory Management</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Navigate to the Inventory module to manage inventory items.
+                </p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => navigate('/inventory')}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Go to Inventory
+                  </button>
+                </div>
+              </div>
+            )}
+            {activeMenu === "Stock" && (
+              <div className="text-center py-12">
+                <FaPallet className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Stock Management</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Navigate to the Stock module to manage stock levels.
+                </p>
+                <div className="mt-6">
+                  <button
+                    onClick={() => navigate('/stock')}
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Go to Stock
+                  </button>
+                </div>
+              </div>
+            )}
+                     </div>
+         </div>
+       </div>
+
+       {/* Warehouse Form Modal */}
+       {showAddWarehouse && (
+         <WarehouseForm
+           onSave={(warehouseData) => {
+             // Refresh the warehouse list after adding
+             setShowAddWarehouse(false);
+             // Force a refresh of the warehouse list
+             window.location.reload();
+           }}
+           onCancel={() => setShowAddWarehouse(false)}
+           mode="create"
+         />
+       )}
+     </div>
+   );
+ }

@@ -3,7 +3,7 @@ import { FaSave, FaTimes, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard,
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-export default function UserForm({ user = null, onClose, onSuccess }) {
+export default function UserForm({ user = null, onCancel, onSave }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -36,6 +36,16 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
 
   useEffect(() => {
     fetchWarehouses();
+    
+    // Add ESC key handler
+    const handleEscKey = (e) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+    
+    document.addEventListener('keydown', handleEscKey);
+    
     if (user) {
       setFormData({
         firstName: user.firstName || '',
@@ -54,11 +64,16 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
         isActive: user.isActive !== undefined ? user.isActive : true,
         profilePicture: null
       });
-      if (user.profilePicture) {
-        setImagePreview(user.profilePicture);
+              if (user.profilePicture) {
+          setImagePreview(user.profilePicture);
+        }
       }
-    }
-  }, [user]);
+      
+      // Cleanup function
+      return () => {
+        document.removeEventListener('keydown', handleEscKey);
+      };
+    }, [user, onCancel]);
 
   const fetchWarehouses = async () => {
     try {
@@ -73,7 +88,7 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
       // TODO: Uncomment when backend is ready
       /*
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/warehouses', {
+      const response = await axios.get('http://localhost:7000/api/warehouses', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setWarehouses(response.data);
@@ -158,9 +173,9 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
         toast.success('User created successfully! (Mock)');
       }
 
-      // Call onSuccess with the mock user data
-      onSuccess(mockUser);
-      onClose();
+      // Call onSave with the mock user data
+      onSave(mockUser);
+      onCancel();
 
       // TODO: Uncomment when backend is ready
       /*
@@ -199,8 +214,8 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
         toast.success('User created successfully!');
       }
 
-      onSuccess(response.data);
-      onClose();
+      onSave(response.data);
+      onCancel();
       */
 
     } catch (error) {
@@ -260,8 +275,14 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
     return value;
   };
 
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onCancel();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm" onClick={handleBackdropClick}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="border-b p-6 flex justify-between items-center bg-blue-600 text-white rounded-t-xl">
@@ -270,7 +291,7 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
             {user ? 'Edit User' : 'Create New User'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={onCancel}
             className="text-white hover:text-gray-200 text-2xl bg-transparent p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition-colors"
           >
             <FaTimes />
@@ -601,7 +622,7 @@ export default function UserForm({ user = null, onClose, onSuccess }) {
           <div className="flex justify-end space-x-3 pt-4 border-t">
             <button
               type="button"
-              onClick={onClose}
+              onClick={onCancel}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Cancel

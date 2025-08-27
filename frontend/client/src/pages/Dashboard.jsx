@@ -79,8 +79,16 @@ export default function Dashboard() {
         color: "bg-indigo-100 text-indigo-600"
       },
       { 
-        name: "Stock", 
+        name: "Inventory", 
         shortcut: "F8", 
+        icon: <FaBoxes />, 
+        action: () => navigate("/inventory"),
+        roles: ['Admin', 'Manager', 'Employee'],
+        color: "bg-cyan-100 text-cyan-600"
+      },
+      { 
+        name: "Stock", 
+        shortcut: "F9", 
         icon: <FaBoxes />, 
         action: () => navigate("/stock"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -88,7 +96,7 @@ export default function Dashboard() {
       },
       { 
         name: "Employees", 
-        shortcut: "F9", 
+        shortcut: "F10", 
         icon: <FaUsers />, 
         action: () => navigate("/EmployeesPage"),
         roles: ['Admin', 'Manager'],
@@ -96,7 +104,7 @@ export default function Dashboard() {
       },
       { 
         name: "Reports", 
-        shortcut: "F10", 
+        shortcut: "F11", 
         icon: <FaChartLine />, 
         action: () => navigate("/ReportsPage"),
         roles: ['Admin', 'Manager'],
@@ -182,6 +190,16 @@ export default function Dashboard() {
               )}
 
               <button 
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Inventory" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+                onClick={() => {
+                  setActiveMenu("Inventory");
+                  navigate("/inventory");
+                }}
+              >
+                Inventory
+              </button>
+
+              <button 
                 className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
                 onClick={() => {
                   setActiveMenu("Reports");
@@ -239,6 +257,17 @@ export default function Dashboard() {
                   </button>
                 </li>
               )}
+
+              {/* Inventory Management - All roles */}
+              <li>
+                <button
+                  onClick={() => navigate("/inventory")}
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                >
+                  <FaBoxes className="mr-3" />
+                  Inventory Management
+                </button>
+              </li>
               
               {mastersMenu.map((item, index) => (
                 <li key={index}>
