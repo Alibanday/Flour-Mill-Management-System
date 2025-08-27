@@ -4,6 +4,7 @@ import {
   FaHome, FaPlus, FaList, FaMoneyCheckAlt,
   FaChartLine, FaSearch, FaFileExport
 } from "react-icons/fa";
+import AddAccountForm from "../components/AddAccountForm";
 
 export default function AccountsPage() {
   const navigate = useNavigate();
@@ -144,93 +145,18 @@ export default function AccountsPage() {
           )}
         </main>
       </div>
-    </div>
-  );
-}
 
-// Add Account Form Component
-function AddAccountForm({ onCancel }) {
-  const [formData, setFormData] = useState({
-    accountName: '',
-    accountType: 'Cash',
-    openingBalance: '',
-    description: ''
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Add account submission logic
-    console.log('Account Data:', formData);
-    onCancel();
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6 max-w-2xl mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Create New Account</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Name *</label>
-            <input
-              type="text"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.accountName}
-              onChange={(e) => setFormData({...formData, accountName: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Account Type *</label>
-            <select
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.accountType}
-              onChange={(e) => setFormData({...formData, accountType: e.target.value})}
-            >
-              <option value="Cash">Cash</option>
-              <option value="Bank">Bank</option>
-              <option value="Credit">Credit</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Opening Balance *</label>
-            <input
-              type="number"
-              required
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.openingBalance}
-              onChange={(e) => setFormData({...formData, openingBalance: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Description</label>
-            <textarea
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end space-x-3 mt-6">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Create Account
-          </button>
-        </div>
-      </form>
+      {/* Add Account Form Modal */}
+      {showAddForm && (
+        <AddAccountForm
+          onClose={() => setShowAddForm(false)}
+          onSuccess={(newAccount) => {
+            console.log('New account created:', newAccount);
+            setShowAddForm(false);
+            // You can add logic to refresh the accounts list here
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   FaHome, FaFileInvoiceDollar, FaExchangeAlt, FaClipboardList,
   FaChartLine, FaPlus, FaSearch, FaMoneyCheckAlt
 } from "react-icons/fa";
+import AddSalesForm from "../components/AddSalesForm";
 
 export default function SalesPage() {
   const navigate = useNavigate();
@@ -103,7 +104,14 @@ export default function SalesPage() {
 
           {/* Content Area */}
           {showAddForm ? (
-            <AddSalesForm onCancel={() => setShowAddForm(false)} />
+            <AddSalesForm
+              onClose={() => setShowAddForm(false)}
+              onSuccess={(newSale) => {
+                console.log('New sale created:', newSale);
+                setShowAddForm(false);
+                // You can add logic to refresh the sales list here
+              }}
+            />
           ) : (
             <div className="bg-white rounded-xl shadow-sm p-6 w-full">
               <div className="flex items-center justify-between mb-4">
@@ -155,116 +163,6 @@ export default function SalesPage() {
           )}
         </main>
       </div>
-    </div>
-  );
-}
-
-// Add Sales Form Component
-function AddSalesForm({ onCancel }) {
-  const [items, setItems] = useState([{ product: '', quantity: 1, price: 0 }]);
-
-  const addItem = () => {
-    setItems([...items, { product: '', quantity: 1, price: 0 }]);
-  };
-
-  const removeItem = (index) => {
-    const newItems = items.filter((_, i) => i !== index);
-    setItems(newItems);
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm p-6 max-w-4xl mx-auto">
-      <h2 className="text-xl font-semibold mb-4">Create New Invoice</h2>
-      <form className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Customer Name *</label>
-            <input
-              type="text"
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Invoice Date *</label>
-            <input
-              type="date"
-              className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-              required
-            />
-          </div>
-        </div>
-
-        {/* Items List */}
-        <div className="space-y-4">
-          {items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-4 items-end">
-              <div className="col-span-5">
-                <label className="block text-sm font-medium text-gray-700">Product *</label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-                  required
-                />
-              </div>
-              <div className="col-span-3">
-                <label className="block text-sm font-medium text-gray-700">Quantity *</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-                  required
-                />
-              </div>
-              <div className="col-span-3">
-                <label className="block text-sm font-medium text-gray-700">Price *</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="mt-1 block w-full border border-gray-300 rounded-md p-2"
-                  required
-                />
-              </div>
-              <div className="col-span-1">
-                {index === 0 ? (
-                  <button
-                    type="button"
-                    onClick={addItem}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
-                  >
-                    +
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-md"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Form Actions */}
-        <div className="flex justify-end space-x-3 mt-6">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Save Invoice
-          </button>
-        </div>
-      </form>
     </div>
   );
 }

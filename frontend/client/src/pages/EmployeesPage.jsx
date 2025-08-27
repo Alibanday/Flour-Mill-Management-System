@@ -7,6 +7,7 @@ import {
 } from "react-icons/fa";
 import AddUserForm from "../components/AddUserForm";
 import UserList from "../components/UserList";
+import AddEmployeeForm from "../components/AddEmployeeForm";
 
 export default function EmployeePage() {
   const navigate = useNavigate();
@@ -138,7 +139,7 @@ export default function EmployeePage() {
               </button>
               {activeTab === "employees" && (
                 <button 
-                  onClick={() => setActiveTab("registration")}
+                  onClick={() => setShowRegistrationForm(true)}
                   className="flex items-center px-4 py-2 !bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   <FaUserPlus className="mr-2" />
@@ -263,6 +264,18 @@ export default function EmployeePage() {
           </div>
         </main>
       </div>
+
+      {/* Add Employee Form Modal */}
+      {showRegistrationForm && (
+        <AddEmployeeForm
+          onClose={() => setShowRegistrationForm(false)}
+          onSuccess={(newEmployee) => {
+            console.log('New employee added:', newEmployee);
+            setShowRegistrationForm(false);
+            // You can add logic to refresh the employee list here
+          }}
+        />
+      )}
     </div>
   );
 }
