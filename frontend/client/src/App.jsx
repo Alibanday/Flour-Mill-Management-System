@@ -6,11 +6,12 @@ import Login from './pages/Login';
 import UserManagementPage from './pages/UserManagementPage';
 import AccountsPage from './pages/AccountsPage';
 import EmployeesPage from './pages/EmployeesPage';
-import SalesPage from './pages/SalesPage';
+import SalesPurchasePage from './pages/SalesPurchasePage';
 import ProductionPage from './pages/ProductionPage';
 import ReportsPage from './pages/ReportsPage';
 import WarehousePage from './pages/WarehousePage';
 import InventoryPage from './pages/InventoryPage';
+import FinancialManagementPage from './pages/FinancialManagementPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -62,12 +63,12 @@ function App() {
           } 
         />
         
-        {/* Sales - Admin, Manager, and Cashier */}
+        {/* Sales & Purchase Management - Admin, Manager, and Cashier */}
         <Route 
           path="/sales" 
           element={
             <CashierRoute>
-              <SalesPage />
+              <SalesPurchasePage />
             </CashierRoute>
           } 
         />
@@ -88,6 +89,16 @@ function App() {
           element={
             <ManagerRoute>
               <ReportsPage />
+            </ManagerRoute>
+          } 
+        />
+        
+        {/* Financial Management - Admin and Manager only */}
+        <Route 
+          path="/financial" 
+          element={
+            <ManagerRoute>
+              <FinancialManagementPage />
             </ManagerRoute>
           } 
         />

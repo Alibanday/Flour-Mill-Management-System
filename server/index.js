@@ -8,6 +8,10 @@ import userRoutes from "./routes/user.js";
 import warehouseRoutes from "./routes/warehouseRoutes.js";
 import inventoryRoutes from "./routes/inventory.js";
 import stockRoutes from "./routes/stockRoutes.js";
+import productionRoutes from "./routes/production.js";
+import salesRoutes from "./routes/sales.js";
+import purchaseRoutes from "./routes/purchases.js";
+import financialRoutes from "./routes/financial.js";
 import fileUpload from "express-fileupload";
 
 // Initialize dotenv before accessing any environment variables
@@ -44,6 +48,10 @@ app.use("/api/warehouses", warehouseRoutes);
 app.use("/api/inventory", inventoryRoutes);
 
 app.use("/api/stock", stockRoutes);
+app.use("/api/production", productionRoutes);
+app.use("/api/sales", salesRoutes);
+app.use("/api/purchases", purchaseRoutes);
+app.use("/api/financial", financialRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {

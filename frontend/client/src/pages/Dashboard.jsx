@@ -55,18 +55,26 @@ export default function Dashboard() {
         color: "bg-blue-100 text-blue-600"
       },
       { 
-        name: "Production", 
+        name: "Financial Management", 
         shortcut: "F3", 
+        icon: <FaChartLine />, 
+        action: () => navigate("/financial"),
+        roles: ['Admin', 'Manager'],
+        color: "bg-emerald-100 text-emerald-600"
+      },
+      { 
+        name: "Production", 
+        shortcut: "F4", 
         icon: <FaIndustry />, 
         action: () => navigate("/production"),
         roles: ['Admin', 'Manager', 'Employee'],
         color: "bg-green-100 text-green-600"
       },
       { 
-        name: "Sales", 
-        shortcut: "F4", 
+        name: "Sales & Purchase", 
+        shortcut: "F5", 
         icon: <FaReceipt />,
-        action: () => navigate("/SalesPage"),
+        action: () => navigate("/sales"),
         roles: ['Admin', 'Manager', 'Cashier'],
         color: "bg-orange-100 text-orange-600"
       },

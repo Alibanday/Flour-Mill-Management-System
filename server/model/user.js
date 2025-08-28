@@ -8,17 +8,17 @@ const UserSchema = new mongoose.Schema({
   password:  { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['admin', 'manager', 'employee', 'cashier'], 
-    default: 'employee' 
+    enum: ['Admin', 'Manager', 'Employee', 'Cashier'], 
+    default: 'Employee' 
   },
   status: { 
     type: String, 
-    enum: ['active', 'inactive'], 
+    enum: ['Active', 'Inactive'], 
     default: 'Active' 
   },
   warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse",  required: true  },
 
-  // New fields you requested:
+  // Additional fields:
   cnic: { type: String },
   education: { type: String },
   address: { type: String },
@@ -28,8 +28,6 @@ const UserSchema = new mongoose.Schema({
   guardianContact: { type: String },
   profileImage: { type: String }, // URL from Cloudinary
   salary: { type: Number }
-
-
 },
 { timestamps: true }
 );

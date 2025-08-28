@@ -1,13 +1,25 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaHome, FaIndustry, FaExchangeAlt, FaClipboardList,
-  FaChartLine, FaPlus, FaSearch, FaDolly, FaBoxes
+  FaChartLine, FaPlus, FaSearch, FaDolly, FaBoxes,
+  FaEdit, FaTrash, FaEye, FaCheckCircle, FaTimesCircle, FaExclamationTriangle
 } from "react-icons/fa";
+import ProductionForm from "../components/ProductionManagement/ProductionForm";
+import { useAuth } from '../hooks/useAuth';
 
 export default function ProductionPage() {
   const navigate = useNavigate();
+  const { user, isAdmin, isManager, isEmployee } = useAuth();
   const [activeMenu, setActiveMenu] = useState("DailyProduction");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editData, setEditData] = useState(null);
+  const [productions, setProductions] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const productionMenu = [
     { name: "Daily Production", icon: <FaIndustry className="mr-3" /> },
@@ -18,17 +30,152 @@ export default function ProductionPage() {
   ];
 
   const productionActions = [
-    { name: "New Batch", icon: <FaPlus />, action: () => console.log("New Batch") },
-    { name: "Material Check", icon: <FaSearch />, action: () => console.log("Material Check") },
-    { name: "Dispatch", icon: <FaDolly />, action: () => console.log("Dispatch") }
+    { 
+      name: "New Batch", 
+      icon: <FaPlus />, 
+      action: () => setShowAddForm(true),
+      roles: ['Admin', 'Manager'],
+      color: "bg-blue-100 text-blue-600"
+    },
+    { 
+      name: "Material Check", 
+      icon: <FaSearch />, 
+      action: () => console.log("Material Check"),
+      roles: ['Admin', 'Manager', 'Employee'],
+      color: "bg-green-100 text-green-600"
+    },
+    { 
+      name: "Dispatch", 
+      icon: <FaDolly />, 
+      action: () => console.log("Dispatch"),
+      roles: ['Admin', 'Manager', 'Employee'],
+      color: "bg-purple-100 text-purple-600"
+    }
   ];
 
-  // Sample production data
-  const productionData = [
-    { id: 1, product: "Wheat Flour", quantity: "500 Bags", date: "2024-03-20" },
-    { id: 2, product: "Whole Wheat", quantity: "300 Bags", date: "2024-03-19" },
-    { id: 3, product: "Premium Flour", quantity: "700 Bags", date: "2024-03-18" },
-  ];
+  // API functions
+  const fetchProductions = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/production', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProductions(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching productions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await fetch('/api/warehouses', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
+
+  const handleSubmitProduction = async (formData) => {
+    try {
+      const url = editData ? `/api/production/${editData._id}` : '/api/production';
+      const method = editData ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Production saved:', data);
+        
+        // Reset form and refresh data
+        setShowAddForm(false);
+        setShowEditForm(false);
+        setEditData(null);
+        fetchProductions();
+      } else {
+        const errorData = await response.json();
+        console.error('Error saving production:', errorData);
+      }
+    } catch (error) {
+      console.error('Error submitting production:', error);
+    }
+  };
+
+  const handleEdit = (production) => {
+    setEditData(production);
+    setShowEditForm(true);
+    setShowAddForm(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this production record?')) {
+      try {
+        const response = await fetch(`/api/production/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.ok) {
+          fetchProductions();
+        }
+      } catch (error) {
+        console.error('Error deleting production:', error);
+      }
+    }
+  };
+
+  const handleStatusUpdate = async (id, newStatus) => {
+    try {
+      const response = await fetch(`/api/production/${id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        fetchProductions();
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchProductions();
+    fetchWarehouses();
+  }, []);
+
+  // Filter productions based on search term
+  const filteredProductions = productions.filter(production =>
+    production.batchNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    production.productName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
@@ -80,56 +227,242 @@ export default function ProductionPage() {
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
-            {productionActions.map((button, index) => (
-              <button
-                key={index}
-                onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-              >
-                <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
-                  {button.icon}
-                </div>
-                <span className="text-sm font-medium text-gray-700">{button.name}</span>
-              </button>
-            ))}
-          </div>
+          {/* Show Production Form or Production List */}
+          {showAddForm && (
+            <ProductionForm
+              onSubmit={handleSubmitProduction}
+              onCancel={() => setShowAddForm(false)}
+              warehouses={warehouses}
+            />
+          )}
 
-          {/* Production Overview */}
-          <div className="bg-white rounded-xl shadow-sm p-6 w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Recent Production Batches</h2>
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-3 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search production..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
-                />
+          {showEditForm && editData && (
+            <ProductionForm
+              onSubmit={handleSubmitProduction}
+              onCancel={() => {
+                setShowEditForm(false);
+                setEditData(null);
+              }}
+              editData={editData}
+              warehouses={warehouses}
+            />
+          )}
+
+          {!showAddForm && !showEditForm && (
+            <>
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-6 w-full">
+                {productionActions.map((button, index) => {
+                  // Check if user has permission for this action
+                  const hasPermission = button.roles.some(role => 
+                    (role === 'Admin' && isAdmin()) ||
+                    (role === 'Manager' && isManager()) ||
+                    (role === 'Employee' && isEmployee())
+                  );
+
+                  if (!hasPermission) return null;
+
+                  return (
+                    <button
+                      key={index}
+                      onClick={button.action}
+                      className={`flex flex-col items-center justify-center p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow group border border-gray-100 ${button.color} hover:bg-opacity-80`}
+                    >
+                      <div className="p-3 mb-2 rounded-full bg-white bg-opacity-50 group-hover:bg-opacity-100">
+                        {button.icon}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">{button.name}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
 
-            {/* Production Items Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {productionData.map((item) => (
-                <div key={item.id} className="bg-gray-50 rounded-lg p-4 hover:bg-blue-50 transition-colors">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-gray-800">{item.product}</h3>
-                    <span className="text-sm text-gray-500">{item.date}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Quantity:</span>
-                    <span className="text-blue-600 font-medium">{item.quantity}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-2">
-                    <span className="text-gray-600">Batch ID:</span>
-                    <span className="text-gray-500">#{item.id}</span>
+              {/* Production Overview */}
+              <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-800">Production Management</h2>
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <FaSearch className="absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search production..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                      />
+                    </div>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+
+                {/* Production Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center">
+                      <FaIndustry className="h-8 w-8 text-blue-600 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">Total Batches</p>
+                        <p className="text-2xl font-bold text-blue-900">{filteredProductions.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex items-center">
+                      <FaCheckCircle className="h-8 w-8 text-green-600 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-green-800">Completed</p>
+                        <p className="text-2xl font-bold text-green-900">
+                          {filteredProductions.filter(p => p.status === 'Completed').length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                    <div className="flex items-center">
+                      <FaExclamationTriangle className="h-8 w-8 text-yellow-600 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800">In Progress</p>
+                        <p className="text-2xl font-bold text-yellow-900">
+                          {filteredProductions.filter(p => p.status === 'In Progress').length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                    <div className="flex items-center">
+                      <FaTimesCircle className="h-8 w-8 text-red-600 mr-3" />
+                      <div>
+                        <p className="text-sm font-medium text-red-800">Pending</p>
+                        <p className="text-2xl font-bold text-red-900">
+                          {filteredProductions.filter(p => p.status === 'Quality Check').length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Production Table */}
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Batch Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Product
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Quantity
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Cost
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {loading ? (
+                        <tr>
+                          <td colSpan="7" className="px-6 py-4 text-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                          </td>
+                        </tr>
+                      ) : filteredProductions.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                            No production records found
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredProductions.map((production) => (
+                          <tr key={production._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {production.batchNumber}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{production.productName}</div>
+                              <div className="text-sm text-gray-500">{production.productType}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {production.quantity?.value || 0} {production.quantity?.unit || 'kg'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                Rs. {production.productionCost?.totalCost?.toFixed(2) || '0.00'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                production.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                                production.status === 'In Progress' ? 'bg-yellow-100 text-yellow-800' :
+                                production.status === 'Quality Check' ? 'bg-blue-100 text-blue-800' :
+                                production.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {production.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {production.productionDate ? new Date(production.productionDate).toLocaleDateString() : 'N/A'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleEdit(production)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                  title="Edit"
+                                >
+                                  <FaEdit />
+                                </button>
+                                {(isAdmin() || isManager()) && (
+                                  <button
+                                    onClick={() => handleDelete(production._id)}
+                                    className="text-red-600 hover:text-red-900"
+                                    title="Delete"
+                                  >
+                                    <FaTrash />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleStatusUpdate(production._id, 'Completed')}
+                                  className="text-green-600 hover:text-green-900"
+                                  title="Mark Complete"
+                                >
+                                  <FaCheckCircle />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>
