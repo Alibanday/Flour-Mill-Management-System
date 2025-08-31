@@ -63,8 +63,16 @@ export default function Dashboard() {
         color: "bg-emerald-100 text-emerald-600"
       },
       { 
-        name: "Production", 
+        name: "Supplier Management", 
         shortcut: "F4", 
+        icon: <FaUsers />, 
+        action: () => navigate("/suppliers"),
+        roles: ['Admin', 'Manager'],
+        color: "bg-yellow-100 text-yellow-600"
+      },
+      { 
+        name: "Production", 
+        shortcut: "F5", 
         icon: <FaIndustry />, 
         action: () => navigate("/production"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -72,7 +80,7 @@ export default function Dashboard() {
       },
       { 
         name: "Sales & Purchase", 
-        shortcut: "F5", 
+        shortcut: "F6", 
         icon: <FaReceipt />,
         action: () => navigate("/sales"),
         roles: ['Admin', 'Manager', 'Cashier'],
@@ -262,6 +270,19 @@ export default function Dashboard() {
                   >
                     <FaUserShield className="mr-3" />
                     User Management
+                  </button>
+                </li>
+              )}
+
+              {/* Supplier Management - Admin and Manager only */}
+              {(isAdmin() || isManager()) && (
+                <li>
+                  <button
+                    onClick={() => navigate("/suppliers")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                  >
+                    <FaUsers className="mr-3" />
+                    Supplier Management
                   </button>
                 </li>
               )}

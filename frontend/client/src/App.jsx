@@ -12,6 +12,8 @@ import ReportsPage from './pages/ReportsPage';
 import WarehousePage from './pages/WarehousePage';
 import InventoryPage from './pages/InventoryPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
+import BagFoodPurchasePage from './pages/BagFoodPurchasePage';
+import SupplierManagementPage from './pages/SupplierManagementPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -99,6 +101,26 @@ function App() {
           element={
             <ManagerRoute>
               <FinancialManagementPage />
+            </ManagerRoute>
+          } 
+        />
+        
+        {/* Bag & Food Purchase - Admin and Manager only */}
+        <Route 
+          path="/bag-food-purchase" 
+          element={
+            <ManagerRoute>
+              <BagFoodPurchasePage />
+            </ManagerRoute>
+          } 
+        />
+        
+        {/* Supplier & Vendor Management - Admin and Manager only */}
+        <Route 
+          path="/suppliers" 
+          element={
+            <ManagerRoute>
+              <SupplierManagementPage />
             </ManagerRoute>
           } 
         />
