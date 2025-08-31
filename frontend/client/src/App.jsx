@@ -14,6 +14,7 @@ import InventoryPage from './pages/InventoryPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
 import BagFoodPurchasePage from './pages/BagFoodPurchasePage';
 import SupplierManagementPage from './pages/SupplierManagementPage';
+import GatePassPage from './pages/GatePassPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -122,6 +123,16 @@ function App() {
             <ManagerRoute>
               <SupplierManagementPage />
             </ManagerRoute>
+          } 
+        />
+        
+        {/* Gate Pass System - Admin, Manager, and Employee */}
+        <Route 
+          path="/gate-pass" 
+          element={
+            <EmployeeRoute>
+              <GatePassPage />
+            </EmployeeRoute>
           } 
         />
         

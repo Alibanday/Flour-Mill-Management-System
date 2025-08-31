@@ -4,7 +4,7 @@ import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
   FaCog, FaSignOutAlt, FaUserCog, FaChartBar, FaHome, FaWarehouse,
-  FaWeightHanging, FaUsers, FaUserShield, FaChartLine, FaDatabase
+  FaWeightHanging, FaUsers, FaUserShield, FaChartLine, FaDatabase, FaPassport
 } from "react-icons/fa";
 import { useAuth } from '../hooks/useAuth';
 
@@ -71,8 +71,16 @@ export default function Dashboard() {
         color: "bg-yellow-100 text-yellow-600"
       },
       { 
-        name: "Production", 
+        name: "Gate Pass System", 
         shortcut: "F5", 
+        icon: <FaPassport />, 
+        action: () => navigate("/gate-pass"),
+        roles: ['Admin', 'Manager', 'Employee'],
+        color: "bg-purple-100 text-purple-600"
+      },
+      { 
+        name: "Production", 
+        shortcut: "F6", 
         icon: <FaIndustry />, 
         action: () => navigate("/production"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -80,7 +88,7 @@ export default function Dashboard() {
       },
       { 
         name: "Sales & Purchase", 
-        shortcut: "F6", 
+        shortcut: "F7", 
         icon: <FaReceipt />,
         action: () => navigate("/sales"),
         roles: ['Admin', 'Manager', 'Cashier'],
@@ -286,6 +294,17 @@ export default function Dashboard() {
                   </button>
                 </li>
               )}
+
+              {/* Gate Pass System - All roles */}
+              <li>
+                <button
+                  onClick={() => navigate("/gate-pass")}
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                >
+                  <FaPassport className="mr-3" />
+                  Gate Pass System
+                </button>
+              </li>
 
               {/* Inventory Management - All roles */}
               <li>
