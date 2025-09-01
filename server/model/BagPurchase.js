@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
 
 const bagPurchaseSchema = new mongoose.Schema(
   {
@@ -167,6 +168,9 @@ const bagPurchaseSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Add pagination plugin
+bagPurchaseSchema.plugin(mongoosePaginate);
 
 // Index for better query performance
 bagPurchaseSchema.index({ purchaseNumber: 1, warehouse: 1 });

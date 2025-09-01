@@ -1,18 +1,17 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
+import FoodPurchase from "../model/FoodPurchase.js";
 import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // Validation middleware
 const validateFoodPurchase = [
-  body("purchaseNumber").trim().notEmpty().withMessage("Purchase number is required"),
   body("supplier").isMongoId().withMessage("Valid supplier ID is required"),
-  body("warehouse").isMongoId().withMessage("Valid warehouse ID is required"),
-  body("item").trim().notEmpty().withMessage("Item name is required"),
-  body("quantity").isNumeric().withMessage("Quantity must be a number"),
-  body("unit").trim().notEmpty().withMessage("Unit is required"),
-  body("unitPrice").isNumeric().withMessage("Unit price must be a number"),
+  body("foodItems").isArray({ min: 1 }).withMessage("At least one food item is required"),
+  body("foodItems.*.name").trim().notEmpty().withMessage("Item name is required"),
+  body("foodItems.*.quantity").isNumeric({ min: 0 }).withMessage("Quantity must be a positive number"),
+  body("foodItems.*.unitPrice").isNumeric({ min: 0 }).withMessage("Unit price must be a positive number"),
 ];
 
 // @desc    Create new food purchase
@@ -25,21 +24,13 @@ router.post("/", protect, authorize("Admin", "Manager"), validateFoodPurchase, a
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // Calculate total amount
-    const totalAmount = req.body.quantity * req.body.unitPrice;
-
-    const foodPurchase = {
+    const purchaseData = {
       ...req.body,
-      totalAmount,
       createdBy: req.user.id,
-      createdAt: new Date(),
-      updatedAt: new Date()
     };
 
-    // For now, we'll use a simple in-memory storage
-    // In production, this should use a proper database model
-    const purchaseId = Date.now().toString();
-    foodPurchase._id = purchaseId;
+    const foodPurchase = new FoodPurchase(purchaseData);
+    await foodPurchase.save();
 
     res.status(201).json({
       success: true,
@@ -60,85 +51,51 @@ router.post("/", protect, authorize("Admin", "Manager"), validateFoodPurchase, a
 // @access  Admin, Manager, Employee
 router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, status, warehouse, supplier } = req.query;
+    const { page = 1, limit = 10, search, status, supplier, category, startDate, endDate } = req.query;
     
-    // Mock data for demonstration
-    const mockFoodPurchases = [
-      {
-        _id: "1",
-        purchaseNumber: "FP-001",
-        supplier: { _id: "1", name: "Wheat Suppliers Ltd" },
-        purchaseDate: "2024-01-12",
-        item: "Wheat",
-        quantity: 5000,
-        unit: "kg",
-        unitPrice: 45,
-        totalAmount: 225000,
-        status: "Received",
-        warehouse: { _id: "1", name: "Main Warehouse" },
-        paymentStatus: "Partial",
-        createdBy: { _id: "1", name: "Admin User" },
-        createdAt: "2024-01-12T00:00:00.000Z"
-      },
-      {
-        _id: "2",
-        purchaseNumber: "FP-002",
-        supplier: { _id: "2", name: "Grain Traders" },
-        purchaseDate: "2024-01-08",
-        item: "Wheat",
-        quantity: 3000,
-        unit: "kg",
-        unitPrice: 44,
-        totalAmount: 132000,
-        status: "Received",
-        warehouse: { _id: "2", name: "Secondary Warehouse" },
-        paymentStatus: "Paid",
-        createdBy: { _id: "1", name: "Admin User" },
-        createdAt: "2024-01-08T00:00:00.000Z"
-      }
-    ];
-
-    let filteredPurchases = mockFoodPurchases;
+    const query = {};
     
-    // Search filter
     if (search) {
-      filteredPurchases = filteredPurchases.filter(purchase => 
-        purchase.purchaseNumber.toLowerCase().includes(search.toLowerCase()) ||
-        purchase.supplier.name.toLowerCase().includes(search.toLowerCase()) ||
-        purchase.item.toLowerCase().includes(search.toLowerCase())
-      );
+      query.$or = [
+        { purchaseNumber: { $regex: search, $options: 'i' } },
+        { 'foodItems.name': { $regex: search, $options: 'i' } }
+      ];
     }
     
-    // Status filter
-    if (status && status !== "all") {
-      filteredPurchases = filteredPurchases.filter(purchase => purchase.status === status);
-    }
+    if (status) query.status = status;
+    if (supplier) query.supplier = supplier;
+    if (category) query['foodItems.category'] = category;
     
-    // Warehouse filter
-    if (warehouse && warehouse !== "all") {
-      filteredPurchases = filteredPurchases.filter(purchase => purchase.warehouse._id === warehouse);
+    if (startDate || endDate) {
+      query.purchaseDate = {};
+      if (startDate) query.purchaseDate.$gte = new Date(startDate);
+      if (endDate) query.purchaseDate.$lte = new Date(endDate);
     }
 
-    // Supplier filter
-    if (supplier && supplier !== "all") {
-      filteredPurchases = filteredPurchases.filter(purchase => purchase.supplier._id === supplier);
-    }
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      populate: [
+        { path: 'supplier', select: 'name contact address' },
+        { path: 'createdBy', select: 'name email' },
+        { path: 'approvedBy', select: 'name email' }
+      ],
+      sort: { createdAt: -1 }
+    };
 
-    // Pagination
-    const total = filteredPurchases.length;
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedPurchases = filteredPurchases.slice(startIndex, endIndex);
+    const foodPurchases = await FoodPurchase.paginate(query, options);
 
     res.json({
       success: true,
-      data: paginatedPurchases,
+      data: foodPurchases.docs,
       pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(total / limit),
-        totalItems: total,
-        itemsPerPage: parseInt(limit),
-      },
+        page: foodPurchases.page,
+        limit: foodPurchases.limit,
+        totalDocs: foodPurchases.totalDocs,
+        totalPages: foodPurchases.totalPages,
+        hasNextPage: foodPurchases.hasNextPage,
+        hasPrevPage: foodPurchases.hasPrevPage
+      }
     });
   } catch (error) {
     res.status(500).json({
@@ -154,25 +111,12 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
 // @access  Admin, Manager, Employee
 router.get("/:id", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
-    // Mock data for demonstration
-    const mockFoodPurchase = {
-      _id: req.params.id,
-      purchaseNumber: "FP-001",
-      supplier: { _id: "1", name: "Wheat Suppliers Ltd" },
-      purchaseDate: "2024-01-12",
-      item: "Wheat",
-      quantity: 5000,
-      unit: "kg",
-      unitPrice: 45,
-      totalAmount: 225000,
-      status: "Received",
-      warehouse: { _id: "1", name: "Main Warehouse" },
-      paymentStatus: "Partial",
-      createdBy: { _id: "1", name: "Admin User" },
-      createdAt: "2024-01-12T00:00:00.000Z"
-    };
+    const foodPurchase = await FoodPurchase.findById(req.params.id)
+      .populate('supplier', 'name contact address')
+      .populate('createdBy', 'name email')
+      .populate('approvedBy', 'name email');
 
-    if (!mockFoodPurchase) {
+    if (!foodPurchase) {
       return res.status(404).json({
         success: false,
         message: "Food purchase not found",
@@ -181,7 +125,7 @@ router.get("/:id", protect, authorize("Admin", "Manager", "Employee"), async (re
 
     res.json({
       success: true,
-      data: mockFoodPurchase,
+      data: foodPurchase,
     });
   } catch (error) {
     res.status(500).json({
@@ -202,19 +146,22 @@ router.put("/:id", protect, authorize("Admin", "Manager"), validateFoodPurchase,
       return res.status(400).json({ errors: errors.array() });
     }
 
-    // Calculate total amount
-    const totalAmount = req.body.quantity * req.body.unitPrice;
+    const foodPurchase = await FoodPurchase.findByIdAndUpdate(
+      req.params.id,
+      { ...req.body, updatedAt: new Date() },
+      { new: true, runValidators: true }
+    ).populate('supplier', 'name contact address');
 
-    const updatedFoodPurchase = {
-      ...req.body,
-      totalAmount,
-      updatedBy: req.user.id,
-      updatedAt: new Date()
-    };
+    if (!foodPurchase) {
+      return res.status(404).json({
+        success: false,
+        message: "Food purchase not found",
+      });
+    }
 
     res.json({
       success: true,
-      data: updatedFoodPurchase,
+      data: foodPurchase,
       message: "Food purchase updated successfully",
     });
   } catch (error) {
@@ -228,19 +175,15 @@ router.put("/:id", protect, authorize("Admin", "Manager"), validateFoodPurchase,
 
 // @desc    Delete food purchase
 // @route   DELETE /api/food-purchases/:id
-// @access  Admin only
-router.delete("/:id", protect, authorize("Admin"), async (req, res) => {
+// @access  Admin, Manager
+router.delete("/:id", protect, authorize("Admin", "Manager"), async (req, res) => {
   try {
-    // Check if purchase can be deleted
-    const mockFoodPurchase = {
-      _id: req.params.id,
-      status: "Pending"
-    };
+    const foodPurchase = await FoodPurchase.findByIdAndDelete(req.params.id);
 
-    if (mockFoodPurchase.status === "Received") {
-      return res.status(400).json({
+    if (!foodPurchase) {
+      return res.status(404).json({
         success: false,
-        message: "Cannot delete received purchase",
+        message: "Food purchase not found",
       });
     }
 
@@ -257,38 +200,86 @@ router.delete("/:id", protect, authorize("Admin"), async (req, res) => {
   }
 });
 
-// @desc    Mark food purchase as received
-// @route   PATCH /api/food-purchases/:id/receive
+// @desc    Update food purchase status
+// @route   PATCH /api/food-purchases/:id/status
 // @access  Admin, Manager
-router.patch("/:id/receive", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.patch("/:id/status", protect, authorize("Admin", "Manager"), async (req, res) => {
   try {
-    const mockFoodPurchase = {
-      _id: req.params.id,
-      status: "Pending"
-    };
+    const { status } = req.body;
+    
+    if (!['Draft', 'Pending', 'Approved', 'Completed', 'Cancelled'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
 
-    if (!mockFoodPurchase) {
+    const foodPurchase = await FoodPurchase.findByIdAndUpdate(
+      req.params.id,
+      { 
+        status,
+        approvedBy: status === 'Approved' ? req.user.id : undefined,
+        updatedAt: new Date()
+      },
+      { new: true }
+    ).populate('supplier', 'name contact address');
+
+    if (!foodPurchase) {
       return res.status(404).json({
         success: false,
         message: "Food purchase not found",
       });
     }
 
-    if (mockFoodPurchase.status === "Received") {
+    res.json({
+      success: true,
+      data: foodPurchase,
+      message: "Food purchase status updated successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Update delivery status
+// @route   PATCH /api/food-purchases/:id/delivery
+// @access  Admin, Manager, Employee
+router.patch("/:id/delivery", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+  try {
+    const { deliveryStatus, deliveryDate } = req.body;
+    
+    if (!['Pending', 'In Transit', 'Delivered'].includes(deliveryStatus)) {
       return res.status(400).json({
         success: false,
-        message: "Purchase is already marked as received",
+        message: "Invalid delivery status",
       });
     }
 
-    mockFoodPurchase.status = "Received";
-    mockFoodPurchase.receivedDate = new Date();
-    mockFoodPurchase.updatedBy = req.user.id;
+    const foodPurchase = await FoodPurchase.findByIdAndUpdate(
+      req.params.id,
+      { 
+        deliveryStatus,
+        deliveryDate: deliveryDate || new Date(),
+        updatedAt: new Date()
+      },
+      { new: true }
+    ).populate('supplier', 'name contact address');
+
+    if (!foodPurchase) {
+      return res.status(404).json({
+        success: false,
+        message: "Food purchase not found",
+      });
+    }
 
     res.json({
       success: true,
-      data: mockFoodPurchase,
-      message: "Food purchase marked as received successfully",
+      data: foodPurchase,
+      message: "Delivery status updated successfully",
     });
   } catch (error) {
     res.status(500).json({
@@ -304,43 +295,36 @@ router.patch("/:id/receive", protect, authorize("Admin", "Manager"), async (req,
 // @access  Admin, Manager
 router.patch("/:id/payment", protect, authorize("Admin", "Manager"), async (req, res) => {
   try {
-    const { paidAmount } = req.body;
+    const { paymentStatus, paidAmount } = req.body;
     
-    if (!paidAmount || paidAmount < 0) {
+    if (!['Pending', 'Partial', 'Completed'].includes(paymentStatus)) {
       return res.status(400).json({
         success: false,
-        message: "Valid paid amount is required",
+        message: "Invalid payment status",
       });
     }
 
-    const mockFoodPurchase = {
-      _id: req.params.id,
-      totalAmount: 225000,
-      paidAmount: 0
-    };
+    const foodPurchase = await FoodPurchase.findByIdAndUpdate(
+      req.params.id,
+      { 
+        paymentStatus,
+        paidAmount: paidAmount || 0,
+        updatedAt: new Date()
+      },
+      { new: true }
+    ).populate('supplier', 'name contact address');
 
-    if (!mockFoodPurchase) {
+    if (!foodPurchase) {
       return res.status(404).json({
         success: false,
         message: "Food purchase not found",
       });
     }
 
-    mockFoodPurchase.paidAmount = paidAmount;
-    mockFoodPurchase.dueAmount = Math.max(0, mockFoodPurchase.totalAmount - paidAmount);
-    
-    if (mockFoodPurchase.dueAmount === 0) {
-      mockFoodPurchase.paymentStatus = "Paid";
-    } else if (mockFoodPurchase.paidAmount > 0) {
-      mockFoodPurchase.paymentStatus = "Partial";
-    }
-    
-    mockFoodPurchase.updatedBy = req.user.id;
-
     res.json({
       success: true,
-      data: mockFoodPurchase,
-      message: "Payment updated successfully",
+      data: foodPurchase,
+      message: "Payment status updated successfully",
     });
   } catch (error) {
     res.status(500).json({
@@ -351,31 +335,56 @@ router.patch("/:id/payment", protect, authorize("Admin", "Manager"), async (req,
   }
 });
 
-// @desc    Get food purchases summary
-// @route   GET /api/food-purchases/summary
+// @desc    Get food purchase statistics
+// @route   GET /api/food-purchases/stats
 // @access  Admin, Manager
-router.get("/summary", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.get("/stats", protect, authorize("Admin", "Manager"), async (req, res) => {
   try {
-    // Mock summary data
-    const summary = {
-      totalPurchases: 2,
-      pendingPurchases: 0,
-      receivedPurchases: 2,
-      totalAmount: 357000,
-      totalPaid: 132000,
-      itemSummary: [
-        {
-          item: "Wheat",
-          totalQuantity: 8000,
-          totalValue: 357000,
-          unit: "kg"
-        }
-      ]
-    };
+    const { startDate, endDate } = req.query;
+    
+    const query = {};
+    if (startDate || endDate) {
+      query.purchaseDate = {};
+      if (startDate) query.purchaseDate.$gte = new Date(startDate);
+      if (endDate) query.purchaseDate.$lte = new Date(endDate);
+    }
+
+    const [
+      total,
+      totalValue,
+      pendingPayments,
+      categoryStats,
+      supplierStats
+    ] = await Promise.all([
+      FoodPurchase.countDocuments(query),
+      FoodPurchase.aggregate([
+        { $match: query },
+        { $group: { _id: null, total: { $sum: "$totalAmount" } } }
+      ]),
+      FoodPurchase.aggregate([
+        { $match: query },
+        { $group: { _id: null, total: { $sum: "$dueAmount" } } }
+      ]),
+      FoodPurchase.aggregate([
+        { $match: query },
+        { $unwind: "$foodItems" },
+        { $group: { _id: "$foodItems.category", total: { $sum: "$foodItems.totalPrice" } } }
+      ]),
+      FoodPurchase.aggregate([
+        { $match: query },
+        { $group: { _id: "$supplier", total: { $sum: "$totalAmount" } } }
+      ])
+    ]);
 
     res.json({
       success: true,
-      data: summary,
+      data: {
+        total: total || 0,
+        totalValue: totalValue[0]?.total || 0,
+        pendingPayments: pendingPayments[0]?.total || 0,
+        categoryStats: categoryStats || [],
+        supplierStats: supplierStats || []
+      }
     });
   } catch (error) {
     res.status(500).json({

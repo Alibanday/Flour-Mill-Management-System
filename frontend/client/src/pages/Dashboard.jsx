@@ -70,9 +70,17 @@ export default function Dashboard() {
         roles: ['Admin', 'Manager'],
         color: "bg-yellow-100 text-yellow-600"
       },
+      {
+        name: "Bag & Food Purchase",
+        shortcut: "F5",
+        icon: <FaShoppingBag />,
+        action: () => navigate("/bag-food-purchase"),
+        roles: ['Admin', 'Manager'],
+        color: "bg-orange-100 text-orange-600"
+      },
       { 
         name: "Gate Pass System", 
-        shortcut: "F5", 
+        shortcut: "F6", 
         icon: <FaPassport />, 
         action: () => navigate("/gate-pass"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -80,7 +88,7 @@ export default function Dashboard() {
       },
       { 
         name: "Production", 
-        shortcut: "F6", 
+        shortcut: "F7", 
         icon: <FaIndustry />, 
         action: () => navigate("/production"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -88,7 +96,7 @@ export default function Dashboard() {
       },
       { 
         name: "Sales & Purchase", 
-        shortcut: "F7", 
+        shortcut: "F8", 
         icon: <FaReceipt />,
         action: () => navigate("/sales"),
         roles: ['Admin', 'Manager', 'Cashier'],
@@ -96,7 +104,7 @@ export default function Dashboard() {
       },
       { 
         name: "Warehouse", 
-        shortcut: "F7", 
+        shortcut: "F9", 
         icon: <FaWarehouse />, 
         action: () => navigate("/warehouse"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -104,7 +112,7 @@ export default function Dashboard() {
       },
       { 
         name: "Inventory", 
-        shortcut: "F8", 
+        shortcut: "F10", 
         icon: <FaBoxes />, 
         action: () => navigate("/inventory"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -112,7 +120,7 @@ export default function Dashboard() {
       },
       { 
         name: "Stock", 
-        shortcut: "F9", 
+        shortcut: "F11", 
         icon: <FaBoxes />, 
         action: () => navigate("/stock"),
         roles: ['Admin', 'Manager', 'Employee'],
@@ -120,7 +128,7 @@ export default function Dashboard() {
       },
       { 
         name: "Employees", 
-        shortcut: "F10", 
+        shortcut: "F12", 
         icon: <FaUsers />, 
         action: () => navigate("/EmployeesPage"),
         roles: ['Admin', 'Manager'],
@@ -128,9 +136,9 @@ export default function Dashboard() {
       },
       { 
         name: "Reports", 
-        shortcut: "F11", 
+        shortcut: "F13", 
         icon: <FaChartLine />, 
-        action: () => navigate("/ReportsPage"),
+        action: () => navigate("/reports"),
         roles: ['Admin', 'Manager'],
         color: "bg-red-100 text-red-600"
       },
@@ -305,6 +313,30 @@ export default function Dashboard() {
                   Gate Pass System
                 </button>
               </li>
+
+              {/* Bag & Food Purchase Management - Admin, Manager */}
+              <li>
+                <button
+                  onClick={() => navigate("/bag-food-purchase")}
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                >
+                  <FaShoppingBag className="mr-3" />
+                  Bag & Food Purchase
+                </button>
+              </li>
+
+              {/* Reports Module - Admin and Manager only */}
+              {(isAdmin() || isManager()) && (
+                <li>
+                  <button
+                    onClick={() => navigate("/reports")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                  >
+                    <FaChartLine className="mr-3" />
+                    Reports Module
+                  </button>
+                </li>
+              )}
 
               {/* Inventory Management - All roles */}
               <li>

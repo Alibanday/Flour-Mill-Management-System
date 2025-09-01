@@ -16,6 +16,7 @@ import supplierRoutes from "./routes/suppliers.js";
 import bagPurchaseRoutes from "./routes/bagPurchases.js";
 import foodPurchaseRoutes from "./routes/foodPurchases.js";
 import gatePassRoutes from "./routes/gatePass.js";
+import reportRoutes from "./routes/reports.js";
 import fileUpload from "express-fileupload";
 
 // Initialize dotenv before accessing any environment variables
@@ -60,6 +61,7 @@ app.use("/api/suppliers", supplierRoutes);
 app.use("/api/bag-purchases", bagPurchaseRoutes);
 app.use("/api/food-purchases", foodPurchaseRoutes);
 app.use("/api/gate-pass", gatePassRoutes);
+app.use("/api/reports", reportRoutes);
 
 // Health check endpoint
 app.get("/api/health", (_, res) => {
