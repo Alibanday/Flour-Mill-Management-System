@@ -4,13 +4,19 @@ import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
   FaCog, FaSignOutAlt, FaUserCog, FaChartBar, FaHome, FaWarehouse,
-  FaWeightHanging, FaUsers, FaUserShield, FaChartLine, FaDatabase, FaPassport
+  FaWeightHanging, FaUsers, FaUserShield, FaChartLine, FaDatabase, FaPassport, FaBell
 } from "react-icons/fa";
 import { useAuth } from '../hooks/useAuth';
+import NotificationBell from '../components/Notifications/NotificationBell';
+import ThemeToggle from '../components/UI/ThemeToggle';
+import LanguageToggle from '../components/UI/LanguageToggle';
+
+import { useTranslation } from '../hooks/useTranslation';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, role, isAdmin, isManager, isEmployee, isCashier } = useAuth();
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
 
@@ -142,6 +148,22 @@ export default function Dashboard() {
         roles: ['Admin', 'Manager'],
         color: "bg-red-100 text-red-600"
       },
+      { 
+        name: "Notifications & Utilities", 
+        shortcut: "F14", 
+        icon: <FaBell />, 
+        action: () => navigate("/notifications"),
+        roles: ['Admin', 'Manager'],
+        color: "bg-orange-100 text-orange-600"
+      },
+      { 
+        name: "System Configuration", 
+        shortcut: "F15", 
+        icon: <FaCog />, 
+        action: () => navigate("/system-config"),
+        roles: ['Admin'],
+        color: "bg-gray-100 text-gray-600"
+      },
     ];
 
     return allButtons.filter(button => button.roles.includes(role));
@@ -199,7 +221,7 @@ export default function Dashboard() {
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
               <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
                 onClick={() => {
                   setActiveMenu("Dashboard");
                   navigate("/Dashboard"); 
@@ -211,7 +233,7 @@ export default function Dashboard() {
               {/* User Management - Admin and Manager only */}
               {(isAdmin() || isManager()) && (
                 <button 
-                  className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "User Management" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+                  className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "User Management" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
                   onClick={() => {
                     setActiveMenu("User Management");
                     navigate("/users");
@@ -222,7 +244,7 @@ export default function Dashboard() {
               )}
 
               <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Inventory" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Inventory" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
                 onClick={() => {
                   setActiveMenu("Inventory");
                   navigate("/inventory");
@@ -232,7 +254,7 @@ export default function Dashboard() {
               </button>
 
               <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "!bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"}`}
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
                 onClick={() => {
                   setActiveMenu("Reports");
                   navigate("/ReportsPage");
@@ -243,29 +265,39 @@ export default function Dashboard() {
               </button>
             </nav>
           </div>
-          <div className="flex items-center space-x-4">
-            {/* Role Display */}
-            <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-4">
+                {/* Language Toggle */}
+                <LanguageToggle />
+                
+                {/* Theme Toggle */}
+                <ThemeToggle />
+                
+                {/* Notifications Bell - Admin and Manager only */}
+                {(isAdmin() || isManager()) && <NotificationBell />}
+                
+                {/* Role Display */}
+                <div className="flex items-center space-x-2">
               <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                 role === 'Admin' ? 'bg-red-100 text-red-800 border border-red-200' :
                 role === 'Manager' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
                 role === 'Employee' ? 'bg-green-100 text-green-800 border border-green-200' :
-                'bg-purple-100 text-purple-800 border border-purple-200'
+                'bg-purple-800 border border-purple-200'
               }`}>
                 <FaUserShield className="h-3 w-3 mr-1 inline" />
                 {role}
               </span>
             </div>
             
-            <button className="p-2 rounded-full !bg-gray-100 text-gray-600 hover:bg-gray-200">
+            <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
               <FaUserCog className="text-lg" />
             </button>
+
             <button 
               onClick={handleLogout}
-              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 !bg-transparent"
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 bg-transparent"
             >
               <FaSignOutAlt />
-              <span>Logout</span>
+              <span>{t('common.logout')}</span>
             </button>
           </div>
         </div>
@@ -275,14 +307,14 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
           <div className="p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">MAIN MENU</h3>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('navigation.mainMenu')}</h3>
             <ul className="space-y-1">
               {/* User Management - Admin and Manager only */}
               {(isAdmin() || isManager()) && (
                 <li>
                   <button
                     onClick={() => navigate("/users")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaUserShield className="mr-3" />
                     User Management
@@ -295,7 +327,7 @@ export default function Dashboard() {
                 <li>
                   <button
                     onClick={() => navigate("/suppliers")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaUsers className="mr-3" />
                     Supplier Management
@@ -307,7 +339,7 @@ export default function Dashboard() {
               <li>
                 <button
                   onClick={() => navigate("/gate-pass")}
-                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                 >
                   <FaPassport className="mr-3" />
                   Gate Pass System
@@ -318,7 +350,7 @@ export default function Dashboard() {
               <li>
                 <button
                   onClick={() => navigate("/bag-food-purchase")}
-                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                 >
                   <FaShoppingBag className="mr-3" />
                   Bag & Food Purchase
@@ -330,7 +362,7 @@ export default function Dashboard() {
                 <li>
                   <button
                     onClick={() => navigate("/reports")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaChartLine className="mr-3" />
                     Reports Module
@@ -338,11 +370,37 @@ export default function Dashboard() {
                 </li>
               )}
 
-              {/* Inventory Management - All roles */}
+                            {/* Notifications & Utilities - Admin and Manager only */}
+              {(isAdmin() || isManager()) && (
+                <li>
+                  <button
+                    onClick={() => navigate("/notifications")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                  >
+                    <FaBell className="mr-3" />
+                    Notifications & Utilities
+                  </button>
+                </li>
+              )}
+
+              {/* System Configuration - Admin only */}
+              {isAdmin() && (
+                <li>
+                  <button
+                    onClick={() => navigate("/system-config")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                  >
+                    <FaCog className="mr-3" />
+                    System Configuration
+                  </button>
+                </li>
+              )}
+        
+          {/* Inventory Management - All roles */}
               <li>
                 <button
                   onClick={() => navigate("/inventory")}
-                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                 >
                   <FaBoxes className="mr-3" />
                   Inventory Management
@@ -359,7 +417,7 @@ export default function Dashboard() {
                         console.log(`${item.name} clicked`);
                       }
                     }}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     {item.icon}
                     {item.name}
@@ -388,7 +446,7 @@ export default function Dashboard() {
               <button
                 key={index}
                 onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
               >
                 <div className={`p-3 mb-2 rounded-full ${button.color} group-hover:bg-blue-600 group-hover:text-white transition-colors`}>
                   {button.icon}

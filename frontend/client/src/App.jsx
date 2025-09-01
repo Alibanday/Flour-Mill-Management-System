@@ -15,6 +15,9 @@ import FinancialManagementPage from './pages/FinancialManagementPage';
 import BagFoodPurchasePage from './pages/BagFoodPurchasePage';
 import SupplierManagementPage from './pages/SupplierManagementPage';
 import GatePassPage from './pages/GatePassPage';
+import NotificationsPage from './pages/NotificationsPage';
+import SystemConfigPage from './pages/SystemConfigPage';
+import LanguageTestPage from './pages/LanguageTestPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -133,6 +136,36 @@ function App() {
             <EmployeeRoute>
               <GatePassPage />
             </EmployeeRoute>
+          } 
+        />
+        
+        {/* Notifications & Utilities - Admin and Manager only */}
+        <Route 
+          path="/notifications" 
+          element={
+            <ManagerRoute>
+              <NotificationsPage />
+            </ManagerRoute>
+          } 
+        />
+        
+        {/* System Configuration - Admin only */}
+        <Route 
+          path="/system-config" 
+          element={
+            <AdminRoute>
+              <SystemConfigPage />
+            </AdminRoute>
+          } 
+        />
+        
+        {/* Language Test Page */}
+        <Route 
+          path="/language-test" 
+          element={
+            <ProtectedRoute>
+              <LanguageTestPage />
+            </ProtectedRoute>
           } 
         />
         

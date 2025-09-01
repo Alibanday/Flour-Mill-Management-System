@@ -46,7 +46,7 @@ export default function EmployeePage() {
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
               <button 
-                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm flex items-center"
+                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm flex items-center"
                 onClick={() => navigate("/dashboard")}
               >
                 <FaHome className="inline mr-2" />
@@ -55,12 +55,12 @@ export default function EmployeePage() {
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full !bg-gray-100  text-gray-600 hover:bg-gray-200">
+            <button className="p-2 rounded-full bg-gray-100  text-gray-600 hover:bg-gray-200">
               <FaUserCog className="text-lg" />
             </button>
             <button 
               onClick={handleLogout}
-              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 !bg-transparent"
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 bg-transparent"
             >
               <FaSignOutAlt />
               <span>Logout</span>
@@ -78,7 +78,7 @@ export default function EmployeePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("employees")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${activeTab === "employees" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "employees" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
                 >
                   <FaUsers className="mr-3" />
                   Employees
@@ -87,7 +87,7 @@ export default function EmployeePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("attendance")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${activeTab === "attendance" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "attendance" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
                 >
                   <FaUserClock className="mr-3" />
                   Attendance
@@ -96,7 +96,7 @@ export default function EmployeePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("dailyWagers")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${activeTab === "dailyWagers" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "dailyWagers" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
                 >
                   <FaMoneyBillWave className="mr-3" />
                   Daily Wagers
@@ -105,7 +105,7 @@ export default function EmployeePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("payroll")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${activeTab === "payroll" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "payroll" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"}`}
                 >
                   <FaChartBar className="mr-3" />
                   Payroll Reports

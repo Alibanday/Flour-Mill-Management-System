@@ -1,7 +1,7 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import Production from "../model/Production.js";
-import Warehouse from "../model/wareHouse.js";
+import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();

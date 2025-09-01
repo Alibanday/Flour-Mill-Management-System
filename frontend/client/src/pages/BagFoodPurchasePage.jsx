@@ -238,23 +238,23 @@ export default function BagFoodPurchasePage() {
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
               <button 
-                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm"
+                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"
                 onClick={() => navigate("/dashboard")}
               >
                 Dashboard
               </button>
-              <button className="px-4 py-2 font-medium rounded-md transition duration-150 !bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm">
+              <button className="px-4 py-2 font-medium rounded-md transition duration-150 bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm">
                 Bag & Food Purchase
               </button>
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full !bg-gray-100 text-gray-600 hover:bg-gray-200">
+            <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
               <FaUserCog className="text-lg" />
             </button>
             <button 
               onClick={handleLogout}
-              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 !bg-transparent"
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 bg-transparent"
             >
               <FaSignOutAlt />
               <span>Logout</span>
@@ -272,7 +272,7 @@ export default function BagFoodPurchasePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("bags")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === "bags" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
                 >
@@ -283,7 +283,7 @@ export default function BagFoodPurchasePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("food")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === "food" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
                 >
@@ -294,7 +294,7 @@ export default function BagFoodPurchasePage() {
               <li>
                 <button
                   onClick={() => setActiveTab("summary")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors !bg-transparent ${
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === "summary" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
                 >

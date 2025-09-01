@@ -134,7 +134,7 @@ export default function UserList() {
           <Link
             to={`/edit-user/${user._id}`}
             onClick={(e) => e.stopPropagation()}
-            className="p-2 text-black hover:text-blue-600 !bg-white hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 text-black hover:text-blue-600 bg-white hover:bg-blue-50 rounded-lg transition-colors"
           >
             <FaEdit className="text-base" />
           </Link>
@@ -143,7 +143,7 @@ export default function UserList() {
               e.stopPropagation();
               handleDelete(user._id);
             }}
-            className="p-2 text-black hover:text-red-600 !bg-white hover:bg-red-50 rounded-lg transition-colors"
+            className="p-2 text-black hover:text-red-600 bg-white hover:bg-red-50 rounded-lg transition-colors"
           >
             <FaTrash className="text-base" />
           </button>

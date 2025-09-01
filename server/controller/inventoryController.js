@@ -1,5 +1,5 @@
 import Inventory from "../model/inventory.js";
-import Warehouse from "../model/wareHouse.js";
+import Warehouse from "../model/warehouse.js";
 
 // Create new inventory item
 export const createInventory = async (req, res) => {

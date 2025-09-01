@@ -1,4 +1,4 @@
-import Warehouse from "../model/wareHouse.js";
+import Warehouse from "../model/warehouse.js";
 
 // Add new warehouse
 export const addWarehouse = async (req, res) => {

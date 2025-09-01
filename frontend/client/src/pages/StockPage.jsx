@@ -39,7 +39,7 @@ export default function StockPage() {
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
               <button 
-                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 !bg-gray-200 hover:shadow-sm flex items-center"
+                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm flex items-center"
                 onClick={() => navigate("/dashboard")}
               >
                 <FaHome className="mr-2" />
@@ -48,7 +48,7 @@ export default function StockPage() {
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full !bg-gray-100 text-gray-600 hover:bg-gray-200">
+            <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
               <FaWarehouse className="text-lg" />
             </button>
           </div>
@@ -64,7 +64,7 @@ export default function StockPage() {
                 <li key={index}>
                   <button
                     onClick={() => setActiveMenu(item.name)}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors !bg-transparent"
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     {item.icon}
                     {item.name}
@@ -85,7 +85,7 @@ export default function StockPage() {
                   <button
                     key={index}
                     onClick={button.action}
-                    className="flex flex-col items-center justify-center p-4 !bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                    className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
                   >
                     <div className="p-3 mb-2 rounded-full bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white">
                       {button.icon}

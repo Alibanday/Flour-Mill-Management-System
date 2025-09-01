@@ -17,6 +17,8 @@ import bagPurchaseRoutes from "./routes/bagPurchases.js";
 import foodPurchaseRoutes from "./routes/foodPurchases.js";
 import gatePassRoutes from "./routes/gatePass.js";
 import reportRoutes from "./routes/reports.js";
+import notificationRoutes from "./routes/notifications.js";
+import systemConfigRoutes from "./routes/systemConfig.js";
 import fileUpload from "express-fileupload";
 
 // Initialize dotenv before accessing any environment variables
@@ -62,8 +64,10 @@ app.use("/api/bag-purchases", bagPurchaseRoutes);
 app.use("/api/food-purchases", foodPurchaseRoutes);
 app.use("/api/gate-pass", gatePassRoutes);
 app.use("/api/reports", reportRoutes);
-
-// Health check endpoint
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/system-config", systemConfigRoutes);
+        
+        // Health check endpoint
 app.get("/api/health", (_, res) => {
   res.status(200).json({ status: "OK", dbStatus: mongoose.connection.readyState });
 });

@@ -3,7 +3,7 @@ import { body, validationResult } from "express-validator";
 import Account from "../model/Account.js";
 import Transaction from "../model/Transaction.js";
 import Salary from "../model/Salary.js";
-import Warehouse from "../model/wareHouse.js";
+import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();

@@ -13,8 +13,8 @@ export default function Navbar() {
             <button 
               className={`px-5 py-2.5 font-semibold rounded-lg transition-all duration-200 ${
                 location.pathname === "/dashboard" 
-                  ? "!bg-blue-100 text-blue-700 border-b-2 border-blue-600 shadow-md" 
-                  : "text-gray-700 hover:text-blue-600 !bg-white hover:shadow-md border hover:border-blue-400"
+                  ? "bg-blue-100 text-blue-700 border-b-2 border-blue-600 shadow-md" 
+                  : "text-gray-700 hover:text-blue-600 bg-white hover:shadow-md border hover:border-blue-400"
               }`}
               onClick={() => navigate("/dashboard")}
             >
@@ -22,7 +22,7 @@ export default function Navbar() {
             </button>
 
             {/*<button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Operations" ? "text-gray-600 hover:text-blue-600 !bg-white hover:shadow-sm" : "text-gray-600 hover:text-blue-600 !bg-white hover:shadow-sm"}`}
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Operations" ? "text-gray-600 hover:text-blue-600 bg-white hover:shadow-sm" : "text-gray-600 hover:text-blue-600 bg-white hover:shadow-sm"}`}
                 onClick={() => console.log("Operations clicked")}
               >
                 Operations
@@ -31,8 +31,8 @@ export default function Navbar() {
             <button 
               className={`px-5 py-2.5 font-semibold rounded-lg transition-all duration-200 ${
                 location.pathname === "/ReportsPage" 
-                  ? "!bg-blue-100 text-blue-700 border-b-2 border-blue-600 shadow-md" 
-                  : "text-gray-700 hover:text-blue-600 !bg-white hover:shadow-md border hover:border-blue-400"
+                  ? "bg-blue-100 text-blue-700 border-b-2 border-blue-600 shadow-md" 
+                  : "text-gray-700 hover:text-blue-600 bg-white hover:shadow-md border hover:border-blue-400"
               }`}
               onClick={() => navigate("/ReportsPage")}
             >
