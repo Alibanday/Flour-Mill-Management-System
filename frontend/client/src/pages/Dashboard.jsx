@@ -227,41 +227,7 @@ export default function Dashboard() {
                   navigate("/Dashboard"); 
                 }}
               >
-                Dashboard
-              </button>
-
-              {/* User Management - Admin and Manager only */}
-              {(isAdmin() || isManager()) && (
-                <button 
-                  className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "User Management" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
-                  onClick={() => {
-                    setActiveMenu("User Management");
-                    navigate("/users");
-                  }}
-                >
-                  User Management
-                </button>
-              )}
-
-              <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Inventory" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
-                onClick={() => {
-                  setActiveMenu("Inventory");
-                  navigate("/inventory");
-                }}
-              >
-                Inventory
-              </button>
-
-              <button 
-                className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Reports" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
-                onClick={() => {
-                  setActiveMenu("Reports");
-                  navigate("/ReportsPage");
-                }}
-                style={{ display: (isAdmin() || isManager()) ? 'block' : 'none' }}
-              >
-                Reports
+                {t('navigation.dashboard')}
               </button>
             </nav>
           </div>
@@ -317,7 +283,7 @@ export default function Dashboard() {
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaUserShield className="mr-3" />
-                    User Management
+                    {t('navigation.userManagement')}
                   </button>
                 </li>
               )}
@@ -330,7 +296,7 @@ export default function Dashboard() {
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaUsers className="mr-3" />
-                    Supplier Management
+                    {t('navigation.supplierManagement')}
                   </button>
                 </li>
               )}
@@ -342,7 +308,7 @@ export default function Dashboard() {
                   className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                 >
                   <FaPassport className="mr-3" />
-                  Gate Pass System
+                  {t('navigation.gatePassSystem')}
                 </button>
               </li>
 
@@ -353,7 +319,7 @@ export default function Dashboard() {
                   className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                 >
                   <FaShoppingBag className="mr-3" />
-                  Bag & Food Purchase
+                  {t('navigation.bagFoodPurchase')}
                 </button>
               </li>
 
@@ -365,12 +331,12 @@ export default function Dashboard() {
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaChartLine className="mr-3" />
-                    Reports Module
+                    {t('navigation.reportsModule')}
                   </button>
                 </li>
               )}
 
-                            {/* Notifications & Utilities - Admin and Manager only */}
+              {/* Notifications & Utilities - Admin and Manager only */}
               {(isAdmin() || isManager()) && (
                 <li>
                   <button
@@ -378,7 +344,7 @@ export default function Dashboard() {
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaBell className="mr-3" />
-                    Notifications & Utilities
+                    {t('navigation.notificationsUtilities')}
                   </button>
                 </li>
               )}
@@ -391,19 +357,18 @@ export default function Dashboard() {
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaCog className="mr-3" />
-                    System Configuration
+                    {t('navigation.systemConfiguration')}
                   </button>
                 </li>
               )}
-        
-          {/* Inventory Management - All roles */}
+              {/* Inventory Management - All roles */}
               <li>
                 <button
                   onClick={() => navigate("/inventory")}
                   className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                 >
                   <FaBoxes className="mr-3" />
-                  Inventory Management
+                  {t('navigation.inventoryManagement')}
                 </button>
               </li>
               
