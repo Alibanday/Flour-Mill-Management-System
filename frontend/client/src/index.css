@@ -1,3 +1,6 @@
+/* Urdu Font Support - Must be first */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -43,9 +46,6 @@
 [dir="rtl"] .text-right {
   text-align: left;
 }
-
-/* Urdu Font Support */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;500;600;700&display=swap');
 
 [dir="rtl"] body {
   font-family: 'Noto Nastaliq Urdu', serif;

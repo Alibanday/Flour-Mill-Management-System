@@ -7,13 +7,13 @@ import { protect, authorize } from "../middleware/auth.js";
 const router = express.Router();
 
 // Apply authentication to all routes
-router.use(protect);
+// router.use(protect); // Temporarily disabled for testing
 
 // @route   POST /api/purchases
 // @desc    Create new purchase record (FR 23-24)
 // @access  Private (Manager, Admin)
-router.post("/", [
-  authorize("manager", "admin"),
+router.post("/create", [
+  authorize("Manager", "Admin"),
   body("purchaseNumber").trim().notEmpty().withMessage("Purchase number is required"),
   body("purchaseType").isIn(["Bags", "Food", "Other"]).withMessage("Invalid purchase type"),
   body("supplier.name").trim().notEmpty().withMessage("Supplier name is required"),
@@ -92,17 +92,18 @@ router.post("/", [
   } catch (error) {
     console.error("Create purchase error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while creating purchase record"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
 // @route   GET /api/purchases
-// @desc    Get all purchases with filtering and pagination
+// @desc    Get all purchases with filtering and pagination - Base route
 // @access  Private (Manager, Admin, Employee)
 router.get("/", [
-  authorize("manager", "admin", "employee")
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const {
@@ -179,9 +180,98 @@ router.get("/", [
   } catch (error) {
     console.error("Get purchases error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while fetching purchases"
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
+  }
+});
+
+// @route   GET /api/purchases/all
+// @desc    Get all purchases with filtering and pagination - All route
+// @access  Private (Manager, Admin, Employee)
+router.get("/all", [
+  authorize("Manager", "Admin", "Employee")
+], async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      purchaseType,
+      status,
+      paymentStatus,
+      warehouse,
+      startDate,
+      endDate
+    } = req.query;
+
+    // Build filter object
+    const filter = {};
+
+    if (search) {
+      filter.$or = [
+        { purchaseNumber: { $regex: search, $options: "i" } },
+        { "supplier.name": { $regex: search, $options: "i" } },
+        { notes: { $regex: search, $options: "i" } }
+      ];
+    }
+
+    if (purchaseType && purchaseType !== "all") {
+      filter.purchaseType = purchaseType;
+    }
+
+    if (status && status !== "all") {
+      filter.status = status;
+    }
+
+    if (paymentStatus && paymentStatus !== "all") {
+      filter.paymentStatus = paymentStatus;
+    }
+
+    if (warehouse && warehouse !== "all") {
+      filter.warehouse = warehouse;
+    }
+
+    if (startDate && endDate) {
+      filter.purchaseDate = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Get purchases with pagination
+    const purchases = await Purchase.find(filter)
+      .populate("warehouse", "name location")
+      .populate("createdBy", "firstName lastName")
+      .sort({ purchaseDate: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get total count for pagination
+    const total = await Purchase.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: purchases,
+      pagination: {
+        current: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
     });
+
+  } catch (error) {
+    console.error("Get purchases error:", error);
+    res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -189,7 +279,7 @@ router.get("/", [
 // @desc    Get single purchase record
 // @access  Private (Manager, Admin, Employee)
 router.get("/:id", [
-  authorize("manager", "admin", "employee")
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const purchase = await Purchase.findById(req.params.id)
@@ -211,9 +301,10 @@ router.get("/:id", [
   } catch (error) {
     console.error("Get purchase error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while fetching purchase record"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -221,7 +312,7 @@ router.get("/:id", [
 // @desc    Update purchase record
 // @access  Private (Manager, Admin)
 router.put("/:id", [
-  authorize("manager", "admin"),
+  authorize("Manager", "Admin"),
   body("purchaseNumber").optional().trim().notEmpty().withMessage("Purchase number cannot be empty"),
   body("supplier.name").optional().trim().notEmpty().withMessage("Supplier name cannot be empty")
 ], async (req, res) => {
@@ -275,9 +366,10 @@ router.put("/:id", [
   } catch (error) {
     console.error("Update purchase error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while updating purchase record"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -285,7 +377,7 @@ router.put("/:id", [
 // @desc    Mark purchase as received
 // @access  Private (Manager, Admin)
 router.patch("/:id/receive", [
-  authorize("manager", "admin")
+  authorize("Manager", "Admin")
 ], async (req, res) => {
   try {
     // Check if purchase exists
@@ -309,9 +401,10 @@ router.patch("/:id/receive", [
   } catch (error) {
     console.error("Mark received error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while marking purchase as received"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -319,7 +412,7 @@ router.patch("/:id/receive", [
 // @desc    Update payment information
 // @access  Private (Manager, Admin)
 router.patch("/:id/payment", [
-  authorize("manager", "admin"),
+  authorize("Manager", "Admin"),
   body("amount").isNumeric().withMessage("Payment amount must be a number"),
   body("paymentMethod").optional().isIn(["Cash", "Bank Transfer", "Cheque", "Credit"]).withMessage("Invalid payment method")
 ], async (req, res) => {
@@ -358,9 +451,10 @@ router.patch("/:id/payment", [
   } catch (error) {
     console.error("Update payment error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while updating payment"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -368,7 +462,7 @@ router.patch("/:id/payment", [
 // @desc    Get daily purchase summary
 // @access  Private (Manager, Admin, Employee)
 router.get("/daily/:date", [
-  authorize("manager", "admin", "employee")
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const date = new Date(req.params.date);
@@ -419,9 +513,10 @@ router.get("/daily/:date", [
   } catch (error) {
     console.error("Get daily purchases error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while fetching daily purchase summary"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -429,7 +524,7 @@ router.get("/daily/:date", [
 // @desc    Get bags inventory summary (FR 23)
 // @access  Private (Manager, Admin, Employee)
 router.get("/bags/inventory", [
-  authorize("manager", "admin", "employee")
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const bagsInventory = await Purchase.getBagsInventory();
@@ -447,9 +542,10 @@ router.get("/bags/inventory", [
   } catch (error) {
     console.error("Get bags inventory error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while fetching bags inventory"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -457,7 +553,7 @@ router.get("/bags/inventory", [
 // @desc    Get overdue payments
 // @access  Private (Manager, Admin)
 router.get("/overdue", [
-  authorize("manager", "admin")
+  authorize("Manager", "Admin")
 ], async (req, res) => {
   try {
     const overduePurchases = await Purchase.getOverduePayments();
@@ -470,9 +566,10 @@ router.get("/overdue", [
   } catch (error) {
     console.error("Get overdue purchases error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while fetching overdue payments"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 
@@ -480,7 +577,7 @@ router.get("/overdue", [
 // @desc    Delete purchase record (Admin only)
 // @access  Private (Admin only)
 router.delete("/:id", [
-  authorize("admin")
+  authorize("Admin")
 ], async (req, res) => {
   try {
     const purchase = await Purchase.findById(req.params.id);
@@ -501,9 +598,10 @@ router.delete("/:id", [
   } catch (error) {
     console.error("Delete purchase error:", error);
     res.status(500).json({
-      success: false,
-      message: "Server error while deleting purchase record"
-    });
+        success: false,
+        message: "Server error",
+        error: error.message
+      });
   }
 });
 

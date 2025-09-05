@@ -51,7 +51,7 @@ export default function SalaryForm({ warehouses, accounts, editData, onSubmit, o
 
   const fetchEmployees = async () => {
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('http://localhost:7000/api/users');
       if (response.ok) {
         const data = await response.json();
         setEmployees(data.users || []);
@@ -122,8 +122,8 @@ export default function SalaryForm({ warehouses, accounts, editData, onSubmit, o
     setIsSubmitting(true);
     try {
       const url = editData 
-        ? `/api/financial/salaries/${editData._id}`
-        : '/api/financial/salaries';
+        ? `http://localhost:7000/api/financial/salaries/${editData._id}`
+        : 'http://localhost:7000/api/financial/salaries';
       
       const method = editData ? 'PUT' : 'POST';
       

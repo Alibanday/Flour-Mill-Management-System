@@ -15,7 +15,7 @@ const NotificationBell = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/notifications?limit=10&unreadOnly=true', {
+      const response = await fetch('http://localhost:7000/api/notifications?limit=10&unreadOnly=true', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -36,7 +36,7 @@ const NotificationBell = () => {
   // Fetch notification statistics
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/notifications/stats', {
+      const response = await fetch('http://localhost:7000/api/notifications/stats', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -55,7 +55,7 @@ const NotificationBell = () => {
   // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/read`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -82,7 +82,7 @@ const NotificationBell = () => {
   // Mark notification as acknowledged
   const acknowledgeNotification = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/acknowledge`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/acknowledge`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -108,7 +108,7 @@ const NotificationBell = () => {
   // Resolve notification
   const resolveNotification = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/resolve`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/resolve`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

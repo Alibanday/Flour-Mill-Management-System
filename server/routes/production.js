@@ -12,8 +12,8 @@ router.use(protect);
 // @route   POST /api/production
 // @desc    Add daily production details (FR 14)
 // @access  Private (Manager only)
-router.post("/", [
-  authorize("manager", "admin"),
+router.post("/create", [
+  authorize("Manager", "Admin"),
   body("batchNumber").trim().notEmpty().withMessage("Batch number is required"),
   body("productName").isIn(["Wheat Flour", "Whole Wheat", "Premium Flour", "Maida", "Suji", "Fine", "Chokhar", "Refraction"]).withMessage("Invalid product name"),
   body("productType").isIn(["Raw Materials", "Finished Goods", "Repacked Product"]).withMessage("Invalid product type"),
@@ -80,8 +80,8 @@ router.post("/", [
 // @route   GET /api/production
 // @desc    Get all production records with filtering and pagination
 // @access  Private (Manager, Admin, Employee)
-router.get("/", [
-  authorize("manager", "admin", "employee")
+router.get("/all", [
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const {
@@ -170,7 +170,7 @@ router.get("/", [
 // @desc    Get single production record
 // @access  Private (Manager, Admin, Employee)
 router.get("/:id", [
-  authorize("manager", "admin", "employee")
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const production = await Production.findById(req.params.id)
@@ -204,7 +204,7 @@ router.get("/:id", [
 // @desc    Edit production entry (FR 15)
 // @access  Private (Manager, Admin)
 router.put("/:id", [
-  authorize("manager", "admin"),
+  authorize("Manager", "Admin"),
   body("batchNumber").optional().trim().notEmpty().withMessage("Batch number cannot be empty"),
   body("productName").optional().isIn(["Wheat Flour", "Whole Wheat", "Premium Flour", "Maida", "Suji", "Fine", "Chokhar", "Refraction"]).withMessage("Invalid product name"),
   body("quantity.value").optional().isNumeric().withMessage("Quantity must be a number"),
@@ -272,7 +272,7 @@ router.put("/:id", [
 // @desc    Product repacking and save new product (FR 17)
 // @access  Private (Manager, Admin)
 router.patch("/:id/repack", [
-  authorize("manager", "admin"),
+  authorize("Manager", "Admin"),
   body("newProductName").trim().notEmpty().withMessage("New product name is required"),
   body("repackingCost").isNumeric().withMessage("Repacking cost must be a number"),
   body("quantity.value").isNumeric().withMessage("New quantity must be a number"),
@@ -334,7 +334,7 @@ router.patch("/:id/repack", [
 // @desc    Update wastage information (FR 18)
 // @access  Private (Manager, Admin)
 router.patch("/:id/wastage", [
-  authorize("manager", "admin"),
+  authorize("Manager", "Admin"),
   body("wastage.quantity").isNumeric().withMessage("Wastage quantity must be a number"),
   body("wastage.reason").isIn(["Processing Loss", "Quality Issue", "Machine Error", "Human Error", "Other"]).withMessage("Invalid wastage reason"),
   body("wastage.cost").optional().isNumeric().withMessage("Wastage cost must be a number")
@@ -386,7 +386,7 @@ router.patch("/:id/wastage", [
 // @desc    Update production status
 // @access  Private (Manager, Admin)
 router.patch("/:id/status", [
-  authorize("manager", "admin"),
+  authorize("Manager", "Admin"),
   body("status").isIn(["In Progress", "Completed", "Quality Check", "Approved", "Rejected", "Dispatched"]).withMessage("Invalid status"),
   body("notes").optional().trim()
 ], async (req, res) => {
@@ -443,7 +443,7 @@ router.patch("/:id/status", [
 // @desc    Get daily production summary (FR 16 - Cost calculation)
 // @access  Private (Manager, Admin, Employee)
 router.get("/daily/:date", [
-  authorize("manager", "admin", "employee")
+  authorize("Manager", "Admin", "Employee")
 ], async (req, res) => {
   try {
     const date = new Date(req.params.date);
@@ -491,7 +491,7 @@ router.get("/daily/:date", [
 // @desc    Delete production record (Admin only)
 // @access  Private (Admin only)
 router.delete("/:id", [
-  authorize("admin")
+  authorize("Admin")
 ], async (req, res) => {
   try {
     const production = await Production.findById(req.params.id);

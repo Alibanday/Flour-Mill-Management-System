@@ -33,7 +33,7 @@ const SalaryReport = ({ onReportGenerated }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports/salary', {
+      const response = await fetch('http://localhost:7000/api/reports/salary', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,8 +75,8 @@ const SalaryReport = ({ onReportGenerated }) => {
     
     const summaryData = [
       ['Total Salaries', reportData.summary.totalSalaries.toString()],
-      ['Total Amount', `Rs. ${reportData.summary.totalAmount.toLocaleString()}`],
-      ['Average Salary', `Rs. ${reportData.summary.averageSalary.toLocaleString()}`]
+      ['Total Amount', `Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}`],
+      ['Average Salary', `Rs. ${(reportData.summary.averageSalary || 0).toLocaleString()}`]
     ];
     
     doc.autoTable({
@@ -95,7 +95,7 @@ const SalaryReport = ({ onReportGenerated }) => {
       const deptData = Object.entries(reportData.summary.departmentBreakdown).map(([dept, data]) => [
         dept,
         data.count.toString(),
-        `Rs. ${data.amount.toLocaleString()}`
+        `Rs. ${(data.amount || 0).toLocaleString()}`
       ]);
       
       doc.autoTable({
@@ -116,7 +116,7 @@ const SalaryReport = ({ onReportGenerated }) => {
         new Date(salary.transactionDate).toLocaleDateString(),
         salary.employee ? `${salary.employee.firstName} ${salary.employee.lastName}` : 'N/A',
         salary.employee?.department || 'N/A',
-        `Rs. ${salary.amount.toLocaleString()}`
+        `Rs. ${(salary.amount || 0).toLocaleString()}`
       ]);
       
       doc.autoTable({
@@ -339,11 +339,11 @@ const SalaryReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Total Amount</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.totalAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.totalAmount || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Average Salary</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.averageSalary.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.averageSalary || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -362,7 +362,7 @@ const SalaryReport = ({ onReportGenerated }) => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Amount:</span>
-                        <span className="font-medium">Rs. {data.amount.toLocaleString()}</span>
+                        <span className="font-medium">Rs. {(data.amount || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Average:</span>
@@ -414,7 +414,7 @@ const SalaryReport = ({ onReportGenerated }) => {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          Rs. {salary.amount.toLocaleString()}
+                          Rs. {(salary.amount || 0).toLocaleString()}
                         </td>
                       </tr>
                     ))}

@@ -26,7 +26,7 @@ const InventoryReport = ({ onReportGenerated }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports/inventory', {
+      const response = await fetch('http://localhost:7000/api/reports/inventory', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ const InventoryReport = ({ onReportGenerated }) => {
       ['Total Warehouses', reportData.summary.totalWarehouses.toString()],
       ['Low Stock Items', reportData.summary.lowStockItems.toString()],
       ['Out of Stock Items', reportData.summary.outOfStockItems.toString()],
-      ['Total Value', `Rs. ${reportData.summary.totalValue.toLocaleString()}`]
+      ['Total Value', `Rs. ${(reportData.summary.totalValue || 0).toLocaleString()}`]
     ];
     
     doc.autoTable({
@@ -86,7 +86,7 @@ const InventoryReport = ({ onReportGenerated }) => {
       const warehouseData = Object.entries(reportData.summary.warehouseBreakdown).map(([name, data]) => [
         name,
         data.items.toString(),
-        `Rs. ${data.value.toLocaleString()}`,
+        `Rs. ${(data.value || 0).toLocaleString()}`,
         data.lowStock.toString()
       ]);
       
@@ -109,7 +109,7 @@ const InventoryReport = ({ onReportGenerated }) => {
         item.warehouse?.name || 'N/A',
         item.quantity.toString(),
         item.unit || 'N/A',
-        `Rs. ${item.unitPrice?.toLocaleString() || '0'}`,
+        `Rs. ${(item.unitPrice || 0).toLocaleString()}`,
         `Rs. ${(item.quantity * (item.unitPrice || 0)).toLocaleString()}`
       ]);
       
@@ -314,7 +314,7 @@ const InventoryReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Total Value</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.totalValue || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -333,7 +333,7 @@ const InventoryReport = ({ onReportGenerated }) => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Value:</span>
-                        <span className="font-medium">Rs. {data.value.toLocaleString()}</span>
+                        <span className="font-medium">Rs. {(data.value || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Low Stock:</span>
@@ -386,10 +386,10 @@ const InventoryReport = ({ onReportGenerated }) => {
                             {item.unit || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Rs. {item.unitPrice?.toLocaleString() || '0'}
+                            Rs. {(item.unitPrice || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Rs. {totalValue.toLocaleString()}
+                            Rs. {(totalValue || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

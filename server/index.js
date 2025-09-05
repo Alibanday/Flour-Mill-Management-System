@@ -1,5 +1,4 @@
 import express from "express";
-import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -19,16 +18,15 @@ import gatePassRoutes from "./routes/gatePass.js";
 import reportRoutes from "./routes/reports.js";
 import notificationRoutes from "./routes/notifications.js";
 import systemConfigRoutes from "./routes/systemConfig.js";
+import customerRoutes from "./routes/customers.js";
+import stockTransferRoutes from "./routes/stockTransfers.js";
+import repackingRoutes from "./routes/repacking.js";
+import productionCostRoutes from "./routes/productionCosts.js";
 import fileUpload from "express-fileupload";
+import connectWithRetry from "./config/database.js";
 
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
-
-// Verify required environment variables
-if (!process.env.MONGO_URL) {
-  console.error("❌ FATAL ERROR: MONGO_URL is not defined in .env file");
-  process.exit(1);
-}
 
 const app = express();
 
@@ -66,51 +64,28 @@ app.use("/api/gate-pass", gatePassRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/system-config", systemConfigRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/stock-transfers", stockTransferRoutes);
+app.use("/api/repacking", repackingRoutes);
+app.use("/api/production-costs", productionCostRoutes);
         
         // Health check endpoint
 app.get("/api/health", (_, res) => {
-  res.status(200).json({ status: "OK", dbStatus: mongoose.connection.readyState });
+  res.status(200).json({ 
+    status: "OK", 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 const PORT = process.env.PORT || 7000;
 
-// Database connection with retry logic
-const connectWithRetry = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URL, {
-      retryWrites: true,
-      w: 'majority'
-    });
-    console.log("✅ Connected to MongoDB");
-  } catch (err) {
-    console.error("❌ Failed to connect to MongoDB:", err.message);
-    console.log("🔄 Retrying connection in 5 seconds...");
-    setTimeout(connectWithRetry, 5000);
-  }
-};
-
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Connect to MongoDB
   connectWithRetry();
-});
-
-// Event listeners for MongoDB connection
-mongoose.connection.on("connected", () => {
-  console.log("📚 MongoDB connected");
-});
-
-mongoose.connection.on("error", (err) => {
-  console.error("❌ MongoDB connection error:", err);
-});
-
-mongoose.connection.on("disconnected", () => {
-  console.log("⚠️ MongoDB disconnected");
-});
-
-// Graceful shutdown
-process.on("SIGINT", async () => {
-  await mongoose.connection.close();
-  console.log("⏏️ MongoDB connection closed through app termination");
-  process.exit(0);
 });

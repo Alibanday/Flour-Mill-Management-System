@@ -243,14 +243,14 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
                 <td className="px-6 py-4">
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium">
-                      ₹{purchase.totalAmount?.toLocaleString() || 0}
+                      ₹{(purchase.totalAmount || 0).toLocaleString()}
                     </div>
                     <div className="text-gray-500">
-                      Paid: ₹{purchase.paidAmount?.toLocaleString() || 0}
+                      Paid: ₹{(purchase.paidAmount || 0).toLocaleString()}
                     </div>
                     {purchase.dueAmount > 0 && (
                       <div className="text-red-600 text-xs">
-                        Due: ₹{purchase.dueAmount?.toLocaleString() || 0}
+                        Due: ₹{(purchase.dueAmount || 0).toLocaleString()}
                       </div>
                     )}
                   </div>

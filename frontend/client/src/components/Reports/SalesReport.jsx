@@ -35,7 +35,7 @@ const SalesReport = ({ onReportGenerated }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports/sales', {
+      const response = await fetch('http://localhost:7000/api/reports/sales', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,9 +77,9 @@ const SalesReport = ({ onReportGenerated }) => {
     
     const summaryData = [
       ['Total Sales', reportData.summary.totalSales.toString()],
-      ['Total Amount', `Rs. ${reportData.summary.totalAmount.toLocaleString()}`],
+      ['Total Amount', `Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}`],
       ['Total Quantity', reportData.summary.totalQuantity.toString()],
-      ['Average Order Value', `Rs. ${reportData.summary.averageOrderValue.toLocaleString()}`]
+      ['Average Order Value', `Rs. ${(reportData.summary.averageOrderValue || 0).toLocaleString()}`]
     ];
     
     doc.autoTable({
@@ -98,7 +98,7 @@ const SalesReport = ({ onReportGenerated }) => {
       const salesData = reportData.data.map(sale => [
         new Date(sale.saleDate).toLocaleDateString(),
         sale.customer?.name || 'N/A',
-        sale.totalAmount.toLocaleString(),
+        (sale.totalAmount || 0).toLocaleString(),
         sale.paymentStatus
       ]);
       
@@ -302,7 +302,7 @@ const SalesReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Total Amount</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.totalAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.totalAmount || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Total Quantity</h4>
@@ -310,7 +310,7 @@ const SalesReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Average Order Value</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.averageOrderValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.averageOrderValue || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -360,7 +360,7 @@ const SalesReport = ({ onReportGenerated }) => {
                           {sale.customer?.name || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          Rs. {sale.totalAmount.toLocaleString()}
+                          Rs. {(sale.totalAmount || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

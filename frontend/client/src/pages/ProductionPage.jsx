@@ -57,7 +57,7 @@ export default function ProductionPage() {
   const fetchProductions = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/production', {
+      const response = await fetch('http://localhost:7000/api/production', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -75,7 +75,7 @@ export default function ProductionPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses', {
+      const response = await fetch('http://localhost:7000/api/warehouses', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -91,7 +91,7 @@ export default function ProductionPage() {
 
   const handleSubmitProduction = async (formData) => {
     try {
-      const url = editData ? `/api/production/${editData._id}` : '/api/production';
+      const url = editData ? `http://localhost:7000/api/production/${editData._id}` : 'http://localhost:7000/api/production';
       const method = editData ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -130,7 +130,7 @@ export default function ProductionPage() {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this production record?')) {
       try {
-        const response = await fetch(`/api/production/${id}`, {
+        const response = await fetch(`http://localhost:7000/api/production/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -148,7 +148,7 @@ export default function ProductionPage() {
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
-      const response = await fetch(`/api/production/${id}/status`, {
+      const response = await fetch(`http://localhost:7000/api/production/${id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

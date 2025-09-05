@@ -54,7 +54,7 @@ export default function SupplierManagementPage() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/suppliers', {
+      const response = await fetch('http://localhost:7000/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -75,7 +75,7 @@ export default function SupplierManagementPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses', {
+      const response = await fetch('http://localhost:7000/api/warehouses', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -175,8 +175,8 @@ export default function SupplierManagementPage() {
     
     try {
       const url = editingSupplier 
-        ? `/api/suppliers/${editingSupplier._id}`
-        : '/api/suppliers';
+        ? `http://localhost:7000/api/suppliers/${editingSupplier._id}`
+        : 'http://localhost:7000/api/suppliers';
       
       const method = editingSupplier ? 'PUT' : 'POST';
       
@@ -239,7 +239,7 @@ export default function SupplierManagementPage() {
     }
 
     try {
-      const response = await fetch(`/api/suppliers/${supplierId}`, {
+      const response = await fetch(`http://localhost:7000/api/suppliers/${supplierId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -259,7 +259,7 @@ export default function SupplierManagementPage() {
 
   const handleStatusChange = async (supplierId, newStatus) => {
     try {
-      const response = await fetch(`/api/suppliers/${supplierId}/status`, {
+      const response = await fetch(`http://localhost:7000/api/suppliers/${supplierId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -458,7 +458,7 @@ export default function SupplierManagementPage() {
                 <div className="flex items-center">
                   <FaCreditCard className="text-red-600 text-2xl mr-3" />
                   <div>
-                    <div className="text-2xl font-bold text-red-900">Rs. {totalOutstanding.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-red-900">Rs. {(totalOutstanding || 0).toLocaleString()}</div>
                     <div className="text-sm text-red-600">Total Outstanding</div>
                   </div>
                 </div>
@@ -562,7 +562,7 @@ export default function SupplierManagementPage() {
                                   Credit Limit: Rs. {supplier.creditLimit?.toLocaleString()}
                                 </div>
                                 <div className={`font-medium ${getOutstandingColor(supplier.outstandingBalance, supplier.creditLimit)}`}>
-                                  Outstanding: Rs. {supplier.outstandingBalance?.toLocaleString() || '0'}
+                                  Outstanding: Rs. {(supplier.outstandingBalance || 0).toLocaleString()}
                                 </div>
                                 <div className="text-gray-500">{supplier.paymentTerms}</div>
                               </div>
@@ -636,7 +636,7 @@ export default function SupplierManagementPage() {
                 <h2 className="text-xl font-semibold mb-4">Outstanding Balances</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                    <div className="text-2xl font-bold text-red-900">Rs. {totalOutstanding.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-red-900">Rs. {(totalOutstanding || 0).toLocaleString()}</div>
                     <div className="text-sm text-red-600">Total Outstanding</div>
                   </div>
                   <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
@@ -677,12 +677,12 @@ export default function SupplierManagementPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-sm text-gray-900">
-                                Rs. {supplier.creditLimit?.toLocaleString() || '0'}
+                                Rs. {(supplier.creditLimit || 0).toLocaleString()}
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <div className={`text-sm font-medium ${getOutstandingColor(supplier.outstandingBalance, supplier.creditLimit)}`}>
-                                Rs. {supplier.outstandingBalance?.toLocaleString() || '0'}
+                                Rs. {(supplier.outstandingBalance || 0).toLocaleString()}
                               </div>
                               {supplier.creditLimit > 0 && (
                                 <div className="text-xs text-gray-500">

@@ -87,8 +87,8 @@ export default function TransactionForm({ warehouses, accounts, editData, onSubm
     setIsSubmitting(true);
     try {
       const url = editData 
-        ? `/api/financial/transactions/${editData._id}`
-        : '/api/financial/transactions';
+        ? `http://localhost:7000/api/financial/transactions/${editData._id}`
+        : 'http://localhost:7000/api/financial/transactions';
       
       const method = editData ? 'PUT' : 'POST';
       

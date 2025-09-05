@@ -25,7 +25,7 @@ const SupplierList = ({ suppliers, setSuppliers }) => {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/suppliers', {
+      const response = await fetch('http://localhost:7000/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -72,8 +72,8 @@ const SupplierList = ({ suppliers, setSuppliers }) => {
 
   const handleStatusChange = async (supplierId, newStatus) => {
     try {
-      const response = await fetch(`/api/suppliers/${supplierId}/status`, {
-        method: 'PATCH',
+      const response = await fetch(`http://localhost:7000/api/suppliers/${supplierId}/status`, {
+        method: `PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -100,8 +100,8 @@ const SupplierList = ({ suppliers, setSuppliers }) => {
     }
 
     try {
-      const response = await fetch(`/api/suppliers/${supplierId}`, {
-        method: 'DELETE',
+      const response = await fetch(`http://localhost:7000/api/suppliers/${supplierId}`, {
+        method: `DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -289,7 +289,7 @@ const SupplierList = ({ suppliers, setSuppliers }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        Rs. {supplier.outstandingBalance?.toLocaleString() || '0'}
+                        Rs. {(supplier.outstandingBalance || 0).toLocaleString()}
                       </div>
                       {supplier.creditLimit > 0 && (
                         <div className="text-xs text-gray-500">

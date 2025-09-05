@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaWarehouse, FaMapMarkerAlt, FaPhone, FaEnvelope, FaUser, FaBoxes, FaClock, FaSave, FaTimes, FaEdit, FaBuilding } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
-import axios from 'axios';
+import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
 
 const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) => {
@@ -81,11 +81,11 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
       let response;
       if (mode === 'edit' && warehouse) {
         // Update existing warehouse
-        response = await axios.put(`http://localhost:7000/api/warehouses/${warehouse._id}`, formData, config);
+        response = await api.put(API_ENDPOINTS.WAREHOUSES.UPDATE(warehouse._id), formData);
         toast.success('Warehouse updated successfully!');
       } else {
         // Create new warehouse
-        response = await axios.post('http://localhost:7000/api/warehouses/create', formData, config);
+        response = await api.post(API_ENDPOINTS.WAREHOUSES.CREATE, formData);
         toast.success('Warehouse created successfully!');
       }
 

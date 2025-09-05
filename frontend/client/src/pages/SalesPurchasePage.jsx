@@ -24,10 +24,10 @@ export default function SalesPurchasePage() {
     try {
       setLoading(true);
       const [salesRes, purchasesRes, warehousesRes, inventoryRes] = await Promise.all([
-        fetch('/api/sales'),
-        fetch('/api/purchases'),
-        fetch('/api/warehouses'),
-        fetch('/api/inventory')
+        fetch('http://localhost:7000/api/sales'),
+        fetch('http://localhost:7000/api/purchases'),
+        fetch('http://localhost:7000/api/warehouses'),
+        fetch('http://localhost:7000/api/inventory')
       ]);
 
       if (salesRes.ok) {
@@ -55,7 +55,7 @@ export default function SalesPurchasePage() {
 
   const handleSalesSubmit = async (formData) => {
     try {
-      const response = await fetch('/api/sales', {
+      const response = await fetch('http://localhost:7000/api/sales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -73,7 +73,7 @@ export default function SalesPurchasePage() {
 
   const handlePurchaseSubmit = async (formData) => {
     try {
-      const response = await fetch('/api/purchases', {
+      const response = await fetch('http://localhost:7000/api/purchases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -104,7 +104,7 @@ export default function SalesPurchasePage() {
     if (!window.confirm('Are you sure you want to delete this record?')) return;
 
     try {
-      const response = await fetch(`/api/${type}/${id}`, { method: 'DELETE' });
+      const response = await fetch(`http://localhost:7000/api/${type}/${id}`, { method: 'DELETE' });
       if (response.ok) {
         await fetchData();
       }

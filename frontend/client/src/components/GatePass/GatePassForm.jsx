@@ -138,8 +138,8 @@ export default function GatePassForm({ gatePass, warehouses, onClose, user }) {
       setError(null);
 
       const url = isEditing 
-        ? `/api/gate-pass/${gatePass._id}`
-        : '/api/gate-pass';
+        ? `http://localhost:7000/api/gate-pass/${gatePass._id}`
+        : 'http://localhost:7000/api/gate-pass';
       
       const method = isEditing ? 'PUT' : 'POST';
       

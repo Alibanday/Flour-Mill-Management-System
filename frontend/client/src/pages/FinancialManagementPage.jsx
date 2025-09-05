@@ -27,7 +27,7 @@ export default function FinancialManagementPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses/active');
+      const response = await fetch('http://localhost:7000/api/warehouses/active');
       if (response.ok) {
         const data = await response.json();
         setWarehouses(data);
@@ -39,7 +39,7 @@ export default function FinancialManagementPage() {
 
   const fetchAccounts = async () => {
     try {
-      const response = await fetch('/api/financial/accounts');
+      const response = await fetch('http://localhost:7000/api/financial/accounts');
       if (response.ok) {
         const data = await response.json();
         setAccounts(data.accounts || []);

@@ -64,7 +64,7 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses', {
+      const response = await fetch('http://localhost:7000/api/warehouses', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -164,8 +164,8 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
       setError(null);
 
       const url = isEditing 
-        ? `/api/suppliers/${editingSupplier._id}`
-        : '/api/suppliers';
+        ? 'http://localhost:7000/api/suppliers/${editingSupplier._id}`
+        : 'http://localhost:7000/api/suppliers';
       
       const method = isEditing ? 'PUT' : 'POST';
 

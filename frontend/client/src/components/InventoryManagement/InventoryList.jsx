@@ -5,7 +5,7 @@ import {
   FaExclamationTriangle, FaCheckCircle, FaTimesCircle
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
-import axios from 'axios';
+import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
 import InventoryForm from './InventoryForm';
 
@@ -61,7 +61,7 @@ const InventoryList = () => {
         ...(filters.outOfStock && { outOfStock: 'true' })
       });
 
-      const response = await axios.get(`http://localhost:7000/api/inventory/all?${params}`, config);
+      const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?${params}`);
       
       // Debug: Log the response
       console.log('Inventory API Response:', response.data);
@@ -101,10 +101,7 @@ const InventoryList = () => {
 
   const fetchWarehouses = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:7000/api/warehouses/active', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_ALL);
       setWarehouses(response.data.data || []);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
@@ -113,10 +110,7 @@ const InventoryList = () => {
 
   const fetchCategories = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:7000/api/inventory/category/all', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('http://localhost:7000/api/inventory/category/all');
       setCategories(response.data.data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -165,10 +159,7 @@ const InventoryList = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-              await axios.delete(`http://localhost:7000/api/inventory/${item._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(API_ENDPOINTS.INVENTORY.DELETE(item._id));
       
       toast.success('Inventory item deleted successfully');
       fetchInventory();
@@ -185,11 +176,7 @@ const InventoryList = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
-              await axios.patch(`http://localhost:7000/api/inventory/${item._id}/status`, 
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.patch(`http://localhost:7000/api/inventory/${item._id}/status`, { status: newStatus });
       
       toast.success('Status updated successfully');
       fetchInventory();

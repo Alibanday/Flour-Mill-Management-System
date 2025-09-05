@@ -68,7 +68,7 @@ router.get("/accounts/:id", protect, async (req, res) => {
 });
 
 // Create new account
-router.post("/accounts", protect, authorize(['Admin', 'Manager']), [
+router.post("/accounts", protect, authorize("'Admin'", "'Manager'"), [
   body('accountNumber').notEmpty().withMessage('Account number is required'),
   body('accountName').notEmpty().withMessage('Account name is required'),
   body('accountType').isIn(['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']).withMessage('Invalid account type'),
@@ -95,7 +95,7 @@ router.post("/accounts", protect, authorize(['Admin', 'Manager']), [
 });
 
 // Update account
-router.put("/accounts/:id", protect, authorize(['Admin', 'Manager']), async (req, res) => {
+router.put("/accounts/:id", protect, authorize("'Admin'", "'Manager'"), async (req, res) => {
   try {
     const account = await Account.findByIdAndUpdate(
       req.params.id,
@@ -114,7 +114,7 @@ router.put("/accounts/:id", protect, authorize(['Admin', 'Manager']), async (req
 });
 
 // Delete account
-router.delete("/accounts/:id", protect, authorize(['Admin']), async (req, res) => {
+router.delete("/accounts/:id", protect, authorize("'Admin'"), async (req, res) => {
   try {
     const account = await Account.findByIdAndDelete(req.params.id);
     
@@ -198,7 +198,7 @@ router.get("/transactions/:id", protect, async (req, res) => {
 });
 
 // Create new transaction
-router.post("/transactions", protect, authorize(['Admin', 'Manager', 'Cashier']), [
+router.post("/transactions", protect, authorize("'Admin'", "'Manager'", "'Cashier'"), [
   body('transactionType').isIn(['Payment', 'Receipt', 'Purchase', 'Sale', 'Salary', 'Transfer', 'Adjustment', 'Other']).withMessage('Invalid transaction type'),
   body('description').notEmpty().withMessage('Description is required'),
   body('amount').isNumeric().withMessage('Amount must be a number'),
@@ -231,7 +231,7 @@ router.post("/transactions", protect, authorize(['Admin', 'Manager', 'Cashier'])
 });
 
 // Update transaction
-router.put("/transactions/:id", protect, authorize(['Admin', 'Manager']), async (req, res) => {
+router.put("/transactions/:id", protect, authorize("'Admin'", "'Manager'"), async (req, res) => {
   try {
     const transaction = await Transaction.findByIdAndUpdate(
       req.params.id,
@@ -250,7 +250,7 @@ router.put("/transactions/:id", protect, authorize(['Admin', 'Manager']), async 
 });
 
 // Delete transaction
-router.delete("/transactions/:id", protect, authorize(['Admin']), async (req, res) => {
+router.delete("/transactions/:id", protect, authorize("'Admin'"), async (req, res) => {
   try {
     const transaction = await Transaction.findByIdAndDelete(req.params.id);
     
@@ -326,7 +326,7 @@ router.get("/salaries/:id", protect, async (req, res) => {
 });
 
 // Create new salary
-router.post("/salaries", protect, authorize(['Admin', 'Manager']), [
+router.post("/salaries", protect, authorize("'Admin'", "'Manager'"), [
   body('employee').notEmpty().withMessage('Employee is required'),
   body('month').isInt({ min: 1, max: 12 }).withMessage('Month must be between 1 and 12'),
   body('year').isInt({ min: 2020, max: 2030 }).withMessage('Year must be between 2020 and 2030'),
@@ -374,7 +374,7 @@ router.post("/salaries", protect, authorize(['Admin', 'Manager']), [
 });
 
 // Update salary
-router.put("/salaries/:id", protect, authorize(['Admin', 'Manager']), async (req, res) => {
+router.put("/salaries/:id", protect, authorize("'Admin'", "'Manager'"), async (req, res) => {
   try {
     const salary = await Salary.findByIdAndUpdate(
       req.params.id,
@@ -393,7 +393,7 @@ router.put("/salaries/:id", protect, authorize(['Admin', 'Manager']), async (req
 });
 
 // Delete salary
-router.delete("/salaries/:id", protect, authorize(['Admin']), async (req, res) => {
+router.delete("/salaries/:id", protect, authorize("'Admin'"), async (req, res) => {
   try {
     const salary = await Salary.findByIdAndDelete(req.params.id);
     

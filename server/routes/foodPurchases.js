@@ -17,7 +17,7 @@ const validateFoodPurchase = [
 // @desc    Create new food purchase
 // @route   POST /api/food-purchases
 // @access  Admin, Manager
-router.post("/", protect, authorize("Admin", "Manager"), validateFoodPurchase, async (req, res) => {
+router.post("/create", protect, authorize("Admin", "Manager"), validateFoodPurchase, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -49,7 +49,7 @@ router.post("/", protect, authorize("Admin", "Manager"), validateFoodPurchase, a
 // @desc    Get all food purchases
 // @route   GET /api/food-purchases
 // @access  Admin, Manager, Employee
-router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/all", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, supplier, category, startDate, endDate } = req.query;
     

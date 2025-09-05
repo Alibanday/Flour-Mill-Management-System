@@ -32,7 +32,7 @@ export default function TransactionList({ warehouses, accounts, onEdit }) {
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
-      const response = await fetch(`/api/financial/transactions?${params}`);
+      const response = await fetch(`http://localhost:7000/api/financial/transactions?${params}`);
       if (response.ok) {
         const data = await response.json();
         setTransactions(data.transactions || []);
@@ -49,7 +49,7 @@ export default function TransactionList({ warehouses, accounts, onEdit }) {
     if (!window.confirm('Are you sure you want to delete this transaction?')) return;
 
     try {
-      const response = await fetch(`/api/financial/transactions/${transactionId}`, {
+      const response = await fetch(`http://localhost:7000/api/financial/transactions/${transactionId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

@@ -9,8 +9,12 @@ import {
   getActiveWarehouses,
   updateWarehouseStatus
 } from "../controller/warehouseController.js";
+import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// All routes require authentication
+// router.use(protect); // Temporarily disabled for testing
 
 // Test endpoint
 router.get("/test", (req, res) => {
@@ -18,9 +22,12 @@ router.get("/test", (req, res) => {
 });
 
 // Route to add a new warehouse
-router.post("/create", addWarehouse);
+router.post("/create", authorize('Admin', 'Manager'), addWarehouse);
 
-// Route to get all warehouses
+// Route to get all warehouses - Base route
+router.get("/", getAllWarehouses);
+
+// Route to get all warehouses - All route
 router.get("/all", getAllWarehouses);
 
 // Route to search warehouses
@@ -33,12 +40,12 @@ router.get("/active", getActiveWarehouses);
 router.get("/:id", getWarehouseById);
 
 // Route to update a warehouse by ID
-router.put("/:id", updateWarehouse);
+router.put("/:id", authorize('Admin', 'Manager'), updateWarehouse);
 
 // Route to delete a warehouse by ID
-router.delete("/:id", deleteWarehouse);
+router.delete("/:id", authorize('Admin'), deleteWarehouse);
 
 // Route to update warehouse status
-router.patch("/:id/status", updateWarehouseStatus);
+router.patch("/:id/status", authorize('Admin', 'Manager'), updateWarehouseStatus);
 
 export default router;

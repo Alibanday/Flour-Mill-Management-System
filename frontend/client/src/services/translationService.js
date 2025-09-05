@@ -236,6 +236,152 @@ const translations = {
       deleteNotification: 'Delete Notification'
     },
 
+    // Purchase Management
+    purchaseManagement: {
+      title: 'Purchase Management',
+      createPurchase: 'Create Purchase',
+      editPurchase: 'Edit Purchase',
+      purchaseList: 'Purchase List',
+      purchaseDate: 'Purchase Date',
+      supplier: 'Supplier',
+      items: 'Items',
+      totalAmount: 'Total Amount',
+      paymentStatus: 'Payment Status',
+      deliveryDate: 'Delivery Date',
+      purchaseType: 'Purchase Type',
+      bags: 'Bags',
+      food: 'Food'
+    },
+
+    // Supplier Management
+    supplierManagement: {
+      title: 'Supplier Management',
+      createSupplier: 'Create Supplier',
+      editSupplier: 'Edit Supplier',
+      supplierList: 'Supplier List',
+      supplierCode: 'Supplier Code',
+      contactPerson: 'Contact Person',
+      businessType: 'Business Type',
+      creditLimit: 'Credit Limit',
+      outstandingBalance: 'Outstanding Balance',
+      paymentTerms: 'Payment Terms',
+      rating: 'Rating',
+      notes: 'Notes'
+    },
+
+    // Bag & Food Purchase
+    bagFoodPurchase: {
+      title: 'Bag & Food Purchase',
+      bagPurchase: 'Bag Purchase',
+      foodPurchase: 'Food Purchase',
+      ata: 'ATA',
+      maida: 'MAIDA',
+      suji: 'SUJI',
+      fine: 'FINE',
+      wheat: 'Wheat',
+      purchaseNumber: 'Purchase Number',
+      supplier: 'Supplier',
+      quantity: 'Quantity',
+      unitPrice: 'Unit Price',
+      totalPrice: 'Total Price',
+      subtotal: 'Subtotal',
+      tax: 'Tax',
+      discount: 'Discount',
+      totalAmount: 'Total Amount'
+    },
+
+    // Gate Pass System
+    gatePassSystem: {
+      title: 'Gate Pass System',
+      createGatePass: 'Create Gate Pass',
+      editGatePass: 'Edit Gate Pass',
+      gatePassList: 'Gate Pass List',
+      gatePassNumber: 'Gate Pass Number',
+      type: 'Type',
+      purpose: 'Purpose',
+      issuedTo: 'Issued To',
+      validUntil: 'Valid Until',
+      items: 'Items',
+      printOptions: 'Print Options',
+      gatePass: 'Gate Pass',
+      invoice: 'Invoice',
+      both: 'Both',
+      whatsappShare: 'WhatsApp Share',
+      stockDispatch: 'Stock Dispatch',
+      confirmed: 'Confirmed',
+      confirmedBy: 'Confirmed By',
+      confirmedAt: 'Confirmed At'
+    },
+
+    // Customer Management
+    customerManagement: {
+      title: 'Customer Management',
+      createCustomer: 'Create Customer',
+      editCustomer: 'Edit Customer',
+      customerList: 'Customer List',
+      customerCode: 'Customer Code',
+      customerName: 'Customer Name',
+      contactPerson: 'Contact Person',
+      phone: 'Phone',
+      email: 'Email',
+      address: 'Address',
+      creditLimit: 'Credit Limit',
+      outstandingBalance: 'Outstanding Balance',
+      paymentTerms: 'Payment Terms',
+      status: 'Status'
+    },
+
+    // Stock Transfer
+    stockTransfer: {
+      title: 'Stock Transfer',
+      createTransfer: 'Create Transfer',
+      editTransfer: 'Edit Transfer',
+      transferList: 'Transfer List',
+      transferNumber: 'Transfer Number',
+      transferType: 'Transfer Type',
+      fromWarehouse: 'From Warehouse',
+      toWarehouse: 'To Warehouse',
+      transferDate: 'Transfer Date',
+      items: 'Items',
+      requestedQuantity: 'Requested Quantity',
+      actualQuantity: 'Actual Quantity',
+      status: 'Status',
+      approved: 'Approved',
+      pending: 'Pending',
+      rejected: 'Rejected'
+    },
+
+    // Repacking
+    repacking: {
+      title: 'Repacking',
+      createRepacking: 'Create Repacking',
+      editRepacking: 'Edit Repacking',
+      repackingList: 'Repacking List',
+      repackingNumber: 'Repacking Number',
+      repackingDate: 'Repacking Date',
+      sourceProduct: 'Source Product',
+      targetProduct: 'Target Product',
+      sourceQuantity: 'Source Quantity',
+      targetQuantity: 'Target Quantity',
+      efficiency: 'Efficiency',
+      wastage: 'Wastage',
+      cost: 'Cost'
+    },
+
+    // Production Cost
+    productionCost: {
+      title: 'Production Cost',
+      dailyCost: 'Daily Cost',
+      costBreakdown: 'Cost Breakdown',
+      rawMaterialCost: 'Raw Material Cost',
+      laborCost: 'Labor Cost',
+      overheadCost: 'Overhead Cost',
+      totalCost: 'Total Cost',
+      costPerUnit: 'Cost Per Unit',
+      productionEfficiency: 'Production Efficiency',
+      costAnalysis: 'Cost Analysis'
+    },
+
     // System Configuration
     systemConfig: {
       title: 'System Configuration',
@@ -487,6 +633,152 @@ const translations = {
       markAsRead: 'پڑھا ہوا نشان لگائیں',
       markAllAsRead: 'سب کو پڑھا ہوا نشان لگائیں',
       deleteNotification: 'نوٹیفیکیشن حذف کریں'
+    },
+
+    // Purchase Management
+    purchaseManagement: {
+      title: 'خریداری کا انتظام',
+      createPurchase: 'خریداری بنائیں',
+      editPurchase: 'خریداری کی ترمیم',
+      purchaseList: 'خریداری کی فہرست',
+      purchaseDate: 'خریداری کی تاریخ',
+      supplier: 'سپلائر',
+      items: 'آئٹمز',
+      totalAmount: 'کل رقم',
+      paymentStatus: 'ادائیگی کی حالت',
+      deliveryDate: 'ڈیلیوری کی تاریخ',
+      purchaseType: 'خریداری کی قسم',
+      bags: 'بیگز',
+      food: 'خوراک'
+    },
+
+    // Supplier Management
+    supplierManagement: {
+      title: 'سپلائر کا انتظام',
+      createSupplier: 'سپلائر بنائیں',
+      editSupplier: 'سپلائر کی ترمیم',
+      supplierList: 'سپلائر کی فہرست',
+      supplierCode: 'سپلائر کوڈ',
+      contactPerson: 'رابطہ شخص',
+      businessType: 'کاروبار کی قسم',
+      creditLimit: 'کریڈٹ کی حد',
+      outstandingBalance: 'زیر التوا بیلنس',
+      paymentTerms: 'ادائیگی کی شرائط',
+      rating: 'ریٹنگ',
+      notes: 'نوٹس'
+    },
+
+    // Bag & Food Purchase
+    bagFoodPurchase: {
+      title: 'بیگ اور خوراک کی خریداری',
+      bagPurchase: 'بیگ کی خریداری',
+      foodPurchase: 'خوراک کی خریداری',
+      ata: 'اٹا',
+      maida: 'میدہ',
+      suji: 'سوجی',
+      fine: 'فائن',
+      wheat: 'گندم',
+      purchaseNumber: 'خریداری نمبر',
+      supplier: 'سپلائر',
+      quantity: 'مقدار',
+      unitPrice: 'یونٹ قیمت',
+      totalPrice: 'کل قیمت',
+      subtotal: 'ذیلی کل',
+      tax: 'ٹیکس',
+      discount: 'رعایت',
+      totalAmount: 'کل رقم'
+    },
+
+    // Gate Pass System
+    gatePassSystem: {
+      title: 'گیٹ پاس سسٹم',
+      createGatePass: 'گیٹ پاس بنائیں',
+      editGatePass: 'گیٹ پاس کی ترمیم',
+      gatePassList: 'گیٹ پاس کی فہرست',
+      gatePassNumber: 'گیٹ پاس نمبر',
+      type: 'قسم',
+      purpose: 'مقصد',
+      issuedTo: 'جاری کیا گیا',
+      validUntil: 'تک درست',
+      items: 'آئٹمز',
+      printOptions: 'پرنٹ کے اختیارات',
+      gatePass: 'گیٹ پاس',
+      invoice: 'انوائس',
+      both: 'دونوں',
+      whatsappShare: 'واٹس ایپ شیئر',
+      stockDispatch: 'اسٹاک ڈسپیچ',
+      confirmed: 'تصدیق شدہ',
+      confirmedBy: 'تصدیق کی گئی',
+      confirmedAt: 'تصدیق کی تاریخ'
+    },
+
+    // Customer Management
+    customerManagement: {
+      title: 'گاہکوں کا انتظام',
+      createCustomer: 'گاہک بنائیں',
+      editCustomer: 'گاہک کی ترمیم',
+      customerList: 'گاہکوں کی فہرست',
+      customerCode: 'گاہک کوڈ',
+      customerName: 'گاہک کا نام',
+      contactPerson: 'رابطہ شخص',
+      phone: 'فون',
+      email: 'ای میل',
+      address: 'پتہ',
+      creditLimit: 'کریڈٹ کی حد',
+      outstandingBalance: 'زیر التوا بیلنس',
+      paymentTerms: 'ادائیگی کی شرائط',
+      status: 'حیثیت'
+    },
+
+    // Stock Transfer
+    stockTransfer: {
+      title: 'اسٹاک ٹرانسفر',
+      createTransfer: 'ٹرانسفر بنائیں',
+      editTransfer: 'ٹرانسفر کی ترمیم',
+      transferList: 'ٹرانسفر کی فہرست',
+      transferNumber: 'ٹرانسفر نمبر',
+      transferType: 'ٹرانسفر کی قسم',
+      fromWarehouse: 'سے گودام',
+      toWarehouse: 'کو گودام',
+      transferDate: 'ٹرانسفر کی تاریخ',
+      items: 'آئٹمز',
+      requestedQuantity: 'درخواست شدہ مقدار',
+      actualQuantity: 'اصل مقدار',
+      status: 'حیثیت',
+      approved: 'منظور شدہ',
+      pending: 'زیر التوا',
+      rejected: 'مسترد'
+    },
+
+    // Repacking
+    repacking: {
+      title: 'دوبارہ پیکنگ',
+      createRepacking: 'ریپیکنگ بنائیں',
+      editRepacking: 'ریپیکنگ کی ترمیم',
+      repackingList: 'ریپیکنگ کی فہرست',
+      repackingNumber: 'ریپیکنگ نمبر',
+      repackingDate: 'ریپیکنگ کی تاریخ',
+      sourceProduct: 'سورس پروڈکٹ',
+      targetProduct: 'ٹارگٹ پروڈکٹ',
+      sourceQuantity: 'سورس مقدار',
+      targetQuantity: 'ٹارگٹ مقدار',
+      efficiency: 'کارکردگی',
+      wastage: 'ضیاع',
+      cost: 'لاگت'
+    },
+
+    // Production Cost
+    productionCost: {
+      title: 'پیداوار کی لاگت',
+      dailyCost: 'روزانہ لاگت',
+      costBreakdown: 'لاگت کی تفصیل',
+      rawMaterialCost: 'خام مال کی لاگت',
+      laborCost: 'مزدوری کی لاگت',
+      overheadCost: 'اوور ہیڈ لاگت',
+      totalCost: 'کل لاگت',
+      costPerUnit: 'فی یونٹ لاگت',
+      productionEfficiency: 'پیداوار کی کارکردگی',
+      costAnalysis: 'لاگت کا تجزیہ'
     },
 
     // System Configuration

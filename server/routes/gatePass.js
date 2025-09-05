@@ -18,7 +18,7 @@ const validateGatePass = [
 // @desc    Create new gate pass
 // @route   POST /api/gate-pass
 // @access  Admin, Manager, Employee
-router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
+router.post("/create", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -59,7 +59,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
 // @desc    Get all gate passes
 // @route   GET /api/gate-pass
 // @access  Admin, Manager, Employee
-router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/all", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, type, warehouse, dateFrom, dateTo } = req.query;
     

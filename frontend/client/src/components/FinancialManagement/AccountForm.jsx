@@ -73,8 +73,8 @@ export default function AccountForm({ warehouses, editData, onSubmit, onCancel }
     setIsSubmitting(true);
     try {
       const url = editData 
-        ? `/api/financial/accounts/${editData._id}`
-        : '/api/financial/accounts';
+        ? `http://localhost:7000/api/financial/accounts/${editData._id}`
+        : 'http://localhost:7000/api/financial/accounts';
       
       const method = editData ? 'PUT' : 'POST';
       

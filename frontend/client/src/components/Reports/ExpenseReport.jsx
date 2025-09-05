@@ -33,7 +33,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports/expense', {
+      const response = await fetch('http://localhost:7000/api/reports/expense', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,8 +75,8 @@ const ExpenseReport = ({ onReportGenerated }) => {
     
     const summaryData = [
       ['Total Expenses', reportData.summary.totalExpenses.toString()],
-      ['Total Amount', `Rs. ${reportData.summary.totalAmount.toLocaleString()}`],
-      ['Average Expense', `Rs. ${reportData.summary.averageExpense.toLocaleString()}`]
+      ['Total Amount', `Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}`],
+      ['Average Expense', `Rs. ${(reportData.summary.averageExpense || 0).toLocaleString()}`]
     ];
     
     doc.autoTable({
@@ -95,7 +95,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
       const categoryData = Object.entries(reportData.summary.categoryBreakdown).map(([category, data]) => [
         category,
         data.count.toString(),
-        `Rs. ${data.amount.toLocaleString()}`
+        `Rs. ${(data.amount || 0).toLocaleString()}`
       ]);
       
       doc.autoTable({
@@ -116,7 +116,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
         new Date(expense.transactionDate).toLocaleDateString(),
         expense.category || 'Uncategorized',
         expense.description || 'N/A',
-        `Rs. ${expense.amount.toLocaleString()}`,
+        `Rs. ${(expense.amount || 0).toLocaleString()}`,
         expense.createdBy ? `${expense.createdBy.firstName} ${expense.createdBy.lastName}` : 'N/A'
       ]);
       
@@ -345,11 +345,11 @@ const ExpenseReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Total Amount</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.totalAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.totalAmount || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Average Expense</h4>
-              <p className="text-2xl font-bold text-gray-900">Rs. {reportData.summary.averageExpense.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.averageExpense || 0).toLocaleString()}</p>
             </div>
           </div>
 
@@ -368,7 +368,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Amount:</span>
-                        <span className="font-medium">Rs. {data.amount.toLocaleString()}</span>
+                        <span className="font-medium">Rs. {(data.amount || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Percentage:</span>
@@ -415,7 +415,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
                           {expense.description || 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          Rs. {expense.amount.toLocaleString()}
+                          Rs. {(expense.amount || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {expense.createdBy ? `${expense.createdBy.firstName} ${expense.createdBy.lastName}` : 'N/A'}

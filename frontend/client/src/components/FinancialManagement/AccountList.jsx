@@ -28,7 +28,7 @@ export default function AccountList({ warehouses, onEdit, onRefresh }) {
       if (selectedCategory) params.append('category', selectedCategory);
       if (selectedWarehouse) params.append('warehouse', selectedWarehouse);
 
-      const response = await fetch(`/api/financial/accounts?${params}`);
+      const response = await fetch(`http://localhost:7000/api/financial/accounts?${params}`);
       if (response.ok) {
         const data = await response.json();
         setAccounts(data.accounts || []);
@@ -45,7 +45,7 @@ export default function AccountList({ warehouses, onEdit, onRefresh }) {
     if (!window.confirm('Are you sure you want to delete this account?')) return;
 
     try {
-      const response = await fetch(`/api/financial/accounts/${accountId}`, {
+      const response = await fetch(`http://localhost:7000/api/financial/accounts/${accountId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

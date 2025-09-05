@@ -32,7 +32,7 @@ const ProfitLossReport = ({ onReportGenerated }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports/profit-loss', {
+      const response = await fetch('http://localhost:7000/api/reports/profit-loss', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,13 +73,13 @@ const ProfitLossReport = ({ onReportGenerated }) => {
     doc.text('Financial Summary', 20, 50);
     
     const summaryData = [
-      ['Revenue', `Rs. ${reportData.summary.revenue.total.toLocaleString()}`],
-      ['Cost of Goods Sold', `Rs. ${reportData.summary.costs.cogs.toLocaleString()}`],
-      ['Gross Profit', `Rs. ${reportData.summary.profit.gross.toLocaleString()}`],
-      ['Operating Expenses', `Rs. ${reportData.summary.costs.expenses.toLocaleString()}`],
-      ['Salaries', `Rs. ${reportData.summary.costs.salaries.toLocaleString()}`],
-      ['Total Costs', `Rs. ${reportData.summary.costs.total.toLocaleString()}`],
-      ['Net Profit', `Rs. ${reportData.summary.profit.net.toLocaleString()}`],
+      ['Revenue', `Rs. ${(reportData.summary.revenue.total || 0).toLocaleString()}`],
+      ['Cost of Goods Sold', `Rs. ${(reportData.summary.costs.cogs || 0).toLocaleString()}`],
+      ['Gross Profit', `Rs. ${(reportData.summary.profit.gross || 0).toLocaleString()}`],
+      ['Operating Expenses', `Rs. ${(reportData.summary.costs.expenses || 0).toLocaleString()}`],
+      ['Salaries', `Rs. ${(reportData.summary.costs.salaries || 0).toLocaleString()}`],
+      ['Total Costs', `Rs. ${(reportData.summary.costs.total || 0).toLocaleString()}`],
+      ['Net Profit', `Rs. ${(reportData.summary.profit.net || 0).toLocaleString()}`],
       ['Profit Margin', `${reportData.summary.profit.margin.toFixed(2)}%`]
     ];
     
@@ -99,7 +99,7 @@ const ProfitLossReport = ({ onReportGenerated }) => {
       const revenueData = reportData.data.sales.map(sale => [
         new Date(sale.saleDate).toLocaleDateString(),
         sale.customer?.name || 'N/A',
-        sale.totalAmount.toLocaleString()
+        (sale.totalAmount || 0).toLocaleString()
       ]);
       
       doc.autoTable({
@@ -119,7 +119,7 @@ const ProfitLossReport = ({ onReportGenerated }) => {
       const bagData = reportData.data.bagPurchases.map(purchase => [
         new Date(purchase.purchaseDate).toLocaleDateString(),
         purchase.supplier?.name || 'N/A',
-        purchase.totalAmount.toLocaleString()
+        (purchase.totalAmount || 0).toLocaleString()
       ]);
       
       doc.autoTable({
@@ -321,20 +321,20 @@ const ProfitLossReport = ({ onReportGenerated }) => {
             <h4 className="text-lg font-medium text-gray-900 mb-4">Financial Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">Rs. {reportData.summary.revenue.total.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-green-600">Rs. {(reportData.summary.revenue.total || 0).toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Total Revenue</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">Rs. {reportData.summary.costs.total.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-red-600">Rs. {(reportData.summary.costs.total || 0).toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Total Costs</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">Rs. {reportData.summary.profit.gross.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-blue-600">Rs. {(reportData.summary.profit.gross || 0).toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Gross Profit</div>
               </div>
               <div className="text-center">
                 <div className={`text-2xl font-bold ${reportData.summary.profit.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  Rs. {reportData.summary.profit.net.toLocaleString()}
+                  Rs. {(reportData.summary.profit.net || 0).toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-500">Net Profit</div>
               </div>
@@ -349,12 +349,12 @@ const ProfitLossReport = ({ onReportGenerated }) => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Sales Revenue</span>
-                  <span className="font-medium">Rs. {reportData.summary.revenue.sales.toLocaleString()}</span>
+                  <span className="font-medium">Rs. {(reportData.summary.revenue.sales || 0).toLocaleString()}</span>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center font-semibold">
                     <span>Total Revenue</span>
-                    <span>Rs. {reportData.summary.revenue.total.toLocaleString()}</span>
+                    <span>Rs. {(reportData.summary.revenue.total || 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -366,20 +366,20 @@ const ProfitLossReport = ({ onReportGenerated }) => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Cost of Goods Sold</span>
-                  <span className="font-medium">Rs. {reportData.summary.costs.cogs.toLocaleString()}</span>
+                  <span className="font-medium">Rs. {(reportData.summary.costs.cogs || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Operating Expenses</span>
-                  <span className="font-medium">Rs. {reportData.summary.costs.expenses.toLocaleString()}</span>
+                  <span className="font-medium">Rs. {(reportData.summary.costs.expenses || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Salaries</span>
-                  <span className="font-medium">Rs. {reportData.summary.costs.salaries.toLocaleString()}</span>
+                  <span className="font-medium">Rs. {(reportData.summary.costs.salaries || 0).toLocaleString()}</span>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center font-semibold">
                     <span>Total Costs</span>
-                    <span>Rs. {reportData.summary.costs.total.toLocaleString()}</span>
+                    <span>Rs. {(reportData.summary.costs.total || 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -391,7 +391,7 @@ const ProfitLossReport = ({ onReportGenerated }) => {
             <h4 className="text-lg font-medium text-gray-900 mb-4">Profit Analysis</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">Rs. {reportData.summary.profit.gross.toLocaleString()}</div>
+                <div className="text-2xl font-bold text-blue-600">Rs. {(reportData.summary.profit.gross || 0).toLocaleString()}</div>
                 <div className="text-sm text-gray-500">Gross Profit</div>
                 <div className="text-xs text-gray-400">
                   {reportData.summary.revenue.total > 0 ? 
@@ -402,7 +402,7 @@ const ProfitLossReport = ({ onReportGenerated }) => {
               </div>
               <div className="text-center">
                 <div className={`text-2xl font-bold ${reportData.summary.profit.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  Rs. {reportData.summary.profit.net.toLocaleString()}
+                  Rs. {(reportData.summary.profit.net || 0).toLocaleString()}
                 </div>
                 <div className="text-sm text-gray-500">Net Profit</div>
                 <div className="text-xs text-gray-400">

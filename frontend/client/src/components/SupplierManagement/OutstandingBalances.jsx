@@ -15,7 +15,7 @@ const OutstandingBalances = () => {
   const fetchOutstandingSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/suppliers/outstanding', {
+      const response = await fetch('http://localhost:7000/api/suppliers/outstanding', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -36,7 +36,7 @@ const OutstandingBalances = () => {
 
   const fetchSummary = async () => {
     try {
-      const response = await fetch('/api/suppliers/summary', {
+      const response = await fetch('http://localhost:7000/api/suppliers/summary', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },

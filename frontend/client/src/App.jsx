@@ -18,6 +18,10 @@ import GatePassPage from './pages/GatePassPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SystemConfigPage from './pages/SystemConfigPage';
 import LanguageTestPage from './pages/LanguageTestPage';
+import CustomerManagementPage from './pages/CustomerManagementPage';
+import StockTransferPage from './pages/StockTransferPage';
+import RepackingPage from './pages/RepackingPage';
+import ProductionCostPage from './pages/ProductionCostPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -166,6 +170,46 @@ function App() {
             <ProtectedRoute>
               <LanguageTestPage />
             </ProtectedRoute>
+          } 
+        />
+
+        {/* Customer Management - Admin, Manager, and Cashier */}
+        <Route 
+          path="/customers" 
+          element={
+            <CashierRoute>
+              <CustomerManagementPage />
+            </CashierRoute>
+          } 
+        />
+
+        {/* Stock Transfer - Admin, Manager, and Employee */}
+        <Route 
+          path="/stock-transfers" 
+          element={
+            <EmployeeRoute>
+              <StockTransferPage />
+            </EmployeeRoute>
+          } 
+        />
+
+        {/* Repacking - Admin, Manager, and Employee */}
+        <Route 
+          path="/repacking" 
+          element={
+            <EmployeeRoute>
+              <RepackingPage />
+            </EmployeeRoute>
+          } 
+        />
+
+        {/* Production Cost Analysis - Admin and Manager only */}
+        <Route 
+          path="/production-costs" 
+          element={
+            <ManagerRoute>
+              <ProductionCostPage />
+            </ManagerRoute>
           } 
         />
         

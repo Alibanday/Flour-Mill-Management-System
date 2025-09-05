@@ -14,7 +14,7 @@ export default function FinancialDashboard({ warehouses, onEdit }) {
     try {
       setLoading(true);
       const params = selectedWarehouse ? `?warehouse=${selectedWarehouse}` : '';
-      const response = await fetch(`/api/financial/summary${params}`);
+      const response = await fetch(`http://localhost:7000/api/financial/summary${params}`);
       if (response.ok) {
         const data = await response.json();
         setFinancialData(data);

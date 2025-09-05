@@ -46,7 +46,7 @@ export default function GatePassPage() {
   const fetchGatePasses = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/gate-pass', {
+      const response = await fetch('http://localhost:7000/api/gate-pass', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -67,7 +67,7 @@ export default function GatePassPage() {
 
   const fetchWarehouses = async () => {
     try {
-      const response = await fetch('/api/warehouses', {
+      const response = await fetch('http://localhost:7000/api/warehouses', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -84,7 +84,7 @@ export default function GatePassPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/gate-pass/stats/summary', {
+      const response = await fetch('http://localhost:7000/api/gate-pass/stats/summary', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
@@ -130,16 +130,16 @@ export default function GatePassPage() {
       
       switch (newStatus) {
         case 'Approved':
-          endpoint = `/api/gate-pass/${gatePassId}/approve`;
+          endpoint = `http://localhost:7000/api/gate-pass/${gatePassId}/approve`;
           break;
         case 'Active':
-          endpoint = `/api/gate-pass/${gatePassId}/activate`;
+          endpoint = `http://localhost:7000/api/gate-pass/${gatePassId}/activate`;
           break;
         case 'Completed':
-          endpoint = `/api/gate-pass/${gatePassId}/complete`;
+          endpoint = `http://localhost:7000/api/gate-pass/${gatePassId}/complete`;
           break;
         case 'Cancelled':
-          endpoint = `/api/gate-pass/${gatePassId}/cancel`;
+          endpoint = `http://localhost:7000/api/gate-pass/${gatePassId}/cancel`;
           break;
         default:
           return;
@@ -166,7 +166,7 @@ export default function GatePassPage() {
 
   const handleConfirmDispatch = async (gatePassId, notes) => {
     try {
-      const response = await fetch(`/api/gate-pass/${gatePassId}/confirm-dispatch`, {
+      const response = await fetch(`http://localhost:7000/api/gate-pass/${gatePassId}/confirm-dispatch`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export default function GatePassPage() {
 
   const handleWhatsAppShare = async (gatePassId) => {
     try {
-      const response = await fetch(`/api/gate-pass/${gatePassId}/whatsapp-shared`, {
+      const response = await fetch(`http://localhost:7000/api/gate-pass/${gatePassId}/whatsapp-shared`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

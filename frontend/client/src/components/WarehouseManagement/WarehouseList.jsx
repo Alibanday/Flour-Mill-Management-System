@@ -4,7 +4,7 @@ import {
   FaMapMarkerAlt, FaFilter, FaRedo 
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
-import axios from 'axios';
+import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
 import WarehouseForm from './WarehouseForm';
 
@@ -27,18 +27,13 @@ const WarehouseList = () => {
   const fetchWarehouses = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const config = {
-        headers: { Authorization: `Bearer ${token}` }
-      };
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: itemsPerPage,
+        ...(statusFilter !== 'all' && { status: statusFilter })
+      });
 
-      let url = `http://localhost:7000/api/warehouses/all?page=${currentPage}&limit=${itemsPerPage}`;
-      
-      if (statusFilter !== 'all') {
-        url += `&status=${statusFilter}`;
-      }
-
-      const response = await axios.get(url, config);
+      const response = await api.get(`${API_ENDPOINTS.WAREHOUSES.GET_ALL}?${params}`);
       
       if (response.data && response.data.success) {
         setWarehouses(response.data.data || []);
@@ -88,7 +83,7 @@ const WarehouseList = () => {
           headers: { Authorization: `Bearer ${token}` }
         };
 
-        await axios.delete(`http://localhost:7000/api/warehouses/${warehouseId}`, config);
+        await api.delete(API_ENDPOINTS.WAREHOUSES.DELETE(warehouseId));
         toast.success('Warehouse deleted successfully!');
         fetchWarehouses();
       } catch (error) {
@@ -111,8 +106,7 @@ const WarehouseList = () => {
       };
 
       const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-              await axios.patch(`http://localhost:7000/api/warehouses/${warehouseId}/status`, 
-        { status: newStatus }, config);
+      await api.patch(`http://localhost:7000/api/warehouses/${warehouseId}/status`, { status: newStatus });
       
       toast.success(`Warehouse status updated to ${newStatus}`);
       fetchWarehouses();

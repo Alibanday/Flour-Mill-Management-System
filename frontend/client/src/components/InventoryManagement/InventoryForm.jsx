@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaBoxes, FaWarehouse, FaTag, FaDollarSign, FaSave, FaTimes } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
-import axios from 'axios';
+import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
 
 const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) => {
@@ -46,10 +46,7 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
 
   const fetchWarehouses = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:7000/api/warehouses/active', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_ALL);
       setWarehouses(response.data.data || []);
     } catch (error) {
       toast.error('Failed to fetch warehouses');
@@ -76,10 +73,10 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
 
       let response;
       if (mode === 'create') {
-        response = await axios.post('http://localhost:7000/api/inventory/create', formData, config);
+        response = await api.post(API_ENDPOINTS.INVENTORY.CREATE, formData);
         toast.success('Inventory item created successfully!');
       } else {
-        response = await axios.put(`http://localhost:7000/api/inventory/${inventory._id}`, formData, config);
+        response = await api.put(API_ENDPOINTS.INVENTORY.UPDATE(inventory._id), formData);
         toast.success('Inventory item updated successfully!');
       }
 

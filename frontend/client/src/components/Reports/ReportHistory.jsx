@@ -31,7 +31,7 @@ const ReportHistory = () => {
         ...filters
       });
 
-      const response = await fetch(`/api/reports?${queryParams}`, {
+      const response = await fetch(`http://localhost:7000/api/reports?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -70,7 +70,7 @@ const ReportHistory = () => {
     }
 
     try {
-      const response = await fetch(`/api/reports/${reportId}`, {
+      const response = await fetch(`http://localhost:7000/api/reports/${reportId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -267,7 +267,7 @@ const ReportHistory = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => window.open(`/api/reports/${report._id}`, '_blank')}
+                          onClick={() => window.open(`http://localhost:7000/api/reports/${report._id}`, '_blank')}
                           className="text-blue-600 hover:text-blue-900"
                           title="View Report"
                         >

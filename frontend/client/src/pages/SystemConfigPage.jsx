@@ -22,7 +22,7 @@ const SystemConfigPage = () => {
   const loadConfiguration = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/system-config', {
+      const response = await fetch('http://localhost:7000/api/system-config', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -41,7 +41,7 @@ const SystemConfigPage = () => {
 
   const loadMetadata = async () => {
     try {
-      const response = await fetch('/api/system-config/metadata', {
+      const response = await fetch('http://localhost:7000/api/system-config/metadata', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -85,7 +85,7 @@ const SystemConfigPage = () => {
   const saveConfiguration = async () => {
     try {
       setSaving(true);
-      const response = await fetch('/api/system-config', {
+      const response = await fetch('http://localhost:7000/api/system-config', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -119,7 +119,7 @@ const SystemConfigPage = () => {
 
     try {
       setSaving(true);
-      const response = await fetch('/api/system-config/reset', {
+      const response = await fetch('http://localhost:7000/api/system-config/reset', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

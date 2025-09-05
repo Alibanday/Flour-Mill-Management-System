@@ -5,6 +5,9 @@ import { protect, authorize, isAdmin, isManagerOrAdmin } from "../middleware/aut
 
 const router = express.Router();
 
+
+// Apply authentication to all routes
+router.use(protect);
 // Validation middleware
 const validateSupplier = [
   body("supplierCode").trim().notEmpty().withMessage("Supplier code is required"),
@@ -22,7 +25,7 @@ const validateSupplier = [
 // @desc    Create new supplier
 // @route   POST /api/suppliers
 // @access  Admin, Manager
-router.post("/", protect, authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
+router.post("/create", authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -60,7 +63,7 @@ router.post("/", protect, authorize("Admin", "Manager"), validateSupplier, async
 // @desc    Get all suppliers
 // @route   GET /api/suppliers
 // @access  Admin, Manager, Employee
-router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/all", authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, businessType, warehouse } = req.query;
     
@@ -123,7 +126,7 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
 // @desc    Get supplier by ID
 // @route   GET /api/suppliers/:id
 // @access  Admin, Manager, Employee
-router.get("/:id", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/:id", authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id)
       .populate("warehouse", "name location")
@@ -153,7 +156,7 @@ router.get("/:id", protect, authorize("Admin", "Manager", "Employee"), async (re
 // @desc    Update supplier
 // @route   PUT /api/suppliers/:id
 // @access  Admin, Manager
-router.put("/:id", protect, authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
+router.put("/:id", authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -215,7 +218,7 @@ router.put("/:id", protect, authorize("Admin", "Manager"), validateSupplier, asy
 // @desc    Delete supplier
 // @route   DELETE /api/suppliers/:id
 // @access  Admin only
-router.delete("/:id", protect, isAdmin, async (req, res) => {
+router.delete("/:id", isAdmin, async (req, res) => {
   try {
     const supplier = await Supplier.findById(req.params.id);
     if (!supplier) {
@@ -251,7 +254,7 @@ router.delete("/:id", protect, isAdmin, async (req, res) => {
 // @desc    Update supplier status
 // @route   PATCH /api/suppliers/:id/status
 // @access  Admin, Manager
-router.patch("/:id/status", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.patch("/:id/status", authorize("Admin", "Manager"), async (req, res) => {
   try {
     const { status } = req.body;
     
@@ -292,7 +295,7 @@ router.patch("/:id/status", protect, authorize("Admin", "Manager"), async (req, 
 // @desc    Get suppliers with outstanding balance
 // @route   GET /api/suppliers/outstanding
 // @access  Admin, Manager
-router.get("/outstanding", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.get("/outstanding", authorize("Admin", "Manager"), async (req, res) => {
   try {
     const suppliers = await Supplier.find({ outstandingBalance: { $gt: 0 } })
       .populate("warehouse", "name location")
@@ -315,7 +318,7 @@ router.get("/outstanding", protect, authorize("Admin", "Manager"), async (req, r
 // @desc    Get suppliers summary
 // @route   GET /api/suppliers/summary
 // @access  Admin, Manager
-router.get("/summary", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.get("/summary", authorize("Admin", "Manager"), async (req, res) => {
   try {
     const totalSuppliers = await Supplier.countDocuments();
     const activeSuppliers = await Supplier.countDocuments({ status: "Active" });

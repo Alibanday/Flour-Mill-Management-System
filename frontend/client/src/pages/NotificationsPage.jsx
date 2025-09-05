@@ -34,7 +34,7 @@ const NotificationsPage = () => {
         ...filters
       });
 
-      const response = await fetch(`/api/notifications?${queryParams}`, {
+      const response = await fetch(`http://localhost:7000/api/notifications?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -55,7 +55,7 @@ const NotificationsPage = () => {
   // Fetch notification statistics
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/notifications/stats', {
+      const response = await fetch('http://localhost:7000/api/notifications/stats', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -73,7 +73,7 @@ const NotificationsPage = () => {
   // Fetch metadata
   const fetchMetadata = async () => {
     try {
-      const response = await fetch('/api/notifications/metadata/types', {
+      const response = await fetch('http://localhost:7000/api/notifications/metadata/types', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -91,7 +91,7 @@ const NotificationsPage = () => {
   // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/read`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -117,7 +117,7 @@ const NotificationsPage = () => {
   // Mark notification as acknowledged
   const acknowledgeNotification = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/acknowledge`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/acknowledge`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -143,7 +143,7 @@ const NotificationsPage = () => {
   // Resolve notification
   const resolveNotification = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}/resolve`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/resolve`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -163,7 +163,7 @@ const NotificationsPage = () => {
   // Delete notification
   const deleteNotification = async (notificationId) => {
     try {
-      const response = await fetch(`/api/notifications/${notificationId}`, {
+      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -183,7 +183,7 @@ const NotificationsPage = () => {
   // Bulk mark as read
   const bulkMarkAsRead = async () => {
     try {
-      const response = await fetch('/api/notifications/mark-read', {
+      const response = await fetch('http://localhost:7000/api/notifications/mark-read', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -292,7 +292,9 @@ const NotificationsPage = () => {
 
   // Format date
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
     return date.toLocaleString();
   };
 

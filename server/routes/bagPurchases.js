@@ -17,9 +17,9 @@ const validateBagPurchase = [
 ];
 
 // @desc    Create new bag purchase
-// @route   POST /api/bag-purchases
+// @route   POST /api/bag-purchases/create
 // @access  Admin, Manager
-router.post("/", protect, authorize("Admin", "Manager"), validateBagPurchase, async (req, res) => {
+router.post("/create", protect, authorize("Admin", "Manager"), validateBagPurchase, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -56,9 +56,9 @@ router.post("/", protect, authorize("Admin", "Manager"), validateBagPurchase, as
 });
 
 // @desc    Get all bag purchases
-// @route   GET /api/bag-purchases
+// @route   GET /api/bag-purchases/all
 // @access  Admin, Manager, Employee
-router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/all", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, warehouse, supplier } = req.query;
     

@@ -15,7 +15,7 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
     setError(null);
 
     try {
-      const response = await fetch('/api/reports/vendor-outstanding', {
+      const response = await fetch('http://localhost:7000/api/reports/vendor-outstanding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,8 +52,8 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
     
     const summaryData = [
       ['Total Vendors', reportData.summary.totalVendors.toString()],
-      ['Total Outstanding', `Rs. ${reportData.summary.totalOutstanding.toLocaleString()}`],
-      ['Average Outstanding', `Rs. ${reportData.summary.averageOutstanding.toLocaleString()}`],
+      ['Total Outstanding', `Rs. ${(reportData.summary.totalOutstanding || 0).toLocaleString()}`],
+      ['Average Outstanding', `Rs. ${(reportData.summary.averageOutstanding || 0).toLocaleString()}`],
       ['Overdue Vendors', reportData.summary.overdueVendors.toString()]
     ];
     
@@ -73,7 +73,7 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       const vendorData = reportData.data.map(vendor => [
         vendor.supplier.name,
         vendor.supplier.contact || 'N/A',
-        `Rs. ${vendor.totalOutstanding.toLocaleString()}`,
+        `Rs. ${(vendor.totalOutstanding || 0).toLocaleString()}`,
         new Date(vendor.lastPurchaseDate).toLocaleDateString()
       ]);
       
@@ -235,11 +235,11 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Total Outstanding</h4>
-              <p className="text-2xl font-bold text-red-600">Rs. {reportData.summary.totalOutstanding.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600">Rs. {(reportData.summary.totalOutstanding || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Average Outstanding</h4>
-              <p className="text-2xl font-bold text-orange-600">Rs. {reportData.summary.averageOutstanding.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-orange-600">Rs. {(reportData.summary.averageOutstanding || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Overdue Vendors</h4>
@@ -285,7 +285,7 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span className="font-semibold text-red-600">
-                              Rs. {vendor.totalOutstanding.toLocaleString()}
+                              Rs. {(vendor.totalOutstanding || 0).toLocaleString()}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -326,7 +326,7 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total Outstanding:</span>
-                        <span className="font-medium text-red-600">Rs. {vendor.totalOutstanding.toLocaleString()}</span>
+                        <span className="font-medium text-red-600">Rs. {(vendor.totalOutstanding || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Last Purchase:</span>

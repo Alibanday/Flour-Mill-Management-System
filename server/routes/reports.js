@@ -208,7 +208,7 @@ router.post('/vendor-outstanding', asyncHandler(async (req, res) => {
 }));
 
 // Get all generated reports
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/all', asyncHandler(async (req, res) => {
   try {
     const { page = 1, limit = 10, reportType, startDate, endDate } = req.query;
     

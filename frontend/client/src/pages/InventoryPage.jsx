@@ -4,7 +4,7 @@ import {
   FaTimesCircle, FaChartBar, FaPlus, FaSearch, FaFilter 
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
-import axios from 'axios';
+import api, { API_ENDPOINTS } from '../services/api';
 import InventoryList from '../components/InventoryManagement/InventoryList';
 
 const InventoryPage = () => {
@@ -24,13 +24,23 @@ const InventoryPage = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:7000/api/inventory/summary', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await api.get(API_ENDPOINTS.INVENTORY.SUMMARY);
+      const data = response.data.data || {};
+      setStats({
+        totalItems: data.totalItems || 0,
+        lowStockItems: data.lowStockItems || 0,
+        outOfStockItems: data.outOfStockItems || 0,
+        totalValue: data.totalValue || 0
       });
-      setStats(response.data.data);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      // Set default values on error
+      setStats({
+        totalItems: 0,
+        lowStockItems: 0,
+        outOfStockItems: 0,
+        totalValue: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -184,7 +194,7 @@ const InventoryPage = () => {
                       <div>
                         <p className="text-sm opacity-90">Total Value</p>
                         <p className="text-2xl font-bold">
-                          PKR {stats.totalValue.toLocaleString()}
+                          PKR {(stats.totalValue || 0).toLocaleString()}
                         </p>
                       </div>
                       <FaCheckCircle className="text-3xl opacity-80" />

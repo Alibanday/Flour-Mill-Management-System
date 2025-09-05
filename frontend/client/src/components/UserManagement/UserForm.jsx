@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCamera, FaBuilding } from 'react-icons/fa';
-import axios from 'axios';
+import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
+import { useValidation, validationSchemas } from '../../utils/validation';
+import FormField from '../UI/FormField';
 
 export default function UserForm({ user = null, onCancel, onSave }) {
-  const [formData, setFormData] = useState({
+  const initialData = {
     firstName: '',
     lastName: '',
     email: '',
@@ -20,10 +22,28 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     assignedWarehouses: [],
     isActive: true,
     profilePicture: null
+  };
+
+  const {
+    data: formData,
+    errors,
+    touched,
+    handleChange,
+    handleBlur,
+    validateForm: validateFormData,
+    setData
+  } = useValidation(initialData, {
+    ...validationSchemas.user,
+    confirmPassword: {
+      required: (value) => !value ? 'Confirm password is required' : null,
+      match: (value) => value !== formData.password ? 'Passwords do not match' : null
+    },
+    role: {
+      required: (value) => !value ? 'Role is required' : null
+    }
   });
 
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
   const [warehouses, setWarehouses] = useState([]);
   const [imagePreview, setImagePreview] = useState('');
 
@@ -86,13 +106,8 @@ export default function UserForm({ user = null, onCancel, onSave }) {
       setWarehouses(mockWarehouses);
       
       // TODO: Uncomment when backend is ready
-      /*
-      const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:7000/api/warehouses', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_ALL);
       setWarehouses(response.data);
-      */
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
@@ -196,20 +211,14 @@ export default function UserForm({ user = null, onCancel, onSave }) {
       let response;
       if (user) {
         // Update existing user
-        response = await axios.put(`/api/users/${user._id}`, formDataToSend, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+        response = await api.put(API_ENDPOINTS.USERS.UPDATE(user._id), formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         toast.success('User updated successfully!');
       } else {
         // Create new user
-        response = await axios.post('/api/users', formDataToSend, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+        response = await api.post(API_ENDPOINTS.USERS.CREATE, formDataToSend, {
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         toast.success('User created successfully!');
       }

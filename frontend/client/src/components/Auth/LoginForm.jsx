@@ -63,7 +63,7 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      // Mock login logic for demonstration
+      // Check against mock users first (for development)
       const mockUser = mockUsers.find(user => 
         user.email === formData.email && user.password === formData.password
       );
@@ -72,17 +72,35 @@ export default function LoginForm() {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Login using useAuth hook
-        const mockToken = 'mock-jwt-token-' + Date.now();
-        login(mockUser, mockToken);
+        // Create mock login result
+        const mockResult = {
+          success: true,
+          user: mockUser,
+          token: 'mock-jwt-token-' + Date.now(),
+          message: 'Login successful'
+        };
+        
+        // Store user data in localStorage for mock login
+        localStorage.setItem('token', mockResult.token);
+        localStorage.setItem('user', JSON.stringify(mockUser));
+        localStorage.setItem('role', mockUser.role);
         
         // Redirect to dashboard
         navigate('/dashboard');
         
         // Show success message
         toast.success(`Welcome ${mockUser.firstName}! You're logged in as ${mockUser.role}`);
+        return;
+      }
+
+      // Try real API login if not found in mock users
+      const result = await login(formData.email, formData.password);
+      
+      if (result.success) {
+        toast.success(`Welcome ${result.user.firstName}! You're logged in as ${result.user.role}`);
+        navigate('/dashboard');
       } else {
-        toast.error('Invalid email or password. Please try again.');
+        toast.error(result.message || 'Invalid email or password. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);

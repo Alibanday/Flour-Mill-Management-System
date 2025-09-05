@@ -30,7 +30,7 @@ export default function SalaryList({ warehouses, accounts, onEdit }) {
       if (selectedPaymentStatus) params.append('paymentStatus', selectedPaymentStatus);
       if (selectedWarehouse) params.append('warehouse', selectedWarehouse);
 
-      const response = await fetch(`/api/financial/salaries?${params}`);
+      const response = await fetch(`http://localhost:7000/api/financial/salaries?${params}`);
       if (response.ok) {
         const data = await response.json();
         setSalaries(data.salaries || []);
@@ -47,7 +47,7 @@ export default function SalaryList({ warehouses, accounts, onEdit }) {
     if (!window.confirm('Are you sure you want to delete this salary record?')) return;
 
     try {
-      const response = await fetch(`/api/financial/salaries/${salaryId}`, {
+      const response = await fetch(`http://localhost:7000/api/financial/salaries/${salaryId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

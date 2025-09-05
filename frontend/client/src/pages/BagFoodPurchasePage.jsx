@@ -41,7 +41,7 @@ export default function BagFoodPurchasePage() {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetch('/api/suppliers', {
+      const response = await fetch('http://localhost:7000/api/suppliers', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -58,7 +58,7 @@ export default function BagFoodPurchasePage() {
   const fetchBagPurchases = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/bag-purchases', {
+      const response = await fetch('http://localhost:7000/api/bag-purchases', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -77,7 +77,7 @@ export default function BagFoodPurchasePage() {
   const fetchFoodPurchases = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/food-purchases', {
+      const response = await fetch('http://localhost:7000/api/food-purchases', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -96,10 +96,10 @@ export default function BagFoodPurchasePage() {
   const fetchStats = async () => {
     try {
       const [bagResponse, foodResponse] = await Promise.all([
-        fetch('/api/bag-purchases/stats', {
+        fetch('http://localhost:7000/api/bag-purchases/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         }),
-        fetch('/api/food-purchases/stats', {
+        fetch('http://localhost:7000/api/food-purchases/stats', {
           headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
         })
       ]);
@@ -124,8 +124,8 @@ export default function BagFoodPurchasePage() {
   const handleSaveBagPurchase = async (purchaseData) => {
     try {
       const url = editingItem 
-        ? `/api/bag-purchases/${editingItem._id}`
-        : '/api/bag-purchases';
+        ? `http://localhost:7000/api/bag-purchases/${editingItem._id}`
+        : 'http://localhost:7000/api/bag-purchases';
       
       const method = editingItem ? 'PUT' : 'POST';
       
@@ -155,8 +155,8 @@ export default function BagFoodPurchasePage() {
   const handleSaveFoodPurchase = async (purchaseData) => {
     try {
       const url = editingItem 
-        ? `/api/food-purchases/${editingItem._id}`
-        : '/api/food-purchases';
+        ? `http://localhost:7000/api/food-purchases/${editingItem._id}`
+        : 'http://localhost:7000/api/food-purchases';
       
       const method = editingItem ? 'PUT' : 'POST';
       
@@ -193,8 +193,8 @@ export default function BagFoodPurchasePage() {
 
     try {
       const url = type === 'bag' 
-        ? `/api/bag-purchases/${item._id}`
-        : `/api/food-purchases/${item._id}`;
+        ? `http://localhost:7000/api/bag-purchases/${item._id}`
+        : `http://localhost:7000/api/food-purchases/${item._id}`;
       
       const response = await fetch(url, {
         method: 'DELETE',
@@ -341,7 +341,7 @@ export default function BagFoodPurchasePage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Bag Value</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{stats.totalBagValue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{(stats.totalBagValue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -353,7 +353,7 @@ export default function BagFoodPurchasePage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Food Value</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{stats.totalFoodValue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{(stats.totalFoodValue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -365,7 +365,7 @@ export default function BagFoodPurchasePage() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{stats.pendingPayments.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">₹{(stats.pendingPayments || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
