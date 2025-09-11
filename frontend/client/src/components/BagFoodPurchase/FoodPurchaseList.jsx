@@ -39,13 +39,12 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
 
   const filteredPurchases = purchases.filter(purchase => {
     const matchesSearch = purchase.purchaseNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         purchase.supplier?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         purchase.foodItems?.some(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+                         purchase.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         purchase.productType?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || purchase.status === statusFilter;
-    const matchesSupplier = supplierFilter === 'all' || purchase.supplier?._id === supplierFilter;
-    const matchesCategory = categoryFilter === 'all' || 
-                           purchase.foodItems?.some(item => item.category === categoryFilter);
+    const matchesSupplier = supplierFilter === 'all' || purchase.supplier === supplierFilter;
+    const matchesCategory = categoryFilter === 'all' || purchase.productType === categoryFilter;
     
     let matchesDate = true;
     if (dateFilter === 'today') {
@@ -64,8 +63,8 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
     return matchesSearch && matchesStatus && matchesSupplier && matchesCategory && matchesDate;
   });
 
-  const uniqueSuppliers = [...new Set(purchases.map(p => p.supplier?._id).filter(Boolean))];
-  const uniqueCategories = [...new Set(purchases.flatMap(p => p.foodItems?.map(item => item.category) || []).filter(Boolean))];
+  const uniqueSuppliers = [...new Set(purchases.map(p => p.supplier).filter(Boolean))];
+  const uniqueCategories = [...new Set(purchases.map(p => p.productType).filter(Boolean))];
 
   if (loading) {
     return (
@@ -127,14 +126,11 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Suppliers</option>
-          {uniqueSuppliers.map(supplierId => {
-            const supplier = purchases.find(p => p.supplier?._id === supplierId)?.supplier;
-            return (
-              <option key={supplierId} value={supplierId}>
-                {supplier?.name || 'Unknown Supplier'}
-              </option>
-            );
-          })}
+          {uniqueSuppliers.map(supplier => (
+            <option key={supplier} value={supplier}>
+              {supplier || 'Unknown Supplier'}
+            </option>
+          ))}
         </select>
 
         <select
@@ -206,36 +202,23 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
                 
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">
-                    {purchase.supplier?.name || 'Unknown Supplier'}
+                    {purchase.supplier || 'Unknown Supplier'}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {purchase.supplier?.contact || 'No contact'}
+                    {purchase.productType || 'N/A'}
                   </div>
                 </td>
                 
                 <td className="px-6 py-4">
                   <div className="text-sm">
-                    <div className="space-y-1">
-                      {purchase.foodItems?.slice(0, 3).map((item, index) => (
-                        <div key={index} className="text-xs">
-                          <span className="font-medium">{item.name}</span> - {item.quantity} {item.unit}
-                          {item.quality !== 'Standard' && (
-                            <span className={`ml-1 px-1 py-0.5 text-xs rounded ${
-                              item.quality === 'Premium' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {item.quality}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                      {purchase.foodItems?.length > 3 && (
-                        <div className="text-xs text-gray-500">
-                          +{purchase.foodItems.length - 3} more items
-                        </div>
-                      )}
+                    <div className="text-xs">
+                      <span className="font-medium">Type:</span> {purchase.productType || 'N/A'}
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-medium">Quantity:</span> {purchase.quantity || 0} {purchase.unit || 'kg'}
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      Total: {purchase.totalQuantity || 0} units
+                      Total: {purchase.quantity || 0} {purchase.unit || 'kg'}
                     </div>
                   </div>
                 </td>
@@ -243,16 +226,14 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
                 <td className="px-6 py-4">
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium">
-                      ₹{(purchase.totalAmount || 0).toLocaleString()}
+                      ₹{(purchase.totalPrice || 0).toLocaleString()}
                     </div>
                     <div className="text-gray-500">
-                      Paid: ₹{(purchase.paidAmount || 0).toLocaleString()}
+                      Unit Price: ₹{(purchase.unitPrice || 0).toLocaleString()}
                     </div>
-                    {purchase.dueAmount > 0 && (
-                      <div className="text-red-600 text-xs">
-                        Due: ₹{(purchase.dueAmount || 0).toLocaleString()}
-                      </div>
-                    )}
+                    <div className="text-gray-500">
+                      Status: {purchase.paymentStatus || 'Unknown'}
+                    </div>
                   </div>
                 </td>
                 
@@ -320,12 +301,12 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
           <div className="flex space-x-4 text-sm">
             <span className="text-gray-600">
               Total Value: <span className="font-semibold text-gray-900">
-                ₹{filteredPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0).toLocaleString()}
+                ₹{filteredPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0).toLocaleString()}
               </span>
             </span>
             <span className="text-gray-600">
               Total Items: <span className="font-semibold text-gray-900">
-                {filteredPurchases.reduce((sum, p) => sum + (p.totalQuantity || 0), 0)}
+                {filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0)}
               </span>
             </span>
           </div>

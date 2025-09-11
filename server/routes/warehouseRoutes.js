@@ -14,7 +14,7 @@ import { protect, authorize } from "../middleware/auth.js";
 const router = express.Router();
 
 // All routes require authentication
-// router.use(protect); // Temporarily disabled for testing
+router.use(protect);
 
 // Test endpoint
 router.get("/test", (req, res) => {

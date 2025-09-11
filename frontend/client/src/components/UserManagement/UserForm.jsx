@@ -67,7 +67,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     document.addEventListener('keydown', handleEscKey);
     
     if (user) {
-      setFormData({
+      setData({
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
@@ -238,7 +238,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
@@ -255,7 +255,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({ ...prev, profilePicture: file }));
+      setData(prev => ({ ...prev, profilePicture: file }));
       
       // Create preview
       const reader = new FileReader();
@@ -267,7 +267,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
   };
 
   const handleWarehouseToggle = (warehouseId) => {
-    setFormData(prev => ({
+    setData(prev => ({
       ...prev,
       assignedWarehouses: prev.assignedWarehouses.includes(warehouseId)
         ? prev.assignedWarehouses.filter(id => id !== warehouseId)
@@ -425,7 +425,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
                   value={formData.cnic}
                   onChange={(e) => {
                     const formatted = formatCNIC(e.target.value);
-                    setFormData(prev => ({ ...prev, cnic: formatted }));
+                    setData(prev => ({ ...prev, cnic: formatted }));
                   }}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.cnic ? 'border-red-500' : 'border-gray-300'

@@ -139,7 +139,7 @@ const bagPurchaseSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Received", "Cancelled"],
+      enum: ["Pending", "Received", "Cancelled", "Completed"],
       default: "Pending",
     },
     receivedDate: {

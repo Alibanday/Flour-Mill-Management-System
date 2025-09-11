@@ -22,8 +22,97 @@ const validateSupplier = [
   body("warehouse").isMongoId().withMessage("Valid warehouse ID is required"),
 ];
 
-// @desc    Create new supplier
+// @desc    Get all suppliers (base route)
+// @route   GET /api/suppliers
+// @access  Admin, Manager, Employee
+router.get("/", async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, status, warehouse } = req.query;
+    
+    let query = {};
+    
+    if (search) {
+      query.$or = [
+        { supplierCode: { $regex: search, $options: 'i' } },
+        { name: { $regex: search, $options: 'i' } },
+        { contactPerson: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    if (warehouse) {
+      query.warehouse = warehouse;
+    }
+    
+    const suppliers = await Supplier.find(query)
+      .populate('warehouse', 'name location')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await Supplier.countDocuments(query);
+    
+    res.json({
+      success: true,
+      data: suppliers,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    });
+  } catch (error) {
+    console.error("Get suppliers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+// @desc    Create new supplier (base route)
 // @route   POST /api/suppliers
+// @access  Admin, Manager
+router.post("/", authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const supplierData = {
+      ...req.body,
+      createdBy: req.user._id,
+    };
+
+    const supplier = new Supplier(supplierData);
+    await supplier.save();
+
+    await supplier.populate('warehouse', 'name location');
+    await supplier.populate('createdBy', 'firstName lastName');
+
+    res.status(201).json({
+      success: true,
+      message: 'Supplier created successfully',
+      data: supplier
+    });
+  } catch (error) {
+    console.error("Create supplier error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+// @desc    Create new supplier (create route)
+// @route   POST /api/suppliers/create
 // @access  Admin, Manager
 router.post("/create", authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
   try {

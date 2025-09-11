@@ -3,22 +3,16 @@ import { FaSave, FaTimes, FaCalculator, FaPrint } from 'react-icons/fa';
 
 export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }) {
   const [formData, setFormData] = useState({
+    purchaseNumber: '',
     supplier: '',
+    productType: 'ATA',
+    quantity: 0,
+    unit: 'bags',
+    unitPrice: 0,
+    totalPrice: 0,
     purchaseDate: new Date().toISOString().split('T')[0],
-    bags: {
-      ATA: { quantity: 0, unitPrice: 0, totalPrice: 0 },
-      MAIDA: { quantity: 0, unitPrice: 0, totalPrice: 0 },
-      SUJI: { quantity: 0, unitPrice: 0, totalPrice: 0 },
-      FINE: { quantity: 0, unitPrice: 0, totalPrice: 0 }
-    },
-    subtotal: 0,
-    tax: 0,
-    discount: 0,
-    totalAmount: 0,
-    paymentMethod: 'Cash',
+    status: 'Pending',
     paymentStatus: 'Pending',
-    paidAmount: 0,
-    deliveryDate: '',
     notes: ''
   });
 
@@ -30,76 +24,58 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
   useEffect(() => {
     if (purchase) {
       setFormData({
-        supplier: purchase.supplier?._id || purchase.supplier || '',
+        purchaseNumber: purchase.purchaseNumber || '',
+        supplier: purchase.supplier ? (purchase.supplier._id || purchase.supplier) : '',
+        productType: purchase.productType || 'ATA',
+        quantity: purchase.quantity || 0,
+        unit: purchase.unit || 'bags',
+        unitPrice: purchase.unitPrice || 0,
+        totalPrice: purchase.totalPrice || 0,
         purchaseDate: new Date(purchase.purchaseDate).toISOString().split('T')[0],
-        bags: {
-          ATA: { ...purchase.bags.ATA },
-          MAIDA: { ...purchase.bags.MAIDA },
-          SUJI: { ...purchase.bags.SUJI },
-          FINE: { ...purchase.bags.FINE }
-        },
-        subtotal: purchase.subtotal || 0,
-        tax: purchase.tax || 0,
-        discount: purchase.discount || 0,
-        totalAmount: purchase.totalAmount || 0,
-        paymentMethod: purchase.paymentMethod || 'Cash',
+        status: purchase.status || 'Pending',
         paymentStatus: purchase.paymentStatus || 'Pending',
-        paidAmount: purchase.paidAmount || 0,
-        deliveryDate: purchase.deliveryDate ? new Date(purchase.deliveryDate).toISOString().split('T')[0] : '',
         notes: purchase.notes || ''
       });
+    } else {
+      // Generate purchase number for new purchases
+      const timestamp = Date.now().toString().slice(-6);
+      setFormData(prev => ({
+        ...prev,
+        purchaseNumber: `BP-${timestamp}`
+      }));
     }
   }, [purchase]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [name]: value
-    }));
+    };
+    
+    // Calculate total price when quantity or unit price changes
+    if (name === 'quantity' || name === 'unitPrice') {
+      const quantity = name === 'quantity' ? parseFloat(value) || 0 : formData.quantity;
+      const unitPrice = name === 'unitPrice' ? parseFloat(value) || 0 : formData.unitPrice;
+      newFormData.totalPrice = quantity * unitPrice;
+    }
+    
+    setFormData(newFormData);
   };
 
-  const handleBagChange = (bagType, field, value) => {
-    const newBags = { ...formData.bags };
-    newBags[bagType][field] = parseFloat(value) || 0;
-    
-    // Calculate total price for this bag type
-    newBags[bagType].totalPrice = newBags[bagType].quantity * newBags[bagType].unitPrice;
-    
-    setFormData(prev => ({
-      ...prev,
-      bags: newBags
-    }));
-    
-    calculateTotals(newBags);
-  };
-
-  const calculateTotals = (bags = formData.bags) => {
-    const subtotal = Object.values(bags).reduce((total, bag) => total + bag.totalPrice, 0);
-    const totalAmount = subtotal + parseFloat(formData.tax || 0) - parseFloat(formData.discount || 0);
-    
-    setFormData(prev => ({
-      ...prev,
-      subtotal,
-      totalAmount
-    }));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    try {
-      const purchaseData = {
-        ...formData,
-        totalQuantity: Object.values(formData.bags).reduce((total, bag) => total + bag.quantity, 0),
-        dueAmount: formData.totalAmount - formData.paidAmount
-      };
+    console.log('Form submitted with data:', formData);
 
-      await onSave(purchaseData);
+    try {
+      await onSave(formData);
       onClose();
     } catch (err) {
+      console.error('Form submission error:', err);
       setError(err.message || 'Failed to save purchase');
     } finally {
       setLoading(false);
@@ -148,6 +124,20 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
+                Purchase Number *
+              </label>
+              <input
+                type="text"
+                name="purchaseNumber"
+                value={formData.purchaseNumber}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Supplier *
               </label>
               <select
@@ -157,13 +147,96 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select Supplier</option>
-                {suppliers.map(supplier => (
-                  <option key={supplier._id} value={supplier._id}>
-                    {supplier.name}
+                <option value="">Select supplier</option>
+                {(Array.isArray(suppliers) ? suppliers : []).map((s) => (
+                  <option key={s._id} value={s._id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Product Type *
+              </label>
+              <select
+                name="productType"
+                value={formData.productType}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="ATA">ATA</option>
+                <option value="MAIDA">MAIDA</option>
+                <option value="SUJI">SUJI</option>
+                <option value="FINE">FINE</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quantity *
+              </label>
+              <input
+                type="number"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleInputChange}
+                required
+                min="0"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Unit *
+              </label>
+              <select
+                name="unit"
+                value={formData.unit}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="bags">Bags</option>
+                <option value="kg">Kg</option>
+                <option value="tons">Tons</option>
+                <option value="pcs">Pieces</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Unit Price *
+              </label>
+              <input
+                type="number"
+                name="unitPrice"
+                value={formData.unitPrice}
+                onChange={handleInputChange}
+                required
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Total Price
+              </label>
+              <input
+                type="number"
+                value={formData.totalPrice.toFixed(2)}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-semibold"
+              />
             </div>
 
             <div>
@@ -182,183 +255,38 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Delivery Date
+                Status
               </label>
-              <input
-                type="date"
-                name="deliveryDate"
-                value={formData.deliveryDate}
+              <select
+                name="status"
+                value={formData.status}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value="Pending">Pending</option>
+                <option value="Received">Received</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Payment Status
+              </label>
+              <select
+                name="paymentStatus"
+                value={formData.paymentStatus}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Pending">Pending</option>
+                <option value="Partial">Partial</option>
+                <option value="Completed">Completed</option>
+              </select>
             </div>
           </div>
 
-          {/* Bag Details */}
-          <div className="bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bag Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Object.entries(formData.bags).map(([bagType, bag]) => (
-                <div key={bagType} className="bg-white p-4 rounded-lg border">
-                  <h4 className="font-medium text-gray-900 mb-3">{bagType} Bags</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Quantity</label>
-                      <input
-                        type="number"
-                        value={bag.quantity}
-                        onChange={(e) => handleBagChange(bagType, 'quantity', e.target.value)}
-                        min="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Unit Price</label>
-                      <input
-                        type="number"
-                        value={bag.unitPrice}
-                        onChange={(e) => handleBagChange(bagType, 'unitPrice', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-600 mb-1">Total</label>
-                      <input
-                        type="number"
-                        value={bag.totalPrice.toFixed(2)}
-                        readOnly
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Financial Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subtotal
-                </label>
-                <input
-                  type="number"
-                  value={formData.subtotal.toFixed(2)}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tax
-                </label>
-                <input
-                  type="number"
-                  name="tax"
-                  value={formData.tax}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Discount
-                </label>
-                <input
-                  type="number"
-                  name="discount"
-                  value={formData.discount}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Total Amount
-                </label>
-                <input
-                  type="number"
-                  value={formData.totalAmount.toFixed(2)}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-semibold"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Method
-                </label>
-                <select
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Check">Check</option>
-                  <option value="Credit">Credit</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Status
-                </label>
-                <select
-                  name="paymentStatus"
-                  value={formData.paymentStatus}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Partial">Partial</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Paid Amount
-                </label>
-                <input
-                  type="number"
-                  name="paidAmount"
-                  value={formData.paidAmount}
-                  onChange={handleInputChange}
-                  min="0"
-                  step="0.01"
-                  max={formData.totalAmount}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Due Amount
-                </label>
-                <input
-                  type="number"
-                  value={(formData.totalAmount - formData.paidAmount).toFixed(2)}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-                />
-              </div>
-            </div>
-          </div>
 
           {/* Notes */}
           <div>

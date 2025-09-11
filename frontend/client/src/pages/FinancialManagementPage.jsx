@@ -30,10 +30,11 @@ export default function FinancialManagementPage() {
       const response = await fetch('http://localhost:7000/api/warehouses/active');
       if (response.ok) {
         const data = await response.json();
-        setWarehouses(data);
+        setWarehouses(data.data || data || []);
       }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
+      setWarehouses([]);
     }
   };
 

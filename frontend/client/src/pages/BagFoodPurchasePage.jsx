@@ -123,11 +123,15 @@ export default function BagFoodPurchasePage() {
 
   const handleSaveBagPurchase = async (purchaseData) => {
     try {
+      console.log('Saving bag purchase with data:', purchaseData);
+      
       const url = editingItem 
         ? `http://localhost:7000/api/bag-purchases/${editingItem._id}`
         : 'http://localhost:7000/api/bag-purchases';
       
       const method = editingItem ? 'PUT' : 'POST';
+      
+      console.log('Making request to:', url, 'with method:', method);
       
       const response = await fetch(url, {
         method,
@@ -138,16 +142,23 @@ export default function BagFoodPurchasePage() {
         body: JSON.stringify(purchaseData)
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (response.ok) {
+        const result = await response.json();
+        console.log('Success response:', result);
         await fetchBagPurchases();
         await fetchStats();
         setShowForm(false);
         setEditingItem(null);
       } else {
         const error = await response.json();
+        console.error('Error response:', error);
         throw new Error(error.message || 'Failed to save purchase');
       }
     } catch (err) {
+      console.error('Error saving bag purchase:', err);
       throw err;
     }
   };
@@ -204,12 +215,17 @@ export default function BagFoodPurchasePage() {
       });
 
       if (response.ok) {
+        // Optimistically update UI
         if (type === 'bag') {
-          await fetchBagPurchases();
+          setBagPurchases(prev => prev.filter(p => p._id !== item._id));
         } else {
-          await fetchFoodPurchases();
+          setFoodPurchases(prev => prev.filter(p => p._id !== item._id));
         }
         await fetchStats();
+      } else {
+        const errJson = await response.json().catch(() => null);
+        const msg = errJson?.message || 'Failed to delete purchase';
+        setError(msg);
       }
     } catch (err) {
       setError('Failed to delete purchase');
@@ -407,6 +423,7 @@ export default function BagFoodPurchasePage() {
                 error={error}
                 onEdit={handleEdit}
                 onDelete={(item) => handleDelete(item, 'bag')}
+                suppliers={suppliers}
               />
             )}
             

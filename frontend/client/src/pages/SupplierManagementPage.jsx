@@ -964,6 +964,24 @@ export default function SupplierManagementPage() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse *</label>
+                <select
+                  name="warehouse"
+                  value={formData.warehouse}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select a warehouse</option>
+                  {warehouses.map((warehouse) => (
+                    <option key={warehouse._id} value={warehouse._id}>
+                      {warehouse.name} - {warehouse.location}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea
                   name="notes"

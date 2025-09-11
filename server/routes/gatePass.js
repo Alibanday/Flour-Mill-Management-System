@@ -15,8 +15,89 @@ const validateGatePass = [
   body("warehouse").isMongoId().withMessage("Valid warehouse ID is required"),
 ];
 
-// @desc    Create new gate pass
+// @desc    Get all gate passes (base route)
+// @route   GET /api/gate-pass
+// @access  Admin, Manager, Employee
+router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status, type, warehouse } = req.query;
+    const query = {};
+    
+    if (status) query.status = status;
+    if (type) query.type = type;
+    if (warehouse) query.warehouse = warehouse;
+    
+    const gatePasses = await GatePass.find(query)
+      .populate('warehouse', 'name location')
+      .populate('issuedBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await GatePass.countDocuments(query);
+    
+    res.json({
+      success: true,
+      data: gatePasses,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    });
+  } catch (error) {
+    console.error("Get gate passes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+// @desc    Create new gate pass (base route)
 // @route   POST /api/gate-pass
+// @access  Admin, Manager, Employee
+router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array()
+      });
+    }
+
+    const gatePassData = {
+      ...req.body,
+      issuedBy: req.user._id,
+      status: 'Active'
+    };
+
+    const gatePass = new GatePass(gatePassData);
+    await gatePass.save();
+
+    await gatePass.populate('warehouse', 'name location');
+    await gatePass.populate('issuedBy', 'firstName lastName');
+
+    res.status(201).json({
+      success: true,
+      message: 'Gate pass created successfully',
+      data: gatePass
+    });
+  } catch (error) {
+    console.error("Create gate pass error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+// @desc    Create new gate pass (create route)
+// @route   POST /api/gate-pass/create
 // @access  Admin, Manager, Employee
 router.post("/create", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
   try {

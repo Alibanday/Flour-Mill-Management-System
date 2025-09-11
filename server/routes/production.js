@@ -10,6 +10,110 @@ const router = express.Router();
 router.use(protect);
 
 // @route   POST /api/production
+// @desc    Add daily production details (base route)
+// @access  Private (Manager only)
+router.post("/", [
+  authorize("Manager", "Admin"),
+  body("batchNumber").trim().notEmpty().withMessage("Batch number is required"),
+  body("productName").isIn(["Wheat Flour", "Whole Wheat", "Premium Flour", "Maida", "Suji", "Fine", "Chokhar", "Refraction"]).withMessage("Invalid product name"),
+  body("productType").isIn(["Raw Materials", "Finished Goods", "Repacked Product"]).withMessage("Invalid product type"),
+  body("quantity.value").isNumeric().withMessage("Quantity must be a number"),
+  body("quantity.unit").isIn(["kg", "tons", "bags", "pcs"]).withMessage("Invalid unit"),
+  body("productionCost.rawMaterialCost").isNumeric().withMessage("Raw material cost must be a number"),
+  body("productionCost.laborCost").isNumeric().withMessage("Labor cost must be a number"),
+  body("productionCost.overheadCost").isNumeric().withMessage("Overhead cost must be a number"),
+  body("warehouse").isMongoId().withMessage("Valid warehouse ID is required")
+], async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: errors.array()
+      });
+    }
+
+    console.log("Production creation - User ID:", req.user._id || req.user.id);
+    console.log("Production creation - User object:", req.user);
+
+    const {
+      batchNumber,
+      productName,
+      productType,
+      quantity,
+      productionCost,
+      quality,
+      productionDate,
+      warehouse,
+      notes
+    } = req.body;
+
+    // Check if batch number already exists
+    const existingProduction = await Production.findOne({ batchNumber });
+    if (existingProduction) {
+      return res.status(400).json({
+        success: false,
+        message: "Batch number already exists"
+      });
+    }
+
+    // Verify warehouse exists
+    const warehouseExists = await Warehouse.findById(warehouse);
+    if (!warehouseExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Warehouse not found"
+      });
+    }
+
+    // Calculate total cost
+    const totalCost = productionCost.rawMaterialCost + productionCost.laborCost + productionCost.overheadCost;
+    
+    // Create production record
+    const production = new Production({
+      batchNumber,
+      productName,
+      productType,
+      quantity,
+      productionCost: {
+        ...productionCost,
+        totalCost: totalCost
+      },
+      quality: {
+        grade: quality?.grade || "Standard",
+        moistureContent: quality?.moistureContent || quality?.moisture || 0,
+        proteinContent: quality?.proteinContent || quality?.protein || 0
+      },
+      productionDate: productionDate ? new Date(productionDate) : new Date(),
+      warehouse,
+      notes,
+      addedBy: req.user._id || req.user.id || "507f1f77bcf86cd799439011", // Add the required addedBy field
+      status: "Completed"
+    });
+
+    await production.save();
+
+    // Populate the response
+    await production.populate('warehouse', 'name location');
+    await production.populate('addedBy', 'firstName lastName');
+
+    res.status(201).json({
+      success: true,
+      message: "Production record created successfully",
+      data: production
+    });
+  } catch (error) {
+    console.error("Create production error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating production record"
+    });
+  }
+});
+
+// @route   POST /api/production/create
 // @desc    Add daily production details (FR 14)
 // @access  Private (Manager only)
 router.post("/create", [
@@ -55,7 +159,7 @@ router.post("/create", [
     // Create production record
     const productionData = {
       ...req.body,
-      addedBy: req.user.id,
+      addedBy: req.user._id || req.user.id || "507f1f77bcf86cd799439011",
       productionDate: req.body.productionDate || new Date()
     };
 
@@ -78,6 +182,88 @@ router.post("/create", [
 });
 
 // @route   GET /api/production
+// @desc    Get all production records with filtering and pagination (base route)
+// @access  Private (Manager, Admin, Employee)
+router.get("/", [
+  authorize("Manager", "Admin", "Employee")
+], async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      productName,
+      status,
+      warehouse,
+      startDate,
+      endDate,
+      quality
+    } = req.query;
+
+    // Build filter object
+    const filter = {};
+    
+    if (search) {
+      filter.$or = [
+        { batchNumber: { $regex: search, $options: 'i' } },
+        { productName: { $regex: search, $options: 'i' } },
+        { productType: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (productName) filter.productName = productName;
+    if (status) filter.status = status;
+    if (warehouse) filter.warehouse = warehouse;
+    if (quality) filter.quality = quality;
+    
+    if (startDate || endDate) {
+      filter.productionDate = {};
+      if (startDate) filter.productionDate.$gte = new Date(startDate);
+      if (endDate) filter.productionDate.$lte = new Date(endDate);
+    }
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Get total count for pagination
+    const total = await Production.countDocuments(filter);
+    
+    // Get production records with pagination
+    const productions = await Production.find(filter)
+      .populate('warehouse', 'name location')
+      .populate('addedBy', 'firstName lastName')
+      .sort({ productionDate: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(total / parseInt(limit));
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
+
+    res.json({
+      success: true,
+      data: productions,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages,
+        totalRecords: total,
+        hasNextPage,
+        hasPrevPage,
+        limit: parseInt(limit)
+      }
+    });
+  } catch (error) {
+    console.error("Get productions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
+// @route   GET /api/production/all
 // @desc    Get all production records with filtering and pagination
 // @access  Private (Manager, Admin, Employee)
 router.get("/all", [

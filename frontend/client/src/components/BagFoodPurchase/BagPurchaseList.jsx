@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaEdit, FaTrash, FaEye, FaPrint, FaSearch, FaFilter, FaDownload } from 'react-icons/fa';
 
-export default function BagPurchaseList({ purchases, loading, error, onEdit, onDelete }) {
+export default function BagPurchaseList({ purchases, loading, error, onEdit, onDelete, suppliers = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
@@ -27,12 +27,35 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
     }
   };
 
+  // Helper: extract supplier name safely (supports populated object or string)
+  const getSupplierName = (purchase) => {
+    if (!purchase) return '';
+    if (purchase.supplier && typeof purchase.supplier === 'object') {
+      return purchase.supplier.name || '';
+    }
+    return purchase.supplier || '';
+  };
+
+  // Helper: extract primary bag info from nested structure
+  const getPrimaryBagInfo = (purchase) => {
+    const bagTypes = ['ATA', 'MAIDA', 'SUJI', 'FINE'];
+    const bags = purchase?.bags || {};
+    for (const type of bagTypes) {
+      const bag = bags[type];
+      if (bag && (bag.quantity || 0) > 0) {
+        return { type, quantity: bag.quantity || 0, unitPrice: bag.unitPrice || 0, totalPrice: bag.totalPrice || 0 };
+      }
+    }
+    return { type: 'N/A', quantity: 0, unitPrice: 0, totalPrice: 0 };
+  };
+
   const filteredPurchases = purchases.filter(purchase => {
+    const supplierName = getSupplierName(purchase);
     const matchesSearch = purchase.purchaseNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         purchase.supplier?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         supplierName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || purchase.status === statusFilter;
-    const matchesSupplier = supplierFilter === 'all' || purchase.supplier?._id === supplierFilter;
+    const matchesSupplier = supplierFilter === 'all' || supplierName === supplierFilter;
     
     let matchesDate = true;
     if (dateFilter === 'today') {
@@ -51,7 +74,12 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
     return matchesSearch && matchesStatus && matchesSupplier && matchesDate;
   });
 
-  const uniqueSuppliers = [...new Set(purchases.map(p => p.supplier?._id).filter(Boolean))];
+  const uniqueSuppliers = [...new Set(purchases.map(p => getSupplierName(p)).filter(Boolean))];
+  // Also include supplier names from the provided suppliers list for filter dropdown
+  suppliers.forEach(s => {
+    if (s?.name) uniqueSuppliers.push(s.name);
+  });
+  const uniqueSupplierOptions = [...new Set(uniqueSuppliers)];
 
   if (loading) {
     return (
@@ -113,14 +141,11 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Suppliers</option>
-          {uniqueSuppliers.map(supplierId => {
-            const supplier = purchases.find(p => p.supplier?._id === supplierId)?.supplier;
-            return (
-              <option key={supplierId} value={supplierId}>
-                {supplier?.name || 'Unknown Supplier'}
-              </option>
-            );
-          })}
+          {uniqueSupplierOptions.map(supplier => (
+            <option key={supplier} value={supplier}>
+              {supplier || 'Unknown Supplier'}
+            </option>
+          ))}
         </select>
 
         <select
@@ -181,44 +206,43 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
                 
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">
-                    {purchase.supplier?.name || 'Unknown Supplier'}
+                    {getSupplierName(purchase) || 'Unknown Supplier'}
                   </div>
                   <div className="text-sm text-gray-500">
-                    {purchase.supplier?.contact || 'No contact'}
+                    {getPrimaryBagInfo(purchase).type}
                   </div>
                 </td>
                 
                 <td className="px-6 py-4">
+                  {(() => { const b = getPrimaryBagInfo(purchase); return (
                   <div className="text-sm">
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(purchase.bags).map(([type, bag]) => (
-                        bag.quantity > 0 && (
-                          <div key={type} className="text-xs">
-                            <span className="font-medium">{type}:</span> {bag.quantity}
-                          </div>
-                        )
-                      ))}
+                    <div className="text-xs">
+                      <span className="font-medium">Type:</span> {b.type}
+                    </div>
+                    <div className="text-xs">
+                      <span className="font-medium">Quantity:</span> {b.quantity} bags
                     </div>
                     <div className="text-xs text-gray-500 mt-1">
-                      Total: {purchase.totalQuantity || 0} bags
+                      Total: {b.quantity} bags
                     </div>
                   </div>
+                  ); })()}
                 </td>
                 
                 <td className="px-6 py-4">
+                  {(() => { const b = getPrimaryBagInfo(purchase); return (
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium">
-                      ₹{(purchase.totalAmount || 0).toLocaleString()}
+                      ₹{(b.totalPrice || 0).toLocaleString()}
                     </div>
                     <div className="text-gray-500">
-                      Paid: ₹{(purchase.paidAmount || 0).toLocaleString()}
+                      Unit Price: ₹{(b.unitPrice || 0).toLocaleString()}
                     </div>
-                    {purchase.dueAmount > 0 && (
-                      <div className="text-red-600 text-xs">
-                        Due: ₹{(purchase.dueAmount || 0).toLocaleString()}
-                      </div>
-                    )}
+                    <div className="text-gray-500">
+                      Status: {purchase.paymentStatus || 'Unknown'}
+                    </div>
                   </div>
+                  ); })()}
                 </td>
                 
                 <td className="px-6 py-4">
@@ -280,12 +304,12 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
           <div className="flex space-x-4 text-sm">
             <span className="text-gray-600">
               Total Value: <span className="font-semibold text-gray-900">
-                ₹{filteredPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0).toLocaleString()}
+                ₹{filteredPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0).toLocaleString()}
               </span>
             </span>
             <span className="text-gray-600">
               Total Bags: <span className="font-semibold text-gray-900">
-                {filteredPurchases.reduce((sum, p) => sum + (p.totalQuantity || 0), 0)}
+                {filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0)}
               </span>
             </span>
           </div>

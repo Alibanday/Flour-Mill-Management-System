@@ -64,7 +64,7 @@ export default function FinancialDashboard({ warehouses, onEdit }) {
           className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All Warehouses</option>
-          {warehouses.map((warehouse) => (
+          {Array.isArray(warehouses) && warehouses.map((warehouse) => (
             <option key={warehouse._id} value={warehouse._id}>
               {warehouse.name}
             </option>

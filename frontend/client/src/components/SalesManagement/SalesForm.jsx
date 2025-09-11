@@ -49,21 +49,21 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
 
   // Auto-calculate discount amount when discount changes
   useEffect(() => {
-    if (formData.discount.type === 'percentage') {
-      const subtotal = (formData.items || []).reduce((sum, item) => sum + (item.totalPrice || 0), 0) || 0;
+    if (formData.discount?.type === 'percentage') {
+      const subtotal = (formData.items || []).reduce((sum, item) => sum + safeNumber(item.totalPrice), 0);
       setFormData(prev => ({
         ...prev,
         discount: {
           ...prev.discount,
-          amount: (subtotal * (prev.discount.value || 0)) / 100
+          amount: (subtotal * safeNumber(prev.discount?.value)) / 100
         }
       }));
-    } else if (formData.discount.type === 'fixed') {
+    } else if (formData.discount?.type === 'fixed') {
       setFormData(prev => ({
         ...prev,
         discount: {
           ...prev.discount,
-          amount: prev.discount.value || 0
+          amount: safeNumber(prev.discount?.value)
         }
       }));
     } else {
@@ -75,20 +75,29 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
         }
       }));
     }
-  }, [formData.discount.type, formData.discount.value, formData.items]);
+  }, [formData.discount?.type, formData.discount?.value, formData.items]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
     if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
+      const parts = name.split('.');
+      setFormData(prev => {
+        const newData = { ...prev };
+        let current = newData;
+        
+        // Navigate to the nested property
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!current[parts[i]]) {
+            current[parts[i]] = {};
+          }
+          current = current[parts[i]];
         }
-      }));
+        
+        // Set the final value
+        current[parts[parts.length - 1]] = value;
+        return newData;
+      });
     } else {
       setFormData(prev => ({
         ...prev,
@@ -100,6 +109,12 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  // Helper function to safely convert to number
+  const safeNumber = (value, defaultValue = 0) => {
+    const num = parseFloat(value);
+    return isNaN(num) ? defaultValue : num;
   };
 
   const handleAddItem = () => {
@@ -169,10 +184,10 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
   };
 
   const calculateTotals = () => {
-    const subtotal = formData.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0) || 0;
-    const discountAmount = formData.discount.amount || 0;
-    const taxAmount = formData.tax || 0;
-    const totalAmount = (subtotal || 0) - (discountAmount || 0) + (taxAmount || 0);
+    const subtotal = (formData.items || []).reduce((sum, item) => sum + safeNumber(item.totalPrice), 0);
+    const discountAmount = safeNumber(formData.discount?.amount);
+    const taxAmount = safeNumber(formData.tax);
+    const totalAmount = subtotal - discountAmount + taxAmount;
 
     return { subtotal, discountAmount, taxAmount, totalAmount };
   };
@@ -187,15 +202,15 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
          if ((formData.items || []).length === 0) newErrors.items = 'At least one item is required';
 
     // Validate discount
-    if (formData.discount.type === 'percentage' && (formData.discount.value < 0 || formData.discount.value > 100)) {
+    if (formData.discount?.type === 'percentage' && (safeNumber(formData.discount.value) < 0 || safeNumber(formData.discount.value) > 100)) {
       newErrors.discount = 'Percentage discount must be between 0 and 100';
     }
-    if (formData.discount.type === 'fixed' && formData.discount.value < 0) {
+    if (formData.discount?.type === 'fixed' && safeNumber(formData.discount.value) < 0) {
       newErrors.discount = 'Fixed discount cannot be negative';
     }
 
     // Validate tax
-    if (formData.tax < 0) newErrors.tax = 'Tax cannot be negative';
+    if (safeNumber(formData.tax) < 0) newErrors.tax = 'Tax cannot be negative';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -306,7 +321,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
               <input
                 type="tel"
                 name="customer.contact.phone"
-                value={formData.customer.contact.phone}
+                value={formData.customer.contact.phone || ''}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="+92-300-1234567"
@@ -320,7 +335,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
               <input
                 type="email"
                 name="customer.contact.email"
-                value={formData.customer.contact.email}
+                value={formData.customer.contact.email || ''}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="customer@example.com"
@@ -334,7 +349,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
               <input
                 type="text"
                 name="customer.contact.address"
-                value={formData.customer.contact.address}
+                value={formData.customer.contact.address || ''}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Customer Address"
@@ -348,7 +363,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
               <input
                 type="number"
                 name="customer.creditLimit"
-                value={formData.customer.creditLimit}
+                value={formData.customer.creditLimit || ''}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0"
@@ -364,7 +379,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
               <input
                 type="number"
                 name="customer.outstandingBalance"
-                value={formData.customer.outstandingBalance}
+                value={formData.customer.outstandingBalance || ''}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="0"
@@ -375,19 +390,19 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
           </div>
 
           {/* Credit Status Display (FR 22) */}
-          {formData.customer.creditLimit > 0 && (
+          {safeNumber(formData.customer.creditLimit) > 0 && (
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-blue-900">Credit Status</p>
                   <p className="text-xs text-blue-600">
-                    Available Credit: Rs. {Math.max(0, formData.customer.creditLimit - formData.customer.outstandingBalance).toFixed(2)}
+                    Available Credit: Rs. {Math.max(0, safeNumber(formData.customer.creditLimit) - safeNumber(formData.customer.outstandingBalance)).toFixed(2)}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-blue-900">Credit Limit: Rs. {formData.customer.creditLimit.toFixed(2)}</p>
+                  <p className="text-sm text-blue-900">Credit Limit: Rs. {safeNumber(formData.customer.creditLimit).toFixed(2)}</p>
                   <p className="text-xs text-blue-600">
-                    Outstanding: Rs. {formData.customer.outstandingBalance.toFixed(2)}
+                    Outstanding: Rs. {safeNumber(formData.customer.outstandingBalance).toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -548,7 +563,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
               <input
                 type="number"
                 name="discount.value"
-                value={formData.discount.value}
+                value={formData.discount.value || ''}
                 onChange={handleInputChange}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.discount ? 'border-red-500' : 'border-gray-300'
@@ -578,7 +593,7 @@ export default function SalesForm({ onSubmit, onCancel, editData = null, warehou
             <input
               type="number"
               name="tax"
-              value={formData.tax}
+              value={formData.tax || ''}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                 errors.tax ? 'border-red-500' : 'border-gray-300'
