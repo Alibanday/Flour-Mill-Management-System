@@ -1,5 +1,6 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
+import mongoose from "mongoose";
 import GatePass from "../model/GatePass.js";
 import { protect, authorize, isAdmin, isManagerOrAdmin } from "../middleware/auth.js";
 
@@ -27,6 +28,20 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
     if (type) query.type = type;
     if (warehouse) query.warehouse = warehouse;
     
+    // Check if database is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Database not connected, returning empty data");
+      return res.json({
+        success: true,
+        data: [],
+        pagination: {
+          current: parseInt(page),
+          pages: 0,
+          total: 0
+        }
+      });
+    }
+    
     const gatePasses = await GatePass.find(query)
       .populate('warehouse', 'name location')
       .populate('issuedBy', 'firstName lastName')
@@ -47,6 +62,21 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
     });
   } catch (error) {
     console.error("Get gate passes error:", error);
+    
+    // Handle database connection errors gracefully
+    if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: {
+          current: parseInt(req.query.page || 1),
+          pages: 0,
+          total: 0
+        },
+        message: "Database connection issue - returning empty data"
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -69,10 +99,34 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
       });
     }
 
+    // Check if database is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Database not connected, cannot create gate pass");
+      return res.status(503).json({
+        success: false,
+        message: "Database connection unavailable. Cannot create gate pass at this time.",
+        error: "Database connection required for creating gate passes"
+      });
+    }
+
+    // Generate gate pass number
+    let gatePassNumber;
+    try {
+      const count = await GatePass.countDocuments();
+      const year = new Date().getFullYear();
+      gatePassNumber = `GP${year}${String(count + 1).padStart(4, "0")}`;
+    } catch (error) {
+      // If database is not connected, generate a timestamp-based number
+      console.log("Database not connected, generating timestamp-based gate pass number");
+      const timestamp = Date.now();
+      gatePassNumber = `GP${timestamp}`;
+    }
+
     const gatePassData = {
       ...req.body,
       issuedBy: req.user._id,
-      status: 'Active'
+      status: 'Active',
+      gatePassNumber: gatePassNumber
     };
 
     const gatePass = new GatePass(gatePassData);
@@ -88,6 +142,25 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
     });
   } catch (error) {
     console.error("Create gate pass error:", error);
+    
+    // Handle database connection errors gracefully
+    if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
+      return res.status(503).json({
+        success: false,
+        message: "Database connection timeout. Please try again later.",
+        error: "Database connection timeout"
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        error: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -106,9 +179,33 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
       return res.status(400).json({ errors: errors.array() });
     }
 
+    // Check if database is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Database not connected, cannot create gate pass");
+      return res.status(503).json({
+        success: false,
+        message: "Database connection unavailable. Cannot create gate pass at this time.",
+        error: "Database connection required for creating gate passes"
+      });
+    }
+
+    // Generate gate pass number
+    let gatePassNumber;
+    try {
+      const count = await GatePass.countDocuments();
+      const year = new Date().getFullYear();
+      gatePassNumber = `GP${year}${String(count + 1).padStart(4, "0")}`;
+    } catch (error) {
+      // If database is not connected, generate a timestamp-based number
+      console.log("Database not connected, generating timestamp-based gate pass number");
+      const timestamp = Date.now();
+      gatePassNumber = `GP${timestamp}`;
+    }
+
     const gatePass = new GatePass({
       ...req.body,
       issuedBy: req.user.id,
+      gatePassNumber: gatePassNumber
     });
 
     await gatePass.save();
@@ -123,12 +220,34 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
       message: "Gate pass created successfully",
     });
   } catch (error) {
+    console.error("Create gate pass error:", error);
+    
+    // Handle database connection errors gracefully
+    if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
+      return res.status(503).json({
+        success: false,
+        message: "Database connection timeout. Please try again later.",
+        error: "Database connection timeout"
+      });
+    }
+    
+    // Handle duplicate key errors
     if (error.code === 11000) {
       return res.status(400).json({
         success: false,
         message: "Gate pass number already exists",
       });
     }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        error: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -613,6 +732,24 @@ router.patch("/:id/whatsapp-shared", protect, authorize("Admin", "Manager", "Emp
 // @access  Admin, Manager
 router.get("/stats/summary", protect, authorize("Admin", "Manager"), async (req, res) => {
   try {
+    // Check if database is connected
+    if (mongoose.connection.readyState !== 1) {
+      console.log("Database not connected, returning empty stats");
+      return res.json({
+        success: true,
+        data: {
+          total: 0,
+          active: 0,
+          pending: 0,
+          approved: 0,
+          completed: 0,
+          expired: 0,
+          statusBreakdown: [],
+        },
+        message: "Database connection issue - returning empty stats"
+      });
+    }
+
     const stats = await GatePass.aggregate([
       {
         $group: {
@@ -645,6 +782,25 @@ router.get("/stats/summary", protect, authorize("Admin", "Manager"), async (req,
       },
     });
   } catch (error) {
+    console.error("Get gate pass stats error:", error);
+    
+    // Handle database connection errors gracefully
+    if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
+      return res.json({
+        success: true,
+        data: {
+          total: 0,
+          active: 0,
+          pending: 0,
+          approved: 0,
+          completed: 0,
+          expired: 0,
+          statusBreakdown: [],
+        },
+        message: "Database connection issue - returning empty stats"
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Server error",

@@ -4,7 +4,7 @@ const gatePassSchema = new mongoose.Schema(
   {
     gatePassNumber: {
       type: String,
-      required: true,
+      required: false, // Will be generated in pre-save hook
       unique: true,
       trim: true,
     },
@@ -164,10 +164,18 @@ const gatePassSchema = new mongoose.Schema(
 
 // Generate gate pass number
 gatePassSchema.pre("save", async function (next) {
-  if (this.isNew && !this.gatePassNumber) {
-    const count = await this.constructor.countDocuments();
-    const year = new Date().getFullYear();
-    this.gatePassNumber = `GP${year}${String(count + 1).padStart(4, "0")}`;
+  if (this.isNew) {
+    try {
+      // Try to get count from database
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      this.gatePassNumber = `GP${year}${String(count + 1).padStart(4, "0")}`;
+    } catch (error) {
+      // If database is not connected, generate a timestamp-based number
+      console.log("Database not connected, generating timestamp-based gate pass number");
+      const timestamp = Date.now();
+      this.gatePassNumber = `GP${timestamp}`;
+    }
   }
   next();
 });

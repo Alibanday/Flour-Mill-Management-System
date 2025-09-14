@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes, FaShoppingBag, FaCalculator, FaTruck, FaBoxes, FaSeedling, FaPlus, FaMinus } from 'react-icons/fa';
 
 export default function PurchaseForm({ onSubmit, onCancel, editData = null, warehouses = [] }) {
+  const [suppliers, setSuppliers] = useState([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [formData, setFormData] = useState({
     purchaseNumber: '',
     purchaseType: 'Bags',
@@ -42,7 +45,31 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Safely coerce values to numbers for calculations and display
+  const toNumber = (value) => {
+    if (typeof value === 'number') return isNaN(value) ? 0 : value;
+    const n = parseFloat(value);
+    return isNaN(n) ? 0 : n;
+  };
+
   useEffect(() => {
+    // Load suppliers list for dropdown
+    const loadSuppliers = async () => {
+      try {
+        setSuppliersLoading(true);
+        const res = await fetch('http://localhost:7000/api/suppliers');
+        if (res.ok) {
+          const data = await res.json();
+          setSuppliers(data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching suppliers:', err);
+      } finally {
+        setSuppliersLoading(false);
+      }
+    };
+    loadSuppliers();
+
     if (editData) {
       setFormData({
         ...editData,
@@ -51,19 +78,22 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
       });
       if (editData.bags) setBagsData(editData.bags);
       if (editData.food) setFoodData(editData.food);
+      if (editData.supplier?._id) setSelectedSupplierId(editData.supplier._id);
     }
   }, [editData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    const numericFields = new Set(['tax', 'shippingCost', 'supplier.outstandingBalance']);
+    const finalValue = numericFields.has(name) ? toNumber(value) : value;
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
         ...prev,
-        [parent]: { ...prev[parent], [child]: value }
+        [parent]: { ...prev[parent], [child]: finalValue }
       }));
     } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData(prev => ({ ...prev, [name]: finalValue }));
     }
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
@@ -117,7 +147,7 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
     }
 
     const subtotal = (bagsTotal || 0) + (foodTotal || 0);
-    const totalAmount = (subtotal || 0) + (formData.tax || 0) + (formData.shippingCost || 0);
+    const totalAmount = (subtotal || 0) + toNumber(formData.tax) + toNumber(formData.shippingCost);
 
     return { bagsTotal, foodTotal, subtotal, totalAmount };
   };
@@ -125,9 +155,11 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
   const validateForm = () => {
     const newErrors = {};
     if (!formData.purchaseNumber.trim()) newErrors.purchaseNumber = 'Purchase number is required';
-    if (!formData.supplier.name.trim()) newErrors.supplierName = 'Supplier name is required';
+    if (!formData.supplier.name.trim()) newErrors.supplierName = 'Supplier is required';
     if (!formData.warehouse) newErrors.warehouse = 'Warehouse is required';
     if (!formData.paymentMethod) newErrors.paymentMethod = 'Payment method is required';
+    if (toNumber(formData.tax) < 0) newErrors.tax = 'Tax cannot be negative';
+    if (toNumber(formData.shippingCost) < 0) newErrors.shippingCost = 'Shipping cannot be negative';
 
     let hasItems = false;
     if (formData.purchaseType === 'Bags' || formData.purchaseType === 'Other') {
@@ -150,10 +182,11 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
     try {
       const submitData = {
         ...formData,
-        bags: formData.purchaseType === 'Bags' || formData.purchaseType === 'Other' ? (bagsData || {}) : undefined,
-        food: formData.purchaseType === 'Food' || formData.purchaseType === 'Other' ? (foodData || {}) : undefined
+        bags: formData.purchaseType === 'Bags' || formData.purchaseType === 'Other' ? (bagsData || {}) : {},
+        food: formData.purchaseType === 'Food' || formData.purchaseType === 'Other' ? (foodData || {}) : {}
       };
 
+      console.log('📤 Frontend sending purchase data:', submitData);
       await onSubmit(submitData);
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -163,6 +196,60 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
   };
 
   const { bagsTotal, foodTotal, subtotal, totalAmount } = calculateTotals();
+
+  const handleSupplierSelect = (e) => {
+    const value = e.target.value;
+    setSelectedSupplierId(value);
+    if (!value) {
+      // Reset supplier details if none selected
+      setFormData(prev => ({
+        ...prev,
+        supplier: {
+          name: '',
+          contact: { phone: '', email: '', address: '' },
+          type: 'Private',
+          outstandingBalance: 0
+        }
+      }));
+      return;
+    }
+
+    const supplier = suppliers.find(s => s._id === value);
+    if (supplier) {
+      // Map supplier type to valid enum values for Purchase model
+      const mapSupplierType = (type) => {
+        const typeMap = {
+          'Raw Materials': 'Manufacturer',
+          'Raw Material': 'Manufacturer',
+          'Materials': 'Manufacturer',
+          'Food': 'Wholesaler',
+          'Bags': 'Manufacturer',
+          'Other': 'Private',
+          'Government': 'Government',
+          'Private': 'Private',
+          'Wholesaler': 'Wholesaler',
+          'Manufacturer': 'Manufacturer'
+        };
+        return typeMap[type] || 'Private';
+      };
+
+      setFormData(prev => ({
+        ...prev,
+        supplier: {
+          _id: supplier._id,
+          name: supplier.name || '',
+          type: mapSupplierType(supplier.businessType) || 'Private',
+          outstandingBalance: supplier.outstandingBalance || 0,
+          contact: {
+            phone: supplier.phone || '',
+            email: supplier.email || '',
+            address: `${supplier.address?.street || ''} ${supplier.address?.city || ''}`.trim()
+          }
+        }
+      }));
+      if (errors.supplierName) setErrors(prev => ({ ...prev, supplierName: '' }));
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
@@ -240,22 +327,31 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Supplier Name *
+                Supplier *
               </label>
-              <input
-                type="text"
-                name="supplier.name"
-                value={formData.supplier.name}
-                onChange={handleInputChange}
+              <select
+                value={selectedSupplierId}
+                onChange={handleSupplierSelect}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                   errors.supplierName ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="Supplier Name"
-              />
+              >
+                <option value="">Select Supplier</option>
+                {suppliersLoading ? (
+                  <option disabled>Loading...</option>
+                ) : (
+                  suppliers.map(s => (
+                    <option key={s._id} value={s._id}>{s.name}</option>
+                  ))
+                )}
+              </select>
               {errors.supplierName && (
                 <p className="mt-1 text-sm text-red-600">{errors.supplierName}</p>
               )}
             </div>
+
+            {/* Keep a hidden supplier name input to maintain compatibility if needed */}
+            <input type="hidden" name="supplier.name" value={formData.supplier.name} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -558,6 +654,9 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
               min="0"
               step="0.01"
             />
+            {errors.tax && (
+              <p className="mt-1 text-sm text-red-600">{errors.tax}</p>
+            )}
           </div>
 
           <div>
@@ -574,6 +673,9 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
               min="0"
               step="0.01"
             />
+            {errors.shippingCost && (
+              <p className="mt-1 text-sm text-red-600">{errors.shippingCost}</p>
+            )}
           </div>
         </div>
 
@@ -660,22 +762,22 @@ export default function PurchaseForm({ onSubmit, onCancel, editData = null, ware
             
             <div>
               <span className="text-gray-600">Subtotal:</span>
-                              <span className="ml-2 font-medium text-gray-900">Rs. {(subtotal || 0).toFixed(2)}</span>
+              <span className="ml-2 font-medium text-gray-900">Rs. {Number(subtotal || 0).toFixed(2)}</span>
             </div>
             
             <div>
               <span className="text-gray-600">Tax:</span>
-                              <span className="ml-2 font-medium text-gray-900">+Rs. {(formData.tax || 0).toFixed(2)}</span>
+              <span className="ml-2 font-medium text-gray-900">+Rs. {Number(formData.tax || 0).toFixed(2)}</span>
             </div>
             
             <div>
               <span className="text-gray-600">Shipping:</span>
-                              <span className="ml-2 font-medium text-gray-900">+Rs. {(formData.shippingCost || 0).toFixed(2)}</span>
+              <span className="ml-2 font-medium text-gray-900">+Rs. {Number(formData.shippingCost || 0).toFixed(2)}</span>
             </div>
             
             <div>
               <span className="text-gray-600">Total:</span>
-                              <span className="ml-2 font-bold text-blue-900 text-lg">Rs. {(totalAmount || 0).toFixed(2)}</span>
+              <span className="ml-2 font-bold text-blue-900 text-lg">Rs. {Number(totalAmount || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
