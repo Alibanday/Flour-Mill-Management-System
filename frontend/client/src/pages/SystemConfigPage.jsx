@@ -149,7 +149,7 @@ const SystemConfigPage = () => {
         {label}
       </label>
       <div className="flex space-x-2">
-        {colors.map(color => (
+        {(colors || []).map(color => (
           <button
             key={color}
             onClick={() => handleConfigChange(section, key, color)}
@@ -171,19 +171,31 @@ const SystemConfigPage = () => {
   );
 
   // Render select field
-  const renderSelect = (section, key, label, options, nested = false) => (
+  const renderSelect = (section, key, label, options, nested = false, subsection = null) => (
     <div className="mb-4">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label}
       </label>
       <select
-        value={nested ? config?.[section]?.[key] || '' : config?.[section]?.[key] || ''}
-        onChange={(e) => handleConfigChange(section, key, e.target.value)}
+        value={
+          nested && subsection
+            ? (config?.[section]?.[subsection]?.[key] ?? '')
+            : (config?.[section]?.[key] ?? '')
+        }
+        onChange={(e) => {
+          const value = e.target.value;
+          if (nested && subsection) {
+            handleNestedConfigChange(section, subsection, key, value);
+          } else {
+            handleConfigChange(section, key, value);
+          }
+        }}
         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        {options.map(option => (
-          <option key={option.value || option} value={option.value || option}>
-            {option.label || option}
+        <option value="">Select...</option>
+        {(options || []).map(option => (
+          <option key={(option && option.value) || option} value={(option && option.value) || option}>
+            {(option && option.label) || option}
           </option>
         ))}
       </select>
@@ -342,15 +354,15 @@ const SystemConfigPage = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    {renderSelect('ui', 'theme', 'Theme', metadata.themes)}
-                    {renderSelect('ui', 'borderRadius', 'Border Radius', metadata.borderRadius)}
-                    {renderSelect('ui', 'fontSize', 'Font Size', metadata.fontSize)}
+                    {renderSelect('ui', 'theme', 'Theme', metadata?.themes || [])}
+                    {renderSelect('ui', 'borderRadius', 'Border Radius', metadata?.borderRadius || [])}
+                    {renderSelect('ui', 'fontSize', 'Font Size', metadata?.fontSize || [])}
                     {renderCheckbox('ui', 'compactMode', 'Compact Mode')}
                   </div>
                   
                   <div>
-                    {renderColorPicker('ui', 'primaryColor', 'Primary Color', metadata.colors.primary)}
-                    {renderColorPicker('ui', 'secondaryColor', 'Secondary Color', metadata.colors.secondary)}
+                    {renderColorPicker('ui', 'primaryColor', 'Primary Color', metadata?.colors?.primary || [])}
+                    {renderColorPicker('ui', 'secondaryColor', 'Secondary Color', metadata?.colors?.secondary || [])}
                   </div>
                 </div>
               </div>
@@ -363,8 +375,8 @@ const SystemConfigPage = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    {renderSelect('dashboard', 'defaultView', 'Default View', metadata.dashboardViews)}
-                    {renderSelect('dashboard', 'refreshInterval', 'Refresh Interval', metadata.refreshIntervals)}
+                    {renderSelect('dashboard', 'defaultView', 'Default View', metadata?.dashboardViews || [])}
+                    {renderSelect('dashboard', 'refreshInterval', 'Refresh Interval', metadata?.refreshIntervals || [])}
                   </div>
                   
                   <div>
@@ -409,13 +421,13 @@ const SystemConfigPage = () => {
                   <div>
                     {renderCheckbox('system', 'maintenanceMode', 'Maintenance Mode')}
                     {renderTextInput('system', 'maintenanceMessage', 'Maintenance Message', 500)}
-                    {renderSelect('system', 'sessionTimeout', 'Session Timeout', metadata.sessionTimeouts)}
-                    {renderSelect('system', 'maxLoginAttempts', 'Max Login Attempts', metadata.loginAttempts)}
+                    {renderSelect('system', 'sessionTimeout', 'Session Timeout', metadata?.sessionTimeouts || [])}
+                    {renderSelect('system', 'maxLoginAttempts', 'Max Login Attempts', metadata?.loginAttempts || [])}
                   </div>
                   
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-3">Password Policy</h4>
-                    {renderSelect('system', 'minLength', 'Minimum Length', metadata.passwordLengths, true, 'passwordPolicy')}
+                    {renderSelect('system', 'minLength', 'Minimum Length', metadata?.passwordLengths || [], true, 'passwordPolicy')}
                     {renderCheckbox('system', 'requireUppercase', 'Require Uppercase', true, 'passwordPolicy')}
                     {renderCheckbox('system', 'requireLowercase', 'Require Lowercase', true, 'passwordPolicy')}
                     {renderCheckbox('system', 'requireNumbers', 'Require Numbers', true, 'passwordPolicy')}
@@ -432,8 +444,8 @@ const SystemConfigPage = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    {renderSelect('export', 'defaultFormat', 'Default Format', metadata.exportFormats)}
-                    {renderSelect('export', 'maxRowsPerExport', 'Max Rows Per Export', metadata.exportRowLimits)}
+                    {renderSelect('export', 'defaultFormat', 'Default Format', metadata?.exportFormats || [])}
+                    {renderSelect('export', 'maxRowsPerExport', 'Max Rows Per Export', metadata?.exportRowLimits || [])}
                   </div>
                   
                   <div>

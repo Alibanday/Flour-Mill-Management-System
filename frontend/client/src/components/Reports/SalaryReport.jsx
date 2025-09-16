@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaUsers, FaCalendarAlt, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
+import { FaUserTie, FaCalendarAlt, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -113,15 +113,16 @@ const SalaryReport = ({ onReportGenerated }) => {
       doc.text('Salary Details', 20, 20);
       
       const salaryData = reportData.data.map(salary => [
-        new Date(salary.transactionDate).toLocaleDateString(),
-        salary.employee ? `${salary.employee.firstName} ${salary.employee.lastName}` : 'N/A',
-        salary.employee?.department || 'N/A',
-        `Rs. ${(salary.amount || 0).toLocaleString()}`
+        new Date(salary.date).toLocaleDateString(),
+        salary.createdBy ? `${salary.createdBy.firstName} ${salary.createdBy.lastName}` : 'N/A',
+        salary.createdBy?.role || 'N/A',
+        `Rs. ${(salary.amount || 0).toLocaleString()}`,
+        salary.description || 'N/A'
       ]);
       
       doc.autoTable({
         startY: 30,
-        head: [['Date', 'Employee', 'Department', 'Amount']],
+        head: [['Date', 'Employee', 'Department', 'Amount', 'Description']],
         body: salaryData,
         theme: 'grid'
       });
@@ -155,15 +156,14 @@ const SalaryReport = ({ onReportGenerated }) => {
       const deptData = [
         ['Salaries by Department'],
         [''],
-        ['Department', 'Count', 'Total Amount', 'Average Amount']
+        ['Department', 'Count', 'Total Amount']
       ];
       
       Object.entries(reportData.summary.departmentBreakdown).forEach(([dept, data]) => {
         deptData.push([
           dept,
           data.count,
-          data.amount,
-          data.count > 0 ? data.amount / data.count : 0
+          data.amount
         ]);
       });
       
@@ -176,15 +176,16 @@ const SalaryReport = ({ onReportGenerated }) => {
       const salaryData = [
         ['Salary Details'],
         [''],
-        ['Date', 'Employee Name', 'Department', 'Amount', 'Transaction ID']
+        ['Date', 'Employee', 'Department', 'Amount', 'Description', 'Transaction ID']
       ];
       
       reportData.data.forEach(salary => {
         salaryData.push([
-          new Date(salary.transactionDate).toLocaleDateString(),
-          salary.employee ? `${salary.employee.firstName} ${salary.employee.lastName}` : 'N/A',
-          salary.employee?.department || 'N/A',
+          new Date(salary.date).toLocaleDateString(),
+          salary.createdBy ? `${salary.createdBy.firstName} ${salary.createdBy.lastName}` : 'N/A',
+          salary.createdBy?.role || 'N/A',
           salary.amount,
+          salary.description || 'N/A',
           salary._id
         ]);
       });
@@ -207,7 +208,7 @@ const SalaryReport = ({ onReportGenerated }) => {
       {/* Filters */}
       <div className="bg-gray-50 rounded-lg p-6 mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <FaUsers className="mr-2" />
+          <FaUserTie className="mr-2" />
           Report Filters
         </h3>
         
@@ -248,15 +249,14 @@ const SalaryReport = ({ onReportGenerated }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Employee (Optional)
             </label>
-            <select
+            <input
+              type="text"
               name="employeeId"
               value={filters.employeeId}
               onChange={handleFilterChange}
+              placeholder="Employee ID"
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Employees</option>
-              {/* Employee options would be populated from API */}
-            </select>
+            />
           </div>
         </div>
         
@@ -273,7 +273,7 @@ const SalaryReport = ({ onReportGenerated }) => {
               </>
             ) : (
               <>
-                <FaUsers className="mr-2" />
+                <FaUserTie className="mr-2" />
                 Generate Report
               </>
             )}
@@ -357,18 +357,12 @@ const SalaryReport = ({ onReportGenerated }) => {
                     <h5 className="font-medium text-gray-900 mb-2">{dept}</h5>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Employees:</span>
+                        <span className="text-gray-600">Count:</span>
                         <span className="font-medium">{data.count}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Total Amount:</span>
+                        <span className="text-gray-600">Amount:</span>
                         <span className="font-medium">Rs. {(data.amount || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Average:</span>
-                        <span className="font-medium">
-                          Rs. {data.count > 0 ? (data.amount / data.count).toLocaleString() : '0'}
-                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Percentage:</span>
@@ -397,24 +391,28 @@ const SalaryReport = ({ onReportGenerated }) => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData.data.map((salary, index) => (
                       <tr key={index}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(salary.transactionDate).toLocaleDateString()}
+                          {new Date(salary.date).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {salary.employee ? `${salary.employee.firstName} ${salary.employee.lastName}` : 'N/A'}
+                          {salary.createdBy ? `${salary.createdBy.firstName} ${salary.createdBy.lastName}` : 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {salary.employee?.department || 'N/A'}
+                            {salary.createdBy?.role || 'N/A'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           Rs. {(salary.amount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {salary.description || 'N/A'}
                         </td>
                       </tr>
                     ))}
@@ -429,7 +427,7 @@ const SalaryReport = ({ onReportGenerated }) => {
       {/* No Report State */}
       {!reportData && !loading && (
         <div className="text-center py-12">
-          <FaUsers className="mx-auto text-6xl text-gray-300 mb-4" />
+          <FaUserTie className="mx-auto text-6xl text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Generate Employee Salary Report</h3>
           <p className="text-gray-500">Select date range and optionally filter by employee to generate a salary report.</p>
         </div>
@@ -438,4 +436,4 @@ const SalaryReport = ({ onReportGenerated }) => {
   );
 };
 
-export default SalaryReport; 
+export default SalaryReport;

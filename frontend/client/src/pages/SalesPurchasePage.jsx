@@ -73,19 +73,29 @@ export default function SalesPurchasePage() {
 
   const handlePurchaseSubmit = async (formData) => {
     try {
+      console.log('📤 Sending to API:', formData);
       const response = await fetch('http://localhost:7000/api/purchases', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
+      console.log('📥 API Response:', response.status, response.statusText);
+      
       if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Purchase created:', result);
         await fetchData();
         setShowPurchaseForm(false);
         setEditData(null);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API Error:', errorData);
+        alert('Error creating purchase: ' + (errorData.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating purchase:', error);
+      alert('Network error: ' + error.message);
     }
   };
 

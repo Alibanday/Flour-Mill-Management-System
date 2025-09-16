@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaTruck, FaExclamationTriangle, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
+import { FaExclamationTriangle, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -46,19 +46,23 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
     doc.setFontSize(20);
     doc.text('Vendor Outstanding Report', 105, 20, { align: 'center' });
     
+    // Generated date
+    doc.setFontSize(12);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 35);
+    
     // Summary
     doc.setFontSize(14);
-    doc.text('Summary', 20, 40);
+    doc.text('Summary', 20, 50);
     
     const summaryData = [
-      ['Total Vendors', reportData.summary.totalVendors.toString()],
-      ['Total Outstanding', `Rs. ${(reportData.summary.totalOutstanding || 0).toLocaleString()}`],
-      ['Average Outstanding', `Rs. ${(reportData.summary.averageOutstanding || 0).toLocaleString()}`],
+      ['Total Vendors with Outstanding', reportData.summary.totalVendors.toString()],
+      ['Total Outstanding Amount', `Rs. ${(reportData.summary.totalOutstanding || 0).toLocaleString()}`],
+      ['Average Outstanding per Vendor', `Rs. ${(reportData.summary.averageOutstanding || 0).toLocaleString()}`],
       ['Overdue Vendors', reportData.summary.overdueVendors.toString()]
     ];
     
     doc.autoTable({
-      startY: 50,
+      startY: 60,
       head: [['Metric', 'Value']],
       body: summaryData,
       theme: 'grid'
@@ -71,15 +75,16 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       doc.text('Vendor Outstanding Details', 20, 20);
       
       const vendorData = reportData.data.map(vendor => [
-        vendor.supplier.name,
-        vendor.supplier.contact || 'N/A',
+        vendor.supplier.name || 'N/A',
+        vendor.supplier.contactPerson || 'N/A',
+        vendor.supplier.phone || 'N/A',
         `Rs. ${(vendor.totalOutstanding || 0).toLocaleString()}`,
         new Date(vendor.lastPurchaseDate).toLocaleDateString()
       ]);
       
       doc.autoTable({
         startY: 30,
-        head: [['Vendor', 'Contact', 'Outstanding Amount', 'Last Purchase']],
+        head: [['Vendor', 'Contact Person', 'Phone', 'Outstanding Amount', 'Last Purchase']],
         body: vendorData,
         theme: 'grid'
       });
@@ -97,12 +102,12 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
     const summaryData = [
       ['Vendor Outstanding Report Summary'],
       [''],
-      ['Generated Date', new Date().toLocaleDateString()],
+      ['Generated', new Date().toLocaleDateString()],
       [''],
       ['Metric', 'Value'],
-      ['Total Vendors', reportData.summary.totalVendors],
-      ['Total Outstanding', reportData.summary.totalOutstanding],
-      ['Average Outstanding', reportData.summary.averageOutstanding],
+      ['Total Vendors with Outstanding', reportData.summary.totalVendors],
+      ['Total Outstanding Amount', reportData.summary.totalOutstanding],
+      ['Average Outstanding per Vendor', reportData.summary.averageOutstanding],
       ['Overdue Vendors', reportData.summary.overdueVendors]
     ];
     
@@ -114,21 +119,19 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       const vendorData = [
         ['Vendor Outstanding Details'],
         [''],
-        ['Vendor Name', 'Contact', 'Address', 'Outstanding Amount', 'Last Purchase Date', 'Bag Purchases', 'Food Purchases']
+        ['Vendor', 'Contact Person', 'Phone', 'Email', 'Outstanding Amount', 'Last Purchase', 'Bag Purchases', 'Food Purchases']
       ];
       
       reportData.data.forEach(vendor => {
-        const bagPurchases = vendor.bagPurchases?.length || 0;
-        const foodPurchases = vendor.foodPurchases?.length || 0;
-        
         vendorData.push([
-          vendor.supplier.name,
-          vendor.supplier.contact || 'N/A',
-          vendor.supplier.address || 'N/A',
+          vendor.supplier.name || 'N/A',
+          vendor.supplier.contactPerson || 'N/A',
+          vendor.supplier.phone || 'N/A',
+          vendor.supplier.email || 'N/A',
           vendor.totalOutstanding,
           new Date(vendor.lastPurchaseDate).toLocaleDateString(),
-          bagPurchases,
-          foodPurchases
+          vendor.bagPurchases?.length || 0,
+          vendor.foodPurchases?.length || 0
         ]);
       });
       
@@ -150,31 +153,33 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       {/* Generate Button */}
       <div className="bg-gray-50 rounded-lg p-6 mb-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-          <FaTruck className="mr-2" />
-          Generate Vendor Outstanding Report
+          <FaExclamationTriangle className="mr-2" />
+          Vendor Outstanding Report
         </h3>
         
         <p className="text-gray-600 mb-4">
-          This report shows all vendors with outstanding payments from bag and food purchases.
+          Generate a report showing all vendors with outstanding payments. This report includes both bag and food purchase outstanding amounts.
         </p>
         
-        <button
-          onClick={generateReport}
-          disabled={loading}
-          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
-        >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Generating...
-            </>
-          ) : (
-            <>
-              <FaTruck className="mr-2" />
-              Generate Report
-            </>
-          )}
-        </button>
+        <div className="mt-6">
+          <button
+            onClick={generateReport}
+            disabled={loading}
+            className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Generating...
+              </>
+            ) : (
+              <>
+                <FaExclamationTriangle className="mr-2" />
+                Generate Report
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Error Message */}
@@ -239,16 +244,16 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Average Outstanding</h4>
-              <p className="text-2xl font-bold text-orange-600">Rs. {(reportData.summary.averageOutstanding || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs. {(reportData.summary.averageOutstanding || 0).toLocaleString()}</p>
             </div>
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Overdue Vendors</h4>
-              <p className="text-2xl font-bold text-yellow-600">{reportData.summary.overdueVendors}</p>
+              <p className="text-2xl font-bold text-orange-600">{reportData.summary.overdueVendors}</p>
             </div>
           </div>
 
-          {/* Vendor Details */}
-          {reportData.data && reportData.data.length > 0 && (
+          {/* Vendor Data Table */}
+          {reportData.data && reportData.data.length > 0 ? (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h4 className="text-lg font-medium text-gray-900">Vendor Outstanding Details</h4>
@@ -258,8 +263,8 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Person</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Purchase</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -267,35 +272,30 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData.data.map((vendor, index) => {
-                      const isOverdue = vendor.lastPurchaseDate < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+                      const isOverdue = new Date(vendor.lastPurchaseDate) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
                       
                       return (
                         <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{vendor.supplier.name}</div>
-                              <div className="text-sm text-gray-500">{vendor.supplier.email || 'N/A'}</div>
-                            </div>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {vendor.supplier.name || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {vendor.supplier.contact || 'N/A'}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {vendor.supplier.address || 'N/A'}
+                            {vendor.supplier.contactPerson || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span className="font-semibold text-red-600">
-                              Rs. {(vendor.totalOutstanding || 0).toLocaleString()}
-                            </span>
+                            {vendor.supplier.phone || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            Rs. {(vendor.totalOutstanding || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {new Date(vendor.lastPurchaseDate).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              isOverdue ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                              isOverdue ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
                             }`}>
-                              {isOverdue ? 'Overdue' : 'Current'}
+                              {isOverdue ? 'Overdue' : 'Pending'}
                             </span>
                           </td>
                         </tr>
@@ -305,37 +305,11 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
                 </table>
               </div>
             </div>
-          )}
-
-          {/* Purchase Breakdown */}
-          {reportData.data && reportData.data.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Purchase Breakdown by Vendor</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {reportData.data.map((vendor, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 mb-2">{vendor.supplier.name}</h5>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Bag Purchases:</span>
-                        <span className="font-medium">{vendor.bagPurchases?.length || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Food Purchases:</span>
-                        <span className="font-medium">{vendor.foodPurchases?.length || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Outstanding:</span>
-                        <span className="font-medium text-red-600">Rs. {(vendor.totalOutstanding || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Last Purchase:</span>
-                        <span className="font-medium">{new Date(vendor.lastPurchaseDate).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 text-center">
+              <FaExclamationTriangle className="mx-auto text-4xl text-green-500 mb-4" />
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No Outstanding Payments</h4>
+              <p className="text-gray-500">All vendors are up to date with their payments.</p>
             </div>
           )}
         </div>
@@ -344,9 +318,9 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       {/* No Report State */}
       {!reportData && !loading && (
         <div className="text-center py-12">
-          <FaTruck className="mx-auto text-6xl text-gray-300 mb-4" />
+          <FaExclamationTriangle className="mx-auto text-6xl text-gray-300 mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Generate Vendor Outstanding Report</h3>
-          <p className="text-gray-500">Click the button above to generate a comprehensive report of outstanding payments to vendors.</p>
+          <p className="text-gray-500">Click the button above to generate a report of all vendors with outstanding payments.</p>
         </div>
       )}
     </div>

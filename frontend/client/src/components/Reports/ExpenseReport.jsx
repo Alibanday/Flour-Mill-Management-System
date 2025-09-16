@@ -113,7 +113,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
       doc.text('Expense Details', 20, 20);
       
       const expenseData = reportData.data.map(expense => [
-        new Date(expense.transactionDate).toLocaleDateString(),
+        new Date(expense.date).toLocaleDateString(),
         expense.category || 'Uncategorized',
         expense.description || 'N/A',
         `Rs. ${(expense.amount || 0).toLocaleString()}`,
@@ -181,7 +181,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
       
       reportData.data.forEach(expense => {
         expenseData.push([
-          new Date(expense.transactionDate).toLocaleDateString(),
+          new Date(expense.date).toLocaleDateString(),
           expense.category || 'Uncategorized',
           expense.description || 'N/A',
           expense.amount,

@@ -136,7 +136,7 @@ export default function Dashboard() {
         name: "Employees", 
         shortcut: "F12", 
         icon: <FaUsers />, 
-        action: () => navigate("/EmployeesPage"),
+        action: () => navigate("/employees"),
         roles: ['Admin', 'Manager'],
         color: "bg-pink-100 text-pink-600"
       },
@@ -377,7 +377,7 @@ export default function Dashboard() {
                   <button
                     onClick={() => {
                       if (item.name === "Employees") {
-                        navigate("/EmployeesPage");
+                        navigate("/employees");
                       } else {
                         console.log(`${item.name} clicked`);
                       }
