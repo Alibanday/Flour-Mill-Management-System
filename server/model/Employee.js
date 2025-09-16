@@ -61,6 +61,53 @@ const employeeSchema = new mongoose.Schema({
   warehouse: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Warehouse'
+  },
+  // Additional fields for comprehensive employee management
+  cnic: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  emergencyContact: {
+    name: String,
+    relationship: String,
+    phone: String
+  },
+  bankDetails: {
+    accountNumber: String,
+    bankName: String,
+    branchCode: String
+  },
+  documents: [{
+    type: {
+      type: String,
+      enum: ['CNIC', 'Contract', 'Certificate', 'Other']
+    },
+    filename: String,
+    path: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  performance: {
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 3
+    },
+    lastReview: Date,
+    nextReview: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, {
   timestamps: true

@@ -6,6 +6,7 @@ import Supplier from '../model/Supplier.js';
 import BagPurchase from '../model/BagPurchase.js';
 import FoodPurchase from '../model/FoodPurchase.js';
 import Production from '../model/Production.js';
+import mongoose from 'mongoose';
 
 class ReportService {
   // Generate Sales Report by Date Range
@@ -24,8 +25,7 @@ class ReportService {
       if (filters.paymentStatus) query.paymentStatus = filters.paymentStatus;
 
       const sales = await Sale.find(query)
-        .populate('customer', 'name contact')
-        .populate('items.product', 'name category')
+        .populate('warehouse', 'name location')
         .sort({ saleDate: -1 });
 
       const summary = {
@@ -34,15 +34,19 @@ class ReportService {
         totalQuantity: sales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0),
         averageOrderValue: sales.length > 0 ? sales.reduce((sum, sale) => sum + sale.totalAmount, 0) / sales.length : 0,
         paymentBreakdown: {
-          paid: sales.filter(sale => sale.paymentStatus === 'paid').length,
-          pending: sales.filter(sale => sale.paymentStatus === 'pending').length,
-          partial: sales.filter(sale => sale.paymentStatus === 'partial').length
+          paid: sales.filter(sale => /paid/i.test(sale.paymentStatus)).length,
+          pending: sales.filter(sale => /pending/i.test(sale.paymentStatus)).length,
+          partial: sales.filter(sale => /partial/i.test(sale.paymentStatus)).length
         }
       };
 
       return {
         reportType: 'sales',
         title: `Sales Report (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()})`,
+        dateRange: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
         data: sales,
         summary,
         filters: { startDate, endDate, ...filters }
@@ -55,25 +59,45 @@ class ReportService {
   // Generate Inventory Report for Warehouses
   async generateInventoryReport(warehouseId = null) {
     try {
-      const query = warehouseId ? { warehouse: warehouseId } : {};
+      let query = {};
+      if (warehouseId && mongoose.isValidObjectId(warehouseId)) {
+        query.warehouse = warehouseId;
+      }
       
-      const inventory = await Inventory.find(query)
-        .populate('warehouse', 'name location')
-        .populate('product', 'name category unit')
-        .sort({ 'warehouse.name': 1, 'product.name': 1 });
+      const inventory = (await Inventory.find(query)
+        .populate('warehouse', 'name location'))
+        .map(doc => doc); // ensure plain iteration
+
+      // Sort in JS to avoid DB sort on populated paths
+      inventory.sort((a, b) => {
+        const wa = a.warehouse?.name || '';
+        const wb = b.warehouse?.name || '';
+        if (wa === wb) {
+          return (a.name || '').localeCompare(b.name || '');
+        }
+        return wa.localeCompare(wb);
+      });
 
       const summary = {
-        totalItems: inventory.length,
-        totalWarehouses: [...new Set(inventory.map(item => item.warehouse._id.toString()))].length,
-        lowStockItems: inventory.filter(item => item.quantity <= item.reorderLevel).length,
-        outOfStockItems: inventory.filter(item => item.quantity === 0).length,
-        totalValue: inventory.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0),
+        totalItems: Array.isArray(inventory) ? inventory.length : 0,
+        totalWarehouses: Array.isArray(inventory)
+          ? [...new Set(inventory.filter(i => i?.warehouse?._id).map(item => item.warehouse._id.toString()))].length
+          : 0,
+        lowStockItems: Array.isArray(inventory)
+          ? inventory.filter(item => (item?.currentStock ?? 0) <= (item?.minimumStock ?? 0)).length
+          : 0,
+        outOfStockItems: Array.isArray(inventory)
+          ? inventory.filter(item => (item?.currentStock ?? 0) === 0).length
+          : 0,
+        totalValue: Array.isArray(inventory)
+          ? inventory.reduce((sum, item) => sum + ((item?.currentStock ?? 0) * (item?.cost?.purchasePrice ?? 0)), 0)
+          : 0,
         warehouseBreakdown: {}
       };
 
       // Group by warehouse
-      inventory.forEach(item => {
-        const warehouseName = item.warehouse.name;
+      (inventory || []).forEach(item => {
+        const warehouseName = item.warehouse?.name || 'Unassigned';
         if (!summary.warehouseBreakdown[warehouseName]) {
           summary.warehouseBreakdown[warehouseName] = {
             items: 0,
@@ -82,16 +106,28 @@ class ReportService {
           };
         }
         summary.warehouseBreakdown[warehouseName].items++;
-        summary.warehouseBreakdown[warehouseName].value += item.quantity * item.unitPrice;
-        if (item.quantity <= item.reorderLevel) {
+        summary.warehouseBreakdown[warehouseName].value += ((item?.currentStock ?? 0) * (item?.cost?.purchasePrice ?? 0));
+        if ((item?.currentStock ?? 0) <= (item?.minimumStock ?? 0)) {
           summary.warehouseBreakdown[warehouseName].lowStock++;
         }
       });
 
+      // Normalize data for frontend expectations
+      const normalized = (inventory || []).map(item => ({
+        product: { name: item.name },
+        warehouse: item.warehouse ? { name: item.warehouse.name } : null,
+        quantity: item.currentStock || 0,
+        unit: item.unit || 'kg',
+        unitPrice: item.cost?.purchasePrice || 0,
+        reorderLevel: item.minimumStock || 0,
+        code: item.code || ''
+      }));
+
       return {
         reportType: 'inventory',
         title: 'Inventory Report - All Warehouses',
-        data: inventory,
+        dateRange: {},
+        data: normalized,
         summary,
         filters: { warehouseId }
       };
@@ -108,8 +144,7 @@ class ReportService {
 
       // Get sales revenue
       const sales = await Sale.find({
-        saleDate: { $gte: start, $lte: end },
-        paymentStatus: { $in: ['paid', 'partial'] }
+        saleDate: { $gte: start, $lte: end }
       });
 
       const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
@@ -137,7 +172,8 @@ class ReportService {
       // Get salaries
       const salaries = await FinancialTransaction.find({
         date: { $gte: start, $lte: end },
-        transactionType: 'salary'
+        transactionType: 'expense',
+        category: 'salaries'
       });
 
       const totalSalaries = salaries.reduce((sum, salary) => sum + salary.amount, 0);
@@ -168,6 +204,10 @@ class ReportService {
       return {
         reportType: 'profit-loss',
         title: `Profit & Loss Report (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`,
+        dateRange: {
+          startDate: start,
+          endDate: end
+        },
         data: {
           sales,
           bagPurchases,
@@ -198,7 +238,7 @@ class ReportService {
 
       const expenses = await FinancialTransaction.find(query)
         .populate('createdBy', 'firstName lastName')
-        .sort({ transactionDate: -1 });
+        .sort({ date: -1 });
 
       const summary = {
         totalExpenses: expenses.length,
@@ -218,7 +258,7 @@ class ReportService {
         summary.categoryBreakdown[cat].amount += expense.amount;
 
         // Group by month
-        const month = expense.date.toISOString().substring(0, 7);
+        const month = (expense.date instanceof Date ? expense.date : new Date(expense.date)).toISOString().substring(0, 7);
         if (!summary.monthlyBreakdown[month]) {
           summary.monthlyBreakdown[month] = 0;
         }
@@ -228,6 +268,10 @@ class ReportService {
       return {
         reportType: 'expense',
         title: `Expense Report (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()})`,
+        dateRange: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
         data: expenses,
         summary,
         filters: { startDate, endDate, category }
@@ -245,14 +289,15 @@ class ReportService {
           $gte: new Date(startDate),
           $lte: new Date(endDate)
         },
-        transactionType: 'salary'
+        transactionType: 'expense',
+        category: 'salaries'
       };
 
-      if (employeeId) query.employee = employeeId;
+      if (employeeId) query.createdBy = employeeId;
 
       const salaries = await FinancialTransaction.find(query)
-        .populate('employee', 'firstName lastName email department')
-        .sort({ transactionDate: -1 });
+        .populate('createdBy', 'firstName lastName email')
+        .sort({ date: -1 });
 
       const summary = {
         totalSalaries: salaries.length,
@@ -262,9 +307,9 @@ class ReportService {
         monthlyBreakdown: {}
       };
 
-      // Group by department
+      // Group by department (using user role as department)
       salaries.forEach(salary => {
-        const dept = salary.employee?.department || 'Unknown';
+        const dept = salary.createdBy?.role || 'Unknown';
         if (!summary.departmentBreakdown[dept]) {
           summary.departmentBreakdown[dept] = { count: 0, amount: 0 };
         }
@@ -282,6 +327,10 @@ class ReportService {
       return {
         reportType: 'salary',
         title: `Employee Salary Report (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()})`,
+        dateRange: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        },
         data: salaries,
         summary,
         filters: { startDate, endDate, employeeId }
@@ -341,6 +390,7 @@ class ReportService {
       return {
         reportType: 'vendor-outstanding',
         title: 'Vendor Outstanding Report',
+        dateRange: {},
         data: vendorOutstanding,
         summary,
         filters: {}

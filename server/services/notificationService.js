@@ -5,30 +5,72 @@ import User from '../model/user.js';
 import Warehouse from '../model/warehouse.js';
 
 class NotificationService {
+  // Utility: find recipients for a warehouse (all Managers of that warehouse + Admins)
+  async findRecipientsForWarehouse(warehouseId) {
+    const recipients = await User.find({
+      $or: [
+        { role: 'Admin' },
+        { role: 'Manager', warehouse: warehouseId }
+      ]
+    });
+    return recipients.map(u => u._id);
+  }
+
   // Check for low stock items and create alerts
   async checkLowStockAlerts() {
     try {
       const lowStockItems = await Inventory.find({
         $expr: {
-          $lte: ['$quantity', '$reorderLevel']
+          $or: [
+            {
+              $and: [
+                { $gt: ['$minimumStock', 0] },
+                { $lte: ['$currentStock', '$minimumStock'] }
+              ]
+            },
+            {
+              $and: [
+                { $gt: ['$reorderPoint', 0] },
+                { $lte: ['$currentStock', '$reorderPoint'] }
+              ]
+            }
+          ]
         }
-      }).populate('warehouse product');
+      }).populate('warehouse');
 
       const notifications = [];
       
       for (const item of lowStockItems) {
-        if (item.warehouse && item.warehouse.manager) {
-          // Check if notification already exists for this item
-          const existingNotification = await Notification.findOne({
+        if (!item.warehouse) continue;
+
+        // Check if notification already exists for this item
+        const recipientIds = await this.findRecipientsForWarehouse(item.warehouse._id);
+
+        for (const recipientId of recipientIds) {
+          const existsForRecipient = await Notification.findOne({
             type: 'low_stock',
             entityId: item._id,
+            recipient: recipientId,
             status: { $in: ['unread', 'acknowledged'] }
           });
+          if (existsForRecipient) continue;
 
-          if (!existingNotification) {
-            const notification = await Notification.createLowStockAlert(item, item.warehouse);
-            notifications.push(notification);
-          }
+          const notification = await Notification.create({
+            type: 'low_stock',
+            title: 'Low Stock Alert',
+            message: `${item.name} is running low in ${item.warehouse.name}. Current stock: ${item.currentStock}`,
+            priority: 'high',
+            recipient: recipientId,
+            relatedEntity: 'inventory',
+            entityId: item._id,
+            metadata: {
+              currentStock: item.currentStock,
+              minimumStock: item.minimumStock,
+              warehouse: item.warehouse.name,
+              itemCode: item.code
+            }
+          });
+          notifications.push(notification);
         }
       }
 
@@ -43,15 +85,14 @@ class NotificationService {
   async checkPendingPaymentAlerts() {
     try {
       const pendingSales = await Sale.find({
-        paymentStatus: { $in: ['pending', 'partial'] }
+        paymentStatus: { $in: ['Pending', 'Partial'] },
+        remainingAmount: { $gt: 0 }
       }).populate('customer');
 
       const notifications = [];
       
       // Get all managers and admins who should receive payment alerts
-      const managers = await User.find({
-        role: { $in: ['Admin', 'Manager'] }
-      });
+      const managers = await User.find({ role: { $in: ['Admin', 'Manager'] } });
 
       for (const sale of pendingSales) {
         for (const manager of managers) {
@@ -82,33 +123,51 @@ class NotificationService {
     try {
       const itemsNeedingRestock = await Inventory.find({
         $or: [
-          { quantity: 0 },
+          { currentStock: 0 },
           {
             $expr: {
               $and: [
-                { $lte: ['$quantity', { $multiply: ['$reorderLevel', 1.5] }] },
-                { $gt: ['$quantity', '$reorderLevel'] }
+                { $lte: ['$currentStock', { $multiply: ['$reorderPoint', 1.5] }] },
+                { $gt: ['$currentStock', '$minimumStock'] }
               ]
             }
           }
         ]
-      }).populate('warehouse product');
+      }).populate('warehouse');
 
       const notifications = [];
       
       for (const item of itemsNeedingRestock) {
-        if (item.warehouse && item.warehouse.manager) {
-          // Check if restock reminder already exists for this item
-          const existingNotification = await Notification.findOne({
+        if (!item.warehouse) continue;
+
+        // Check if restock reminder already exists for this item
+        const recipientIds = await this.findRecipientsForWarehouse(item.warehouse._id);
+        for (const recipientId of recipientIds) {
+          const existsForRecipient = await Notification.findOne({
             type: 'restock_reminder',
             entityId: item._id,
+            recipient: recipientId,
             status: { $in: ['unread', 'acknowledged'] }
           });
+          if (existsForRecipient) continue;
 
-          if (!existingNotification) {
-            const notification = await Notification.createRestockReminder(item, item.warehouse);
-            notifications.push(notification);
-          }
+          const notification = await Notification.create({
+            type: 'restock_reminder',
+            title: 'Restock Reminder',
+            message: `Time to restock ${item.name} in ${item.warehouse.name}`,
+            priority: 'medium',
+            recipient: recipientId,
+            relatedEntity: 'inventory',
+            entityId: item._id,
+            metadata: {
+              currentStock: item.currentStock,
+              minimumStock: item.minimumStock,
+              reorderPoint: item.reorderPoint,
+              warehouse: item.warehouse.name,
+              itemCode: item.code
+            }
+          });
+          notifications.push(notification);
         }
       }
 

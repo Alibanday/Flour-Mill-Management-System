@@ -3,6 +3,7 @@ import { body, validationResult } from "express-validator";
 import Account from "../model/Account.js";
 import Transaction from "../model/Transaction.js";
 import Salary from "../model/Salary.js";
+import Employee from "../model/Employee.js";
 import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
 
@@ -287,7 +288,7 @@ router.get("/salaries", protect, async (req, res) => {
     if (warehouse) query.warehouse = warehouse;
     
     const salaries = await Salary.find(query)
-      .populate('employee', 'firstName lastName email')
+      .populate('employee', 'firstName lastName email employeeId bankDetails')
       .populate('warehouse', 'name')
       .populate('processedBy', 'firstName lastName')
       .sort({ month: -1, year: -1 })
@@ -311,7 +312,7 @@ router.get("/salaries", protect, async (req, res) => {
 router.get("/salaries/:id", protect, async (req, res) => {
   try {
     const salary = await Salary.findById(req.params.id)
-      .populate('employee', 'firstName lastName email')
+      .populate('employee', 'firstName lastName email employeeId bankDetails')
       .populate('warehouse', 'name')
       .populate('processedBy', 'firstName lastName');
     
@@ -430,7 +431,7 @@ router.get("/summary", protect, async (req, res) => {
     
     // Pending salaries
     const pendingSalaries = await Salary.find({ ...query, paymentStatus: 'Pending' })
-      .populate('employee', 'firstName lastName')
+      .populate('employee', 'firstName lastName bankDetails')
       .sort({ month: -1, year: -1 })
       .limit(5);
     

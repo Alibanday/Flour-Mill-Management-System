@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import cors from "cors";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
+import employeeRoutes from "./routes/employees.js";
+import attendanceRoutes from "./routes/attendance.js";
 import warehouseRoutes from "./routes/warehouseRoutes.js";
 import inventoryRoutes from "./routes/inventory.js";
 import stockRoutes from "./routes/stockRoutes.js";
@@ -16,6 +18,7 @@ import bagPurchaseRoutes from "./routes/bagPurchases.js";
 import foodPurchaseRoutes from "./routes/foodPurchases.js";
 import gatePassRoutes from "./routes/gatePass.js";
 import reportRoutes from "./routes/reports.js";
+import reportGenerationRoutes from "./routes/reportGeneration.js";
 import notificationRoutes from "./routes/notifications.js";
 import systemConfigRoutes from "./routes/systemConfig.js";
 import customerRoutes from "./routes/customers.js";
@@ -24,6 +27,7 @@ import repackingRoutes from "./routes/repacking.js";
 import productionCostRoutes from "./routes/productionCosts.js";
 import fileUpload from "express-fileupload";
 import connectWithRetry from "./config/database.js";
+import NotificationService from "./services/notificationService.js";
 
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
@@ -37,7 +41,7 @@ app.use(fileUpload({
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true
 }));
 app.use(bodyParser.json());
@@ -47,6 +51,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/api/auth", authRoutes);
 
 app.use("/api/users", userRoutes);
+app.use("/api/employees", employeeRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 app.use("/api/warehouses", warehouseRoutes);
 
@@ -62,6 +68,7 @@ app.use("/api/bag-purchases", bagPurchaseRoutes);
 app.use("/api/food-purchases", foodPurchaseRoutes);
 app.use("/api/gate-pass", gatePassRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/reports", reportGenerationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/system-config", systemConfigRoutes);
 app.use("/api/customers", customerRoutes);
@@ -88,4 +95,14 @@ app.listen(PORT, () => {
   
   // Connect to MongoDB
   connectWithRetry();
+
+  // Lightweight scheduler for notifications (runs every 60s in dev)
+  const intervalMs = parseInt(process.env.NOTIFICATION_CHECK_INTERVAL_MS || '60000');
+  setInterval(async () => {
+    try {
+      await NotificationService.runAllChecks();
+    } catch (e) {
+      console.warn('Notification checks failed:', e.message);
+    }
+  }, intervalMs);
 });

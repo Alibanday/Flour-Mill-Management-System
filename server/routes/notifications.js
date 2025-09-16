@@ -8,7 +8,7 @@ import { protect } from '../middleware/auth.js';
 const router = express.Router();
 
 // Apply authentication middleware to all routes
-// router.use(protect); // Temporarily disabled for testing
+router.use(protect);
 
 // Validation middleware
 const validateNotification = [
@@ -45,16 +45,6 @@ const handleValidationErrors = (req, res, next) => {
 
 // Get user's notifications (FR 50) - Base route
 router.get('/', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const {
       page = 1,
@@ -74,7 +64,8 @@ router.get('/', asyncHandler(async (req, res) => {
       unreadOnly: unreadOnly === 'true'
     };
 
-    const result = await NotificationService.getUserNotifications(req.user.id, options);
+    const userId = req.user._id || req.user.id;
+    const result = await NotificationService.getUserNotifications(userId, options);
 
     res.json({
       success: true,
@@ -92,16 +83,6 @@ router.get('/', asyncHandler(async (req, res) => {
 
 // Get user's notifications (FR 50) - All route
 router.get('/all', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const {
       page = 1,
@@ -121,7 +102,8 @@ router.get('/all', asyncHandler(async (req, res) => {
       unreadOnly: unreadOnly === 'true'
     };
 
-    const result = await NotificationService.getUserNotifications(req.user.id, options);
+    const userId = req.user._id || req.user.id;
+    const result = await NotificationService.getUserNotifications(userId, options);
 
     res.json({
       success: true,
@@ -139,18 +121,9 @@ router.get('/all', asyncHandler(async (req, res) => {
 
 // Get notification statistics for user
 router.get('/stats', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
-    const stats = await NotificationService.getUserNotificationStats(req.user.id);
+    const userId = req.user._id || req.user.id;
+    const stats = await NotificationService.getUserNotificationStats(userId);
 
     res.json({
       success: true,
@@ -167,18 +140,9 @@ router.get('/stats', asyncHandler(async (req, res) => {
 
 // Mark notification as read
 router.patch('/:id/read', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
-    const notification = await NotificationService.markAsRead(req.params.id, req.user.id);
+    const userId = req.user._id || req.user.id;
+    const notification = await NotificationService.markAsRead(req.params.id, userId);
 
     res.json({
       success: true,
@@ -196,18 +160,9 @@ router.patch('/:id/read', asyncHandler(async (req, res) => {
 
 // Mark notification as acknowledged
 router.patch('/:id/acknowledge', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
-    const notification = await NotificationService.acknowledgeNotification(req.params.id, req.user.id);
+    const userId = req.user._id || req.user.id;
+    const notification = await NotificationService.acknowledgeNotification(req.params.id, userId);
 
     res.json({
       success: true,
@@ -225,18 +180,9 @@ router.patch('/:id/acknowledge', asyncHandler(async (req, res) => {
 
 // Resolve notification
 router.patch('/:id/resolve', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
-    const notification = await NotificationService.resolveNotification(req.params.id, req.user.id);
+    const userId = req.user._id || req.user.id;
+    const notification = await NotificationService.resolveNotification(req.params.id, userId);
 
     res.json({
       success: true,
@@ -256,23 +202,14 @@ router.patch('/:id/resolve', asyncHandler(async (req, res) => {
 router.patch('/mark-read', [
   body('notificationIds').isArray().withMessage('Notification IDs must be an array')
 ], handleValidationErrors, asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const { notificationIds } = req.body;
     const results = [];
 
     for (const id of notificationIds) {
       try {
-        const notification = await NotificationService.markAsRead(id, req.user.id);
+        const userId = req.user._id || req.user.id;
+        const notification = await NotificationService.markAsRead(id, userId);
         results.push({ id, success: true, data: notification });
       } catch (error) {
         results.push({ id, success: false, error: error.message });
@@ -295,16 +232,6 @@ router.patch('/mark-read', [
 
 // Create manual notification (Admin/Manager only)
 router.post('/', validateNotification, handleValidationErrors, asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     // Check if user has permission to create notifications
     if (!['Admin', 'Manager'].includes(req.user.role)) {
@@ -350,16 +277,6 @@ router.post('/', validateNotification, handleValidationErrors, asyncHandler(asyn
 
 // Run system notification checks (Admin only)
 router.post('/run-checks', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     // Check if user is admin
     if (req.user.role !== 'Admin') {
@@ -387,16 +304,6 @@ router.post('/run-checks', asyncHandler(async (req, res) => {
 
 // Get a specific notification by ID
 router.get('/:id', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const notification = await Notification.findById(req.params.id)
       .populate('sender', 'firstName lastName email')
@@ -410,7 +317,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
     }
 
     // Check if user has access to this notification
-    if (notification.recipient._id.toString() !== req.user.id && req.user.role !== 'Admin') {
+    const userId = req.user._id || req.user.id;
+    if (notification.recipient._id.toString() !== userId && req.user.role !== 'Admin') {
       return res.status(403).json({
         success: false,
         message: 'Access denied to this notification'
@@ -432,16 +340,6 @@ router.get('/:id', asyncHandler(async (req, res) => {
 
 // Delete a notification (Admin or notification owner)
 router.delete('/:id', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const notification = await Notification.findById(req.params.id);
 
@@ -453,7 +351,8 @@ router.delete('/:id', asyncHandler(async (req, res) => {
     }
 
     // Check if user can delete this notification
-    if (notification.recipient.toString() !== req.user.id && req.user.role !== 'Admin') {
+    const userId = req.user._id || req.user.id;
+    if (notification.recipient.toString() !== userId && req.user.role !== 'Admin') {
       return res.status(403).json({
         success: false,
         message: 'You can only delete your own notifications'
@@ -477,16 +376,6 @@ router.delete('/:id', asyncHandler(async (req, res) => {
 
 // Get notification types and priorities (for frontend forms)
 router.get('/metadata/types', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const types = [
       'low_stock',

@@ -6,6 +6,7 @@ export const protect = async (req, res, next) => {
   console.log('🔓 Auth middleware: Allowing all requests');
   req.user = {
     _id: '507f1f77bcf86cd799439011',
+    id: '507f1f77bcf86cd799439011',
     email: 'admin@example.com',
     role: 'Admin',
     firstName: 'Admin',
