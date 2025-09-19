@@ -1,311 +1,375 @@
-import React, { useState } from 'react';
-import { FaChartBar, FaDownload, FaPrint, FaCalendarAlt, FaCalculator, FaTruck } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { useValidation } from '../../utils/validation';
+import FormField from '../UI/FormField';
 
-export default function PurchaseSummary({ bagPurchases, foodPurchases, stats }) {
-  const [dateRange, setDateRange] = useState('month');
-  const [reportType, setReportType] = useState('overview');
+const CustomerForm = ({ customer, onSubmit, onClose }) => {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    cnic: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'Pakistan'
+    },
+    businessInfo: {
+      businessName: '',
+      businessType: 'Individual',
+      taxNumber: ''
+    },
+    creditInfo: {
+      creditLimit: 0,
+      creditTerms: 30,
+      creditStatus: 'Active'
+    },
+    status: 'Active',
+    notes: ''
+  });
 
-  const getDateRangeData = () => {
-    const now = new Date();
-    let startDate = new Date();
-    
-    switch (dateRange) {
-      case 'week':
-        startDate.setDate(now.getDate() - 7);
-        break;
-      case 'month':
-        startDate.setMonth(now.getMonth() - 1);
-        break;
-      case 'quarter':
-        startDate.setMonth(now.getMonth() - 3);
-        break;
-      case 'year':
-        startDate.setFullYear(now.getFullYear() - 1);
-        break;
-      default:
-        startDate = new Date(0); // All time
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const validationSchema = {
+    firstName: { required: true, minLength: 2 },
+    lastName: { required: true, minLength: 2 },
+    email: { required: true, email: true },
+    phone: { required: true, minLength: 10 },
+    cnic: { required: true, minLength: 13 },
+    'address.street': { required: true },
+    'address.city': { required: true },
+    'address.state': { required: true },
+    'address.zipCode': { required: true },
+    'creditInfo.creditLimit': { required: true, min: 0 }
+  };
+
+  const { validateField, validateForm } = useValidation(validationSchema);
+
+  useEffect(() => {
+    if (customer) {
+      setFormData({
+        firstName: customer.firstName || '',
+        lastName: customer.lastName || '',
+        email: customer.email || '',
+        phone: customer.phone || '',
+        cnic: customer.cnic || '',
+        address: {
+          street: customer.address?.street || '',
+          city: customer.address?.city || '',
+          state: customer.address?.state || '',
+          zipCode: customer.address?.zipCode || '',
+          country: customer.address?.country || 'Pakistan'
+        },
+        businessInfo: {
+          businessName: customer.businessInfo?.businessName || '',
+          businessType: customer.businessInfo?.businessType || 'Individual',
+          taxNumber: customer.businessInfo?.taxNumber || ''
+        },
+        creditInfo: {
+          creditLimit: customer.creditInfo?.creditLimit || 0,
+          creditTerms: customer.creditInfo?.creditTerms || 30,
+          creditStatus: customer.creditInfo?.creditStatus || 'Active'
+        },
+        status: customer.status || 'Active',
+        notes: customer.notes || ''
+      });
     }
-    
-    return { startDate, endDate: now };
-  };
+  }, [customer]);
 
-  const getFilteredData = () => {
-    const { startDate, endDate } = getDateRangeData();
-    
-    const filteredBagPurchases = bagPurchases.filter(purchase => {
-      const purchaseDate = new Date(purchase.purchaseDate);
-      return purchaseDate >= startDate && purchaseDate <= endDate;
-    });
-    
-    const filteredFoodPurchases = foodPurchases.filter(purchase => {
-      const purchaseDate = new Date(purchase.purchaseDate);
-      return purchaseDate >= startDate && purchaseDate <= endDate;
-    });
-    
-    return { filteredBagPurchases, filteredFoodPurchases };
-  };
-
-  const { filteredBagPurchases, filteredFoodPurchases } = getFilteredData();
-
-  const calculateMetrics = () => {
-    const bagTotal = filteredBagPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-    const foodTotal = filteredFoodPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-    const totalPurchases = filteredBagPurchases.length + filteredFoodPurchases.length;
-    const pendingPayments = filteredBagPurchases.reduce((sum, p) => sum + (p.dueAmount || 0), 0) +
-                           filteredFoodPurchases.reduce((sum, p) => sum + (p.dueAmount || 0), 0);
-    
-    // Supplier analysis
-    const supplierTotals = {};
-    [...filteredBagPurchases, ...filteredFoodPurchases].forEach(purchase => {
-      const supplierName = purchase.supplier?.name || 'Unknown';
-      supplierTotals[supplierName] = (supplierTotals[supplierName] || 0) + (purchase.totalAmount || 0);
-    });
-    
-    const topSuppliers = Object.entries(supplierTotals)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5);
-
-    // Category analysis for food purchases
-    const categoryTotals = {};
-    filteredFoodPurchases.forEach(purchase => {
-      purchase.foodItems?.forEach(item => {
-        categoryTotals[item.category] = (categoryTotals[item.category] || 0) + (item.totalPrice || 0);
-      });
-    });
-
-    // Bag type analysis
-    const bagTypeTotals = {};
-    filteredBagPurchases.forEach(purchase => {
-      Object.entries(purchase.bags).forEach(([type, bag]) => {
-        if (bag.quantity > 0) {
-          bagTypeTotals[type] = (bagTypeTotals[type] || 0) + bag.quantity;
+  const handleInputChange = (field, value) => {
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
         }
-      });
-    });
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
 
-    return {
-      bagTotal,
-      foodTotal,
-      totalPurchases,
-      pendingPayments,
-      topSuppliers,
-      categoryTotals,
-      bagTypeTotals
-    };
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
   };
 
-  const metrics = calculateMetrics();
-
-  const handleExport = (format) => {
-    // Implementation for export functionality
-    console.log(`Exporting ${reportType} report in ${format} format`);
+  const handleBlur = (field) => {
+    const error = validateField(field, formData);
+    if (error) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: error
+      }));
+    }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const validationErrors = validateForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Form submission error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex gap-4">
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="week">Last 7 Days</option>
-            <option value="month">Last 30 Days</option>
-            <option value="quarter">Last 3 Months</option>
-            <option value="year">Last Year</option>
-            <option value="all">All Time</option>
-          </select>
-
-          <select
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="overview">Overview</option>
-            <option value="supplier">Supplier Analysis</option>
-            <option value="category">Category Analysis</option>
-            <option value="trends">Trends</option>
-          </select>
-        </div>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleExport('excel')}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-          >
-            <FaDownload className="mr-2" />
-            Export Excel
-          </button>
-          <button
-            onClick={() => handleExport('pdf')}
-            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
-          >
-            <FaDownload className="mr-2" />
-            Export PDF
-          </button>
-          <button
-            onClick={handlePrint}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center"
-          >
-            <FaPrint className="mr-2" />
-            Print
-          </button>
-        </div>
-      </div>
-
-      {/* Overview Cards */}
-      {reportType === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FaChartBar className="text-blue-600 text-xl" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Purchases</p>
-                <p className="text-2xl font-bold text-gray-900">{metrics.totalPurchases}</p>
-                <p className="text-xs text-gray-500">In selected period</p>
-              </div>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">
+              {customer ? 'Edit Customer' : 'Add New Customer'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <FaCalculator className="text-green-600 text-xl" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Bag Purchases</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(metrics.bagTotal || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Total value</p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Personal Information */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  label="First Name"
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(value) => handleInputChange('firstName', value)}
+                  onBlur={() => handleBlur('firstName')}
+                  error={errors.firstName}
+                  required
+                />
+                <FormField
+                  label="Last Name"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(value) => handleInputChange('lastName', value)}
+                  onBlur={() => handleBlur('lastName')}
+                  error={errors.lastName}
+                  required
+                />
+                <FormField
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(value) => handleInputChange('email', value)}
+                  onBlur={() => handleBlur('email')}
+                  error={errors.email}
+                  required
+                />
+                <FormField
+                  label="Phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(value) => handleInputChange('phone', value)}
+                  onBlur={() => handleBlur('phone')}
+                  error={errors.phone}
+                  required
+                />
+                <FormField
+                  label="CNIC"
+                  type="text"
+                  value={formData.cnic}
+                  onChange={(value) => handleInputChange('cnic', value)}
+                  onBlur={() => handleBlur('cnic')}
+                  error={errors.cnic}
+                  required
+                  placeholder="12345-1234567-1"
+                />
               </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <FaTruck className="text-yellow-600 text-xl" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Food Purchases</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(metrics.foodTotal || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Total value</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <FaCalendarAlt className="text-red-600 text-xl" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Payments</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(metrics.pendingPayments || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Outstanding amount</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Supplier Analysis */}
-      {reportType === 'supplier' && (
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Suppliers by Purchase Value</h3>
-          <div className="space-y-4">
-            {metrics.topSuppliers.map(([supplier, total], index) => (
-              <div key={supplier} className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <span className="text-sm font-medium text-gray-900 mr-2">#{index + 1}</span>
-                  <span className="text-sm text-gray-700">{supplier}</span>
+            {/* Address Information */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Address Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <FormField
+                    label="Street Address"
+                    type="text"
+                    value={formData.address.street}
+                    onChange={(value) => handleInputChange('address.street', value)}
+                    onBlur={() => handleBlur('address.street')}
+                    error={errors['address.street']}
+                    required
+                  />
                 </div>
-                <span className="text-sm font-semibold text-gray-900">₹{(total || 0).toLocaleString()}</span>
+                <FormField
+                  label="City"
+                  type="text"
+                  value={formData.address.city}
+                  onChange={(value) => handleInputChange('address.city', value)}
+                  onBlur={() => handleBlur('address.city')}
+                  error={errors['address.city']}
+                  required
+                />
+                <FormField
+                  label="State"
+                  type="text"
+                  value={formData.address.state}
+                  onChange={(value) => handleInputChange('address.state', value)}
+                  onBlur={() => handleBlur('address.state')}
+                  error={errors['address.state']}
+                  required
+                />
+                <FormField
+                  label="Zip Code"
+                  type="text"
+                  value={formData.address.zipCode}
+                  onChange={(value) => handleInputChange('address.zipCode', value)}
+                  onBlur={() => handleBlur('address.zipCode')}
+                  error={errors['address.zipCode']}
+                  required
+                />
+                <FormField
+                  label="Country"
+                  type="text"
+                  value={formData.address.country}
+                  onChange={(value) => handleInputChange('address.country', value)}
+                  disabled
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Category Analysis */}
-      {reportType === 'category' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Food Categories</h3>
-            <div className="space-y-3">
-              {Object.entries(metrics.categoryTotals).map(([category, total]) => (
-                <div key={category} className="flex justify-between items-center">
-                  <span className="text-sm text-gray-700">{category}</span>
-                  <span className="text-sm font-semibold text-gray-900">₹{(total || 0).toLocaleString()}</span>
-                </div>
-              ))}
             </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bag Types</h3>
-            <div className="space-y-3">
-              {Object.entries(metrics.bagTypeTotals).map(([type, quantity]) => (
-                <div key={type} className="flex justify-between items-center">
-                  <span className="text-sm text-gray-700">{type}</span>
-                  <span className="text-sm font-semibold text-gray-900">{quantity} bags</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Trends */}
-      {reportType === 'trends' && (
-        <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Purchase Trends</h3>
-          <div className="text-center py-8 text-gray-500">
-            <FaChartBar className="mx-auto text-4xl mb-2" />
-            <p>Trend analysis charts will be implemented here</p>
-            <p className="text-sm">Showing data for {dateRange === 'all' ? 'all time' : `last ${dateRange}`}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Purchase Activity</h3>
-        <div className="space-y-3">
-          {[...filteredBagPurchases, ...filteredFoodPurchases]
-            .sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate))
-            .slice(0, 10)
-            .map((purchase) => (
-              <div key={purchase._id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
-                <div className="flex items-center">
-                  <div className={`w-3 h-3 rounded-full mr-3 ${
-                    purchase.status === 'Completed' ? 'bg-green-500' :
-                    purchase.status === 'Pending' ? 'bg-yellow-500' :
-                    purchase.status === 'Cancelled' ? 'bg-red-500' : 'bg-gray-500'
-                  }`} />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {purchase.purchaseNumber} - {purchase.supplier?.name || 'Unknown Supplier'}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(purchase.purchaseDate).toLocaleDateString()} • {purchase.status}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-sm font-semibold text-gray-900">
-                  ₹{(purchase.totalAmount || 0).toLocaleString()}
-                </div>
+            {/* Business Information */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  label="Business Name"
+                  type="text"
+                  value={formData.businessInfo.businessName}
+                  onChange={(value) => handleInputChange('businessInfo.businessName', value)}
+                />
+                <FormField
+                  label="Business Type"
+                  type="select"
+                  value={formData.businessInfo.businessType}
+                  onChange={(value) => handleInputChange('businessInfo.businessType', value)}
+                  options={[
+                    { value: 'Individual', label: 'Individual' },
+                    { value: 'Retailer', label: 'Retailer' },
+                    { value: 'Wholesaler', label: 'Wholesaler' },
+                    { value: 'Distributor', label: 'Distributor' },
+                    { value: 'Other', label: 'Other' }
+                  ]}
+                />
+                <FormField
+                  label="Tax Number"
+                  type="text"
+                  value={formData.businessInfo.taxNumber}
+                  onChange={(value) => handleInputChange('businessInfo.taxNumber', value)}
+                />
               </div>
-            ))}
+            </div>
+
+            {/* Credit Information */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Credit Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  label="Credit Limit (PKR)"
+                  type="number"
+                  value={formData.creditInfo.creditLimit}
+                  onChange={(value) => handleInputChange('creditInfo.creditLimit', parseFloat(value) || 0)}
+                  onBlur={() => handleBlur('creditInfo.creditLimit')}
+                  error={errors['creditInfo.creditLimit']}
+                  required
+                  min="0"
+                />
+                <FormField
+                  label="Credit Terms (Days)"
+                  type="number"
+                  value={formData.creditInfo.creditTerms}
+                  onChange={(value) => handleInputChange('creditInfo.creditTerms', parseInt(value) || 30)}
+                  min="0"
+                />
+                <FormField
+                  label="Credit Status"
+                  type="select"
+                  value={formData.creditInfo.creditStatus}
+                  onChange={(value) => handleInputChange('creditInfo.creditStatus', value)}
+                  options={[
+                    { value: 'Active', label: 'Active' },
+                    { value: 'Suspended', label: 'Suspended' },
+                    { value: 'Blocked', label: 'Blocked' }
+                  ]}
+                />
+              </div>
+            </div>
+
+            {/* Status and Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                label="Status"
+                type="select"
+                value={formData.status}
+                onChange={(value) => handleInputChange('status', value)}
+                options={[
+                  { value: 'Active', label: 'Active' },
+                  { value: 'Inactive', label: 'Inactive' },
+                  { value: 'Suspended', label: 'Suspended' }
+                ]}
+              />
+              <FormField
+                label="Notes"
+                type="textarea"
+                value={formData.notes}
+                onChange={(value) => handleInputChange('notes', value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : (customer ? 'Update Customer' : 'Create Customer')}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
   );
-} 
+};
+
+export default CustomerForm;
+
