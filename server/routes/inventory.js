@@ -11,7 +11,12 @@ import {
   getOutOfStockItems,
   updateStockLevels,
   getInventorySummary,
-  updateInventoryStatus
+  updateInventoryStatus,
+  getInventoryByWarehouse,
+  getLowStockAlerts,
+  addStockToExisting,
+  findExistingItem,
+  updateInventoryStock
 } from "../controller/inventoryController.js";
 import { protect, authorize } from "../middleware/auth.js";
 
@@ -22,6 +27,7 @@ const router = express.Router();
 
 // Create new inventory item
 router.post("/create", authorize("Admin", "Manager"), createInventory);
+
 
 // Get all inventory items - Base route
 router.get("/", getAllInventory);
@@ -62,6 +68,12 @@ router.get("/out-of-stock", getOutOfStockItems);
 // Get inventory summary for dashboard
 router.get("/summary", getInventorySummary);
 
+// Find existing inventory item by name and warehouse (must be before /:id route)
+router.get("/find-existing", protect, findExistingItem);
+
+// Get low stock alerts
+router.get("/alerts/low-stock", getLowStockAlerts);
+
 // Get single inventory item by ID
 router.get("/:id", getInventoryById);
 
@@ -76,5 +88,14 @@ router.patch("/:id/status", authorize("Admin", "Manager"), updateInventoryStatus
 
 // Delete inventory item
 router.delete("/:id", authorize("Admin", "Manager"), deleteInventory);
+
+// Get inventory by warehouse (for warehouse tracking)
+router.get("/warehouse/:warehouseId", getInventoryByWarehouse);
+
+// Add stock to existing inventory item
+router.post("/:id/add-stock", authorize("Admin", "Manager"), addStockToExisting);
+
+// Update inventory stock manually (for actual physical stock changes)
+router.put("/:itemId/stock", authorize("Admin", "Manager"), updateInventoryStock);
 
 export default router;

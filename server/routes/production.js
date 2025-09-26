@@ -3,6 +3,14 @@ import { body, validationResult } from "express-validator";
 import Production from "../model/Production.js";
 import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { 
+  createProduction, 
+  getAllProductions, 
+  getProductionById, 
+  updateProduction, 
+  deleteProduction, 
+  getDailyProduction 
+} from "../controller/productionController.js";
 
 const router = express.Router();
 
@@ -10,7 +18,7 @@ const router = express.Router();
 router.use(protect);
 
 // @route   POST /api/production
-// @desc    Add daily production details (base route)
+// @desc    Add daily production details with real-time inventory integration
 // @access  Private (Manager only)
 router.post("/", [
   authorize("Manager", "Admin"),
@@ -23,95 +31,7 @@ router.post("/", [
   body("productionCost.laborCost").isNumeric().withMessage("Labor cost must be a number"),
   body("productionCost.overheadCost").isNumeric().withMessage("Overhead cost must be a number"),
   body("warehouse").isMongoId().withMessage("Valid warehouse ID is required")
-], async (req, res) => {
-  try {
-    // Check validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors: errors.array()
-      });
-    }
-
-    console.log("Production creation - User ID:", req.user._id || req.user.id);
-    console.log("Production creation - User object:", req.user);
-
-    const {
-      batchNumber,
-      productName,
-      productType,
-      quantity,
-      productionCost,
-      quality,
-      productionDate,
-      warehouse,
-      notes
-    } = req.body;
-
-    // Check if batch number already exists
-    const existingProduction = await Production.findOne({ batchNumber });
-    if (existingProduction) {
-      return res.status(400).json({
-        success: false,
-        message: "Batch number already exists"
-      });
-    }
-
-    // Verify warehouse exists
-    const warehouseExists = await Warehouse.findById(warehouse);
-    if (!warehouseExists) {
-      return res.status(400).json({
-        success: false,
-        message: "Warehouse not found"
-      });
-    }
-
-    // Calculate total cost
-    const totalCost = productionCost.rawMaterialCost + productionCost.laborCost + productionCost.overheadCost;
-    
-    // Create production record
-    const production = new Production({
-      batchNumber,
-      productName,
-      productType,
-      quantity,
-      productionCost: {
-        ...productionCost,
-        totalCost: totalCost
-      },
-      quality: {
-        grade: quality?.grade || "Standard",
-        moistureContent: quality?.moistureContent || quality?.moisture || 0,
-        proteinContent: quality?.proteinContent || quality?.protein || 0
-      },
-      productionDate: productionDate ? new Date(productionDate) : new Date(),
-      warehouse,
-      notes,
-      addedBy: req.user._id || req.user.id || "507f1f77bcf86cd799439011", // Add the required addedBy field
-      status: "Completed"
-    });
-
-    await production.save();
-
-    // Populate the response
-    await production.populate('warehouse', 'name location');
-    await production.populate('addedBy', 'firstName lastName');
-
-    res.status(201).json({
-      success: true,
-      message: "Production record created successfully",
-      data: production
-    });
-  } catch (error) {
-    console.error("Create production error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error while creating production record"
-    });
-  }
-});
+], createProduction);
 
 // @route   POST /api/production/create
 // @desc    Add daily production details (FR 14)

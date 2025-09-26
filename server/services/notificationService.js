@@ -1,406 +1,380 @@
-import Notification from '../model/Notification.js';
-import Inventory from '../model/inventory.js';
-import Sale from '../model/Sale.js';
-import User from '../model/user.js';
-import Warehouse from '../model/warehouse.js';
+import Notification from "../model/Notification.js";
+import Inventory from "../model/inventory.js";
+import Warehouse from "../model/warehouse.js";
+import User from "../model/user.js";
 
 class NotificationService {
-  // Utility: find recipients for a warehouse (all Managers of that warehouse + Admins)
-  async findRecipientsForWarehouse(warehouseId) {
-    const recipients = await User.find({
-      $or: [
-        { role: 'Admin' },
-        { role: 'Manager', warehouse: warehouseId }
-      ]
-    });
-    return recipients.map(u => u._id);
-  }
-
-  // Check for low stock items and create alerts
-  async checkLowStockAlerts() {
+  // Create notification for low stock
+  static async createLowStockAlert(inventoryItem, user) {
     try {
-      const lowStockItems = await Inventory.find({
-        $expr: {
-          $or: [
-            {
-              $and: [
-                { $gt: ['$minimumStock', 0] },
-                { $lte: ['$currentStock', '$minimumStock'] }
-              ]
-            },
-            {
-              $and: [
-                { $gt: ['$reorderPoint', 0] },
-                { $lte: ['$currentStock', '$reorderPoint'] }
-              ]
-            }
-          ]
+      const notification = new Notification({
+        title: "Low Stock Alert",
+        message: `${inventoryItem.name} is running low (${inventoryItem.currentStock} units remaining)`,
+        type: "inventory",
+        priority: "high",
+        user: user,
+        data: {
+          productId: inventoryItem._id,
+          productName: inventoryItem.name,
+          currentStock: inventoryItem.currentStock,
+          minimumStock: inventoryItem.minimumStock,
+          warehouse: inventoryItem.warehouse
         }
-      }).populate('warehouse');
+      });
 
-      const notifications = [];
-      
-      for (const item of lowStockItems) {
-        if (!item.warehouse) continue;
-
-        // Check if notification already exists for this item
-        const recipientIds = await this.findRecipientsForWarehouse(item.warehouse._id);
-
-        for (const recipientId of recipientIds) {
-          const existsForRecipient = await Notification.findOne({
-            type: 'low_stock',
-            entityId: item._id,
-            recipient: recipientId,
-            status: { $in: ['unread', 'acknowledged'] }
-          });
-          if (existsForRecipient) continue;
-
-          const notification = await Notification.create({
-            type: 'low_stock',
-            title: 'Low Stock Alert',
-            message: `${item.name} is running low in ${item.warehouse.name}. Current stock: ${item.currentStock}`,
-            priority: 'high',
-            recipient: recipientId,
-            relatedEntity: 'inventory',
-            entityId: item._id,
-            metadata: {
-              currentStock: item.currentStock,
-              minimumStock: item.minimumStock,
-              warehouse: item.warehouse.name,
-              itemCode: item.code
-            }
-          });
-          notifications.push(notification);
-        }
-      }
-
-      return notifications;
+      await notification.save();
+      console.log(`Low stock alert created for ${inventoryItem.name}`);
+      return notification;
     } catch (error) {
-      console.error('Error checking low stock alerts:', error);
-      throw new Error(`Error checking low stock alerts: ${error.message}`);
+      console.error("Error creating low stock alert:", error);
+      throw error;
     }
   }
 
-  // Check for pending payments and create alerts
-  async checkPendingPaymentAlerts() {
+  // Create notification for out of stock
+  static async createOutOfStockAlert(inventoryItem, user) {
     try {
-      const pendingSales = await Sale.find({
-        paymentStatus: { $in: ['Pending', 'Partial'] },
-        remainingAmount: { $gt: 0 }
-      }).populate('customer');
-
-      const notifications = [];
-      
-      // Get all managers and admins who should receive payment alerts
-      const managers = await User.find({ role: { $in: ['Admin', 'Manager'] } });
-
-      for (const sale of pendingSales) {
-        for (const manager of managers) {
-          // Check if notification already exists for this sale and manager
-          const existingNotification = await Notification.findOne({
-            type: 'pending_payment',
-            entityId: sale._id,
-            recipient: manager._id,
-            status: { $in: ['unread', 'acknowledged'] }
-          });
-
-          if (!existingNotification) {
-            const notification = await Notification.createPendingPaymentAlert(sale, manager);
-            notifications.push(notification);
-          }
+      const notification = new Notification({
+        title: "Product Out of Stock",
+        message: `${inventoryItem.name} is now out of stock`,
+        type: "inventory",
+        priority: "critical",
+        user: user,
+        data: {
+          productId: inventoryItem._id,
+          productName: inventoryItem.name,
+          currentStock: 0,
+          warehouse: inventoryItem.warehouse
         }
-      }
+      });
 
-      return notifications;
+      await notification.save();
+      console.log(`Out of stock alert created for ${inventoryItem.name}`);
+      return notification;
     } catch (error) {
-      console.error('Error checking pending payment alerts:', error);
-      throw new Error(`Error checking pending payment alerts: ${error.message}`);
+      console.error("Error creating out of stock alert:", error);
+      throw error;
     }
   }
 
-  // Check for restock reminders
-  async checkRestockReminders() {
+  // Create notification for production completion
+  static async createProductionAlert(production, user) {
     try {
-      const itemsNeedingRestock = await Inventory.find({
-        $or: [
-          { currentStock: 0 },
-          {
-            $expr: {
-              $and: [
-                { $lte: ['$currentStock', { $multiply: ['$reorderPoint', 1.5] }] },
-                { $gt: ['$currentStock', '$minimumStock'] }
-              ]
-            }
-          }
-        ]
-      }).populate('warehouse');
-
-      const notifications = [];
-      
-      for (const item of itemsNeedingRestock) {
-        if (!item.warehouse) continue;
-
-        // Check if restock reminder already exists for this item
-        const recipientIds = await this.findRecipientsForWarehouse(item.warehouse._id);
-        for (const recipientId of recipientIds) {
-          const existsForRecipient = await Notification.findOne({
-            type: 'restock_reminder',
-            entityId: item._id,
-            recipient: recipientId,
-            status: { $in: ['unread', 'acknowledged'] }
-          });
-          if (existsForRecipient) continue;
-
-          const notification = await Notification.create({
-            type: 'restock_reminder',
-            title: 'Restock Reminder',
-            message: `Time to restock ${item.name} in ${item.warehouse.name}`,
-            priority: 'medium',
-            recipient: recipientId,
-            relatedEntity: 'inventory',
-            entityId: item._id,
-            metadata: {
-              currentStock: item.currentStock,
-              minimumStock: item.minimumStock,
-              reorderPoint: item.reorderPoint,
-              warehouse: item.warehouse.name,
-              itemCode: item.code
-            }
-          });
-          notifications.push(notification);
+      const notification = new Notification({
+        title: "Production Completed",
+        message: `Production batch ${production.batchNumber} for ${production.productName} has been completed`,
+        type: "production",
+        priority: "medium",
+        user: user,
+        data: {
+          productionId: production._id,
+          batchNumber: production.batchNumber,
+          productName: production.productName,
+          quantity: production.quantity.value,
+          warehouse: production.warehouse
         }
-      }
+      });
 
-      return notifications;
+      await notification.save();
+      console.log(`Production alert created for batch ${production.batchNumber}`);
+      return notification;
     } catch (error) {
-      console.error('Error checking restock reminders:', error);
-      throw new Error(`Error checking restock reminders: ${error.message}`);
+      console.error("Error creating production alert:", error);
+      throw error;
+    }
+  }
+
+  // Create notification for sale completion
+  static async createSalesAlert(sale, user) {
+    try {
+      const notification = new Notification({
+        title: "Sale Completed",
+        message: `Sale invoice ${sale.invoiceNumber} has been processed successfully`,
+        type: "sales",
+        priority: "low",
+        user: user,
+        data: {
+          saleId: sale._id,
+          invoiceNumber: sale.invoiceNumber,
+          totalAmount: sale.totalAmount,
+          customerName: sale.customer.name,
+          warehouse: sale.warehouse
+        }
+      });
+
+      await notification.save();
+      console.log(`Sales alert created for invoice ${sale.invoiceNumber}`);
+      return notification;
+    } catch (error) {
+      console.error("Error creating sales alert:", error);
+      throw error;
+    }
+  }
+
+  // Create notification for purchase completion
+  static async createPurchaseAlert(purchase, user) {
+    try {
+      const notification = new Notification({
+        title: "Purchase Completed",
+        message: `Purchase ${purchase.purchaseNumber} has been processed and inventory updated`,
+        type: "purchase",
+        priority: "low",
+        user: user,
+        data: {
+          purchaseId: purchase._id,
+          purchaseNumber: purchase.purchaseNumber,
+          totalAmount: purchase.totalAmount,
+          supplierName: purchase.supplier.name,
+          warehouse: purchase.warehouse
+        }
+      });
+
+      await notification.save();
+      console.log(`Purchase alert created for ${purchase.purchaseNumber}`);
+      return notification;
+    } catch (error) {
+      console.error("Error creating purchase alert:", error);
+      throw error;
+    }
+  }
+
+  // Create notification for stock transfer
+  static async createStockTransferAlert(transfer, user) {
+    try {
+      const notification = new Notification({
+        title: "Stock Transfer Completed",
+        message: `Stock transfer of ${transfer.quantity} units has been completed`,
+        type: "stock",
+        priority: "medium",
+        user: user,
+        data: {
+          transferId: transfer._id,
+          quantity: transfer.quantity,
+          fromWarehouse: transfer.fromWarehouse,
+          toWarehouse: transfer.toWarehouse,
+          productName: transfer.productName
+        }
+      });
+
+      await notification.save();
+      console.log(`Stock transfer alert created`);
+      return notification;
+    } catch (error) {
+      console.error("Error creating stock transfer alert:", error);
+      throw error;
+    }
+  }
+
+  // Create notification for warehouse capacity
+  static async createWarehouseCapacityAlert(warehouse, user) {
+    try {
+      const notification = new Notification({
+        title: "Warehouse Capacity Alert",
+        message: `Warehouse ${warehouse.name} is at ${warehouse.capacityPercentage}% capacity`,
+        type: "warehouse",
+        priority: "medium",
+        user: user,
+        data: {
+          warehouseId: warehouse._id,
+          warehouseName: warehouse.name,
+          currentUsage: warehouse.capacity.currentUsage,
+          totalCapacity: warehouse.capacity.totalCapacity,
+          capacityPercentage: warehouse.capacityPercentage
+        }
+      });
+
+      await notification.save();
+      console.log(`Warehouse capacity alert created for ${warehouse.name}`);
+      return notification;
+    } catch (error) {
+      console.error("Error creating warehouse capacity alert:", error);
+      throw error;
     }
   }
 
   // Create system notification
-  async createSystemNotification(type, title, message, priority = 'medium', recipients = []) {
+  static async createSystemNotification(title, message, priority = "medium", user = null) {
     try {
-      if (recipients.length === 0) {
-        // If no specific recipients, send to all managers and admins
-        recipients = await User.find({
-          role: { $in: ['Admin', 'Manager'] }
-        });
-      }
+      const notification = new Notification({
+        title: title,
+        message: message,
+        type: "system",
+        priority: priority,
+        user: user,
+        data: {
+          timestamp: new Date(),
+          systemGenerated: true
+        }
+      });
 
-      const notifications = [];
-      
-      for (const recipient of recipients) {
-        const notification = await Notification.create({
-          type,
-          title,
-          message,
-          priority,
-          recipient: recipient._id,
-          relatedEntity: 'system',
-          metadata: {
-            systemGenerated: true,
-            timestamp: new Date()
-          }
-        });
-        notifications.push(notification);
-      }
-
-      return notifications;
+      await notification.save();
+      console.log(`System notification created: ${title}`);
+      return notification;
     } catch (error) {
-      console.error('Error creating system notification:', error);
-      throw new Error(`Error creating system notification: ${error.message}`);
+      console.error("Error creating system notification:", error);
+      throw error;
     }
   }
 
-  // Get notifications for a user
-  async getUserNotifications(userId, options = {}) {
+  // Get notifications for user
+  static async getUserNotifications(userId, limit = 50, skip = 0) {
     try {
-      const {
-        page = 1,
-        limit = 20,
-        status,
-        type,
-        priority,
-        unreadOnly = false
-      } = options;
+      const notifications = await Notification.find({
+        $or: [
+          { user: userId },
+          { recipient: userId }
+        ]
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .populate('user', 'firstName lastName')
+      .populate('recipient', 'firstName lastName');
 
-      const query = { recipient: userId };
-      
-      if (status) query.status = status;
-      if (type) query.type = type;
-      if (priority) query.priority = priority;
-      if (unreadOnly) query.status = { $in: ['unread', 'acknowledged'] };
-
-      const notifications = await Notification.find(query)
-        .populate('sender', 'firstName lastName email')
-        .sort({ createdAt: -1 })
-        .limit(limit * 1)
-        .skip((page - 1) * limit);
-
-      const total = await Notification.countDocuments(query);
-
-      return {
-        notifications,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(total / limit),
-          totalNotifications: total,
-          hasNext: page * limit < total,
-          hasPrev: page > 1
-        }
-      };
+      return notifications;
     } catch (error) {
-      console.error('Error getting user notifications:', error);
-      throw new Error(`Error getting user notifications: ${error.message}`);
+      console.error("Error getting user notifications:", error);
+      throw error;
+    }
+  }
+
+  // Get unread notifications count
+  static async getUnreadCount(userId) {
+    try {
+      const count = await Notification.countDocuments({
+        $or: [
+          { user: userId },
+          { recipient: userId }
+        ],
+        status: 'unread'
+      });
+
+      return count;
+    } catch (error) {
+      console.error("Error getting unread count:", error);
+      throw error;
     }
   }
 
   // Mark notification as read
-  async markAsRead(notificationId, userId) {
+  static async markAsRead(notificationId, userId) {
     try {
-      const notification = await Notification.findOne({
-        _id: notificationId,
-        recipient: userId
-      });
+      const notification = await Notification.findOneAndUpdate(
+        {
+          _id: notificationId,
+          $or: [
+            { user: userId },
+            { recipient: userId }
+          ]
+        },
+        {
+          status: 'read',
+          readAt: new Date()
+        },
+        { new: true }
+      );
 
-      if (!notification) {
-        throw new Error('Notification not found or access denied');
-      }
-
-      return await notification.markAsRead();
+      return notification;
     } catch (error) {
-      console.error('Error marking notification as read:', error);
-      throw new Error(`Error marking notification as read: ${error.message}`);
+      console.error("Error marking notification as read:", error);
+      throw error;
     }
   }
 
-  // Mark notification as acknowledged
-  async acknowledgeNotification(notificationId, userId) {
+  // Mark all notifications as read for user
+  static async markAllAsRead(userId) {
     try {
-      const notification = await Notification.findOne({
-        _id: notificationId,
-        recipient: userId
-      });
+      const result = await Notification.updateMany(
+        {
+          $or: [
+            { user: userId },
+            { recipient: userId }
+          ],
+          status: 'unread'
+        },
+        {
+          status: 'read',
+          readAt: new Date()
+        }
+      );
 
-      if (!notification) {
-        throw new Error('Notification not found or access denied');
-      }
-
-      return await notification.acknowledge();
+      return result;
     } catch (error) {
-      console.error('Error acknowledging notification:', error);
-      throw new Error(`Error acknowledging notification: ${error.message}`);
+      console.error("Error marking all notifications as read:", error);
+      throw error;
     }
   }
 
-  // Resolve notification
-  async resolveNotification(notificationId, userId) {
+  // Delete notification
+  static async deleteNotification(notificationId, userId) {
     try {
-      const notification = await Notification.findOne({
+      const notification = await Notification.findOneAndDelete({
         _id: notificationId,
-        recipient: userId
+        $or: [
+          { user: userId },
+          { recipient: userId }
+        ]
       });
 
-      if (!notification) {
-        throw new Error('Notification not found or access denied');
-      }
-
-      return await notification.resolve();
+      return notification;
     } catch (error) {
-      console.error('Error resolving notification:', error);
-      throw new Error(`Error resolving notification: ${error.message}`);
+      console.error("Error deleting notification:", error);
+      throw error;
     }
   }
 
-  // Get notification statistics for a user
-  async getUserNotificationStats(userId) {
+  // Get notification statistics
+  static async getNotificationStats(userId) {
     try {
       const stats = await Notification.aggregate([
-        { $match: { recipient: userId } },
+        {
+          $match: {
+            $or: [
+              { user: userId },
+              { recipient: userId }
+            ]
+          }
+        },
         {
           $group: {
-            _id: '$status',
-            count: { $sum: 1 }
+            _id: null,
+            total: { $sum: 1 },
+            unread: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "unread"] }, 1, 0]
+              }
+            },
+            byType: {
+              $push: {
+                type: "$type",
+                priority: "$priority"
+              }
+            }
           }
         }
       ]);
 
-      const total = await Notification.countDocuments({ recipient: userId });
-      const unread = await Notification.countDocuments({ 
-        recipient: userId, 
-        status: { $in: ['unread', 'acknowledged'] } 
-      });
-
-      return {
-        total,
-        unread,
-        breakdown: stats.reduce((acc, stat) => {
-          acc[stat._id] = stat.count;
-          return acc;
-        }, {})
-      };
+      return stats[0] || { total: 0, unread: 0, byType: [] };
     } catch (error) {
-      console.error('Error getting notification stats:', error);
-      throw new Error(`Error getting notification stats: ${error.message}`);
+      console.error("Error getting notification stats:", error);
+      throw error;
     }
   }
 
   // Clean up expired notifications
-  async cleanupExpiredNotifications() {
+  static async cleanupExpiredNotifications() {
     try {
       const result = await Notification.deleteMany({
         expiresAt: { $lt: new Date() }
       });
 
+      console.log(`Cleaned up ${result.deletedCount} expired notifications`);
       return result;
     } catch (error) {
-      console.error('Error cleaning up expired notifications:', error);
-      throw new Error(`Error cleaning up expired notifications: ${error.message}`);
-    }
-  }
-
-  // Run all checks (to be called by cron job)
-  async runAllChecks() {
-    try {
-      const results = {
-        lowStockAlerts: [],
-        pendingPaymentAlerts: [],
-        restockReminders: [],
-        errors: []
-      };
-
-      try {
-        results.lowStockAlerts = await this.checkLowStockAlerts();
-      } catch (error) {
-        results.errors.push(`Low stock check failed: ${error.message}`);
-      }
-
-      try {
-        results.pendingPaymentAlerts = await this.checkPendingPaymentAlerts();
-      } catch (error) {
-        results.errors.push(`Pending payment check failed: ${error.message}`);
-      }
-
-      try {
-        results.restockReminders = await this.checkRestockReminders();
-      } catch (error) {
-        results.errors.push(`Restock reminder check failed: ${error.message}`);
-      }
-
-      // Clean up expired notifications
-      try {
-        await this.cleanupExpiredNotifications();
-      } catch (error) {
-        results.errors.push(`Cleanup failed: ${error.message}`);
-      }
-
-      return results;
-    } catch (error) {
-      console.error('Error running notification checks:', error);
-      throw new Error(`Error running notification checks: ${error.message}`);
+      console.error("Error cleaning up expired notifications:", error);
+      throw error;
     }
   }
 }
 
-export default new NotificationService();
+export default NotificationService;

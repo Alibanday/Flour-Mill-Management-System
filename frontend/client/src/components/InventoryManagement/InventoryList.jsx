@@ -18,6 +18,7 @@ const InventoryList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     category: 'all',
+    subcategory: 'all',
     status: 'all',
     warehouse: 'all',
     lowStock: false,
@@ -42,6 +43,27 @@ const InventoryList = () => {
     fetchCategories();
   }, [pagination.current, pagination.limit, searchTerm, filters, sortConfig]);
 
+  // Listen for custom events to trigger refresh
+  useEffect(() => {
+    const handleInventoryUpdate = () => {
+      console.log("InventoryList: Received inventory update event, refreshing...");
+      fetchInventory();
+    };
+
+    const handleStockUpdate = () => {
+      console.log("InventoryList: Received stock update event, refreshing...");
+      fetchInventory();
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    window.addEventListener('stockUpdated', handleStockUpdate);
+
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+      window.removeEventListener('stockUpdated', handleStockUpdate);
+    };
+  }, []);
+
   const fetchInventory = async () => {
     try {
       setLoading(true);
@@ -55,6 +77,7 @@ const InventoryList = () => {
         limit: pagination.limit,
         ...(searchTerm && { search: searchTerm }),
         ...(filters.category !== 'all' && { category: filters.category }),
+        ...(filters.subcategory !== 'all' && { subcategory: filters.subcategory }),
         ...(filters.status !== 'all' && { status: filters.status }),
         ...(filters.warehouse !== 'all' && { warehouse: filters.warehouse }),
         ...(filters.lowStock && { lowStock: 'true' }),
@@ -268,7 +291,7 @@ const InventoryList = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <select
@@ -280,6 +303,28 @@ const InventoryList = () => {
                 {categories.map(category => (
                   <option key={category} value={category}>{category}</option>
                 ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+              <select
+                value={filters.subcategory || 'all'}
+                onChange={(e) => handleFilterChange('subcategory', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="all">All Subcategories</option>
+                <option value="Wheat Grain">Wheat Grain</option>
+                <option value="Corn">Corn</option>
+                <option value="Rice">Rice</option>
+                <option value="Flour">Flour</option>
+                <option value="Maida">Maida</option>
+                <option value="Suji">Suji</option>
+                <option value="Chokhar">Chokhar</option>
+                <option value="Bags">Bags</option>
+                <option value="Sacks">Sacks</option>
+                <option value="Machine Parts">Machine Parts</option>
+                <option value="Lubricants">Lubricants</option>
               </select>
             </div>
 
@@ -368,6 +413,15 @@ const InventoryList = () => {
                 </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  onClick={() => handleSort('subcategory')}>
+                <div className="flex items-center space-x-1">
+                  <span>Subcategory</span>
+                  {sortConfig.key === 'subcategory' && (
+                    sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
+                  )}
+                </div>
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('currentStock')}>
                 <div className="flex items-center space-x-1">
                   <span>Stock</span>
@@ -406,6 +460,11 @@ const InventoryList = () => {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     {item.category}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    {item.subcategory || 'N/A'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

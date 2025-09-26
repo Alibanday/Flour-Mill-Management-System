@@ -4,6 +4,14 @@ import mongoose from "mongoose";
 import Purchase from "../model/Purchase.js";
 import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { 
+  createPurchase, 
+  getAllPurchases, 
+  getPurchaseById, 
+  updatePurchase, 
+  deletePurchase, 
+  getPurchaseSummary 
+} from "../controller/purchaseController.js";
 
 const router = express.Router();
 

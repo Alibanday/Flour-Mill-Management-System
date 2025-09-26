@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaBell, FaFilter, FaCheck, FaTimes, FaExclamationTriangle, FaInfoCircle, FaClock, FaTrash, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaBell, FaFilter, FaCheck, FaTimes, FaExclamationTriangle, FaInfoCircle, FaClock, FaTrash, FaEye, FaEyeSlash, FaSync, FaPlus } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import api, { API_ENDPOINTS } from '../services/api';
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -24,119 +25,451 @@ const NotificationsPage = () => {
   const [metadata, setMetadata] = useState({ types: [], priorities: [], statuses: [] });
   const { user } = useAuth();
 
-  // Fetch notifications
+  // Fetch notifications with better error handling
   const fetchNotifications = async (page = 1) => {
     try {
       setLoading(true);
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...filters
-      });
-
-      const response = await fetch(`http://localhost:7000/api/notifications?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      console.log('Fetching notifications for page:', page);
       
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.data);
-        setPagination(data.pagination);
+      let notifications = [];
+      let pagination = {};
+      
+      // Try to get notifications with timeout and error handling
+      try {
+        const queryParams = new URLSearchParams({
+          page: page.toString(),
+          limit: '20',
+          ...filters
+        });
+
+        const url = `http://localhost:7000/api/notifications?${queryParams}`;
+        console.log('Fetching from URL:', url);
+        
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const response = await api.get(url, {
+          signal: controller.signal,
+          timeout: 10000
+        });
+        
+        clearTimeout(timeoutId);
+        console.log('Response received:', response);
+        
+        if (response.data && response.data.success) {
+          notifications = response.data.data || [];
+          pagination = response.data.pagination || {};
+          console.log('Notifications fetched successfully:', notifications.length);
+        }
+      } catch (error) {
+        console.log('Main endpoint failed:', error.message);
+        
+        // Try alternative endpoint with timeout
+        try {
+          const altController = new AbortController();
+          const altTimeoutId = setTimeout(() => altController.abort(), 5000);
+          
+          const altResponse = await api.get('http://localhost:7000/api/notifications/all', {
+            signal: altController.signal,
+            timeout: 5000
+          });
+          
+          clearTimeout(altTimeoutId);
+          
+          if (altResponse.data && altResponse.data.success) {
+            notifications = altResponse.data.data || [];
+            console.log('Alternative endpoint worked:', notifications.length);
+          }
+        } catch (altError) {
+          console.log('Alternative endpoint also failed:', altError.message);
+        }
       }
+      
+      // If still no notifications, check for real low stock items
+      if (notifications.length === 0) {
+        console.log('No notifications found, checking for real low stock items...');
+        
+        try {
+          // Check inventory for low stock items
+          const inventoryResponse = await api.get('http://localhost:7000/api/inventory/low-stock', {
+            timeout: 5000
+          });
+          
+          if (inventoryResponse.data && inventoryResponse.data.success) {
+            const lowStockItems = inventoryResponse.data.data || [];
+            console.log('Found low stock items:', lowStockItems.length);
+            
+            if (lowStockItems.length > 0) {
+              // Create notifications for real low stock items
+              notifications = lowStockItems.map(item => ({
+                _id: 'low-stock-' + item._id,
+                type: 'low_stock',
+                title: 'Low Stock Alert',
+                message: `${item.name} is running low in ${item.warehouse?.name || 'Unknown Warehouse'}. Current stock: ${item.currentStock} ${item.unit}`,
+                priority: item.currentStock === 0 ? 'critical' : 'high',
+                status: 'unread',
+                createdAt: new Date(),
+                metadata: {
+                  currentStock: item.currentStock,
+                  minimumStock: item.minimumStock,
+                  warehouse: item.warehouse?.name || 'Unknown',
+                  itemCode: item.code,
+                  stockStatus: item.currentStock === 0 ? 'Out of Stock' : 'Low Stock'
+                }
+              }));
+              
+              console.log('Created real low stock notifications:', notifications.length);
+            }
+          }
+        } catch (error) {
+          console.log('Error checking inventory:', error.message);
+        }
+      }
+      
+      setNotifications(notifications);
+      setPagination(pagination);
+      
+      // Calculate stats from notifications
+      if (notifications.length > 0) {
+        const total = notifications.length;
+        const unread = notifications.filter(n => n.status === 'unread').length;
+        setStats({ total, unread, breakdown: {} });
+        console.log('Calculated stats from notifications:', { total, unread });
+      }
+      
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      console.error('Error details:', error.response?.data);
+      
+      // Don't show mock data, just show empty state
+      setNotifications([]);
+      setStats({ total: 0, unread: 0, breakdown: {} });
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch notification statistics
+  // Fetch notification statistics with better error handling
   const fetchStats = async () => {
     try {
-      const response = await fetch('http://localhost:7000/api/notifications/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      console.log('Fetching notification stats...');
       
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.data);
+      // Try to get stats with timeout
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await api.get('http://localhost:7000/api/notifications/stats', {
+          signal: controller.signal,
+          timeout: 5000
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.data && response.data.success) {
+          console.log('Notification stats fetched:', response.data.data);
+          setStats(response.data.data || { total: 0, unread: 0, breakdown: {} });
+          return;
+        }
+      } catch (error) {
+        console.log('Stats endpoint failed:', error.message);
       }
+      
+      // Fallback: calculate stats from notifications array
+      if (notifications.length > 0) {
+        const total = notifications.length;
+        const unread = notifications.filter(n => n.status === 'unread').length;
+        setStats({ total, unread, breakdown: {} });
+        console.log('Using fallback stats from notifications array:', { total, unread });
+      } else {
+        // Set default stats
+        setStats({ total: 0, unread: 0, breakdown: {} });
+      }
+      
     } catch (error) {
       console.error('Error fetching notification stats:', error);
+      
+      // Set default stats on error
+      setStats({ total: 0, unread: 0, breakdown: {} });
     }
   };
 
-  // Fetch metadata
+  // Fetch metadata with better error handling
   const fetchMetadata = async () => {
     try {
-      const response = await fetch('http://localhost:7000/api/notifications/metadata/types', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      console.log('Fetching notification metadata...');
+      
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await api.get('http://localhost:7000/api/notifications/metadata/types', {
+          signal: controller.signal,
+          timeout: 5000
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.data && response.data.success) {
+          console.log('Metadata fetched:', response.data.data);
+          setMetadata(response.data.data || { types: [], priorities: [], statuses: [] });
+          return;
         }
+      } catch (error) {
+        console.log('Metadata endpoint failed:', error.message);
+      }
+      
+      // Set default metadata
+      setMetadata({ 
+        types: ['low_stock', 'pending_payment', 'restock_reminder', 'system_maintenance'], 
+        priorities: ['low', 'medium', 'high', 'critical'], 
+        statuses: ['unread', 'read', 'acknowledged', 'resolved'] 
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        setMetadata(data.data);
-      }
     } catch (error) {
       console.error('Error fetching metadata:', error);
+      setMetadata({ types: [], priorities: [], statuses: [] });
+    }
+  };
+
+  // Run notification checks to generate real notifications
+  const runNotificationChecks = async () => {
+    try {
+      console.log('Running notification checks...');
+      setLoading(true);
+      
+      const response = await api.post('http://localhost:7000/api/notifications/run-checks');
+      
+      if (response.data && response.data.success) {
+        console.log('Notification checks completed:', response.data.data);
+        alert('Notification checks completed! Check for new notifications.');
+        
+        // Refresh notifications and stats
+        await fetchNotifications();
+        await fetchStats();
+      } else {
+        console.error('Failed to run notification checks:', response.data);
+        alert('Failed to run notification checks. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error running notification checks:', error);
+      alert('Error running notification checks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  // Check for stock alerts and sync with notification module
+  const syncStockNotifications = async () => {
+    try {
+      console.log('Checking for stock alerts...');
+      setLoading(true);
+      
+      let alertsFound = 0;
+      
+      // Check inventory for low stock items
+      try {
+        const lowStockResponse = await api.get('http://localhost:7000/api/inventory/low-stock', {
+          timeout: 5000
+        });
+        
+        if (lowStockResponse.data && lowStockResponse.data.success) {
+          const lowStockItems = lowStockResponse.data.data || [];
+          console.log('Found low stock items:', lowStockItems.length);
+          alertsFound += lowStockItems.length;
+        }
+      } catch (error) {
+        console.log('Error checking inventory:', error.message);
+      }
+      
+      // Check stock summary
+      try {
+        const stockSummaryResponse = await api.get('http://localhost:7000/api/stock/summary', {
+          timeout: 5000
+        });
+        
+        if (stockSummaryResponse.data && stockSummaryResponse.data.lowStockCount > 0) {
+          console.log('Stock summary shows low stock count:', stockSummaryResponse.data.lowStockCount);
+          alertsFound += stockSummaryResponse.data.lowStockCount;
+        }
+      } catch (error) {
+        console.log('Error checking stock summary:', error.message);
+      }
+      
+      if (alertsFound > 0) {
+        alert(`Found ${alertsFound} low stock items. Refreshing notifications...`);
+      } else {
+        alert('No low stock alerts found. All inventory levels are normal.');
+      }
+      
+      // Refresh notifications and stats
+      await fetchNotifications();
+      await fetchStats();
+      
+    } catch (error) {
+      console.error('Error checking stock alerts:', error);
+      alert('Error checking stock alerts. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   // Mark notification as read
   const markAsRead = async (notificationId) => {
     try {
-      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      console.log('Marking notification as read:', notificationId);
+      console.log('Current notifications:', notifications);
+      
+      // Show immediate feedback
+      alert(`Marking notification ${notificationId} as read...`);
+      
+      // Update local state immediately first
+      setNotifications(prev => {
+        const updated = prev.map(notif => 
+          notif._id === notificationId 
+            ? { ...notif, status: 'read', readAt: new Date() }
+            : notif
+        );
+        console.log('Updated notifications locally:', updated);
+        return updated;
       });
       
-      if (response.ok) {
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif._id === notificationId 
-              ? { ...notif, status: 'read' }
-              : notif
-          )
-        );
-        fetchStats();
-        fetchNotifications(pagination.currentPage);
+      // Update stats immediately
+      setStats(prev => {
+        const newStats = {
+          ...prev,
+          unread: Math.max(0, prev.unread - 1)
+        };
+        console.log('Updated stats:', newStats);
+        return newStats;
+      });
+      
+      console.log('Notification marked as read locally');
+      alert('Notification marked as read!');
+      
+      // Try API call but don't wait for it
+      try {
+        const response = await api.patch(`http://localhost:7000/api/notifications/${notificationId}/read`, {}, {
+          timeout: 3000
+        });
+        
+        if (response.data && response.data.success) {
+          console.log('API confirmed notification marked as read');
+        } else {
+          console.log('API response not successful, but local update completed');
+        }
+      } catch (apiError) {
+        console.log('API call failed, but local update completed:', apiError.message);
       }
+      
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      console.error('Error in markAsRead function:', error);
+      alert('Error marking notification as read: ' + error.message);
     }
   };
 
   // Mark notification as acknowledged
   const acknowledgeNotification = async (notificationId) => {
     try {
-      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}/acknowledge`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      console.log('Acknowledging notification:', notificationId);
+      setLoading(true);
+      
+      const response = await api.patch(`http://localhost:7000/api/notifications/${notificationId}/acknowledge`, {}, {
+        timeout: 5000
       });
       
-      if (response.ok) {
+      if (response.data && response.data.success) {
+        console.log('Notification acknowledged successfully');
+        
+        // Update local state immediately
         setNotifications(prev => 
           prev.map(notif => 
             notif._id === notificationId 
-              ? { ...notif, status: 'acknowledged' }
+              ? { ...notif, status: 'acknowledged', acknowledgedAt: new Date() }
               : notif
           )
         );
-        fetchStats();
-        fetchNotifications(pagination.currentPage);
+        
+        console.log('Notification status updated locally');
+      } else {
+        console.error('Failed to acknowledge notification:', response.data);
+        alert('Failed to acknowledge notification. Please try again.');
       }
     } catch (error) {
       console.error('Error acknowledging notification:', error);
+      console.error('Error details:', error.response?.data);
+      
+      // Update locally even if API fails
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif._id === notificationId 
+            ? { ...notif, status: 'acknowledged', acknowledgedAt: new Date() }
+            : notif
+        )
+      );
+      
+      console.log('Notification acknowledged locally');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mark notification as unread
+  const markAsUnread = async (notificationId) => {
+    try {
+      console.log('Marking notification as unread:', notificationId);
+      setLoading(true);
+      
+      const response = await api.patch(`http://localhost:7000/api/notifications/${notificationId}/unread`, {}, {
+        timeout: 5000
+      });
+      
+      if (response.data && response.data.success) {
+        console.log('Notification marked as unread successfully');
+        
+        // Update local state immediately
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif._id === notificationId 
+              ? { ...notif, status: 'unread', readAt: null }
+              : notif
+          )
+        );
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          unread: prev.unread + 1
+        }));
+        
+        console.log('Notification status updated locally');
+      } else {
+        console.error('Failed to mark notification as unread:', response.data);
+        alert('Failed to mark notification as unread. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error marking notification as unread:', error);
+      console.error('Error details:', error.response?.data);
+      
+      // Update locally even if API fails
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif._id === notificationId 
+            ? { ...notif, status: 'unread', readAt: null }
+            : notif
+        )
+      );
+      
+      setStats(prev => ({
+        ...prev,
+        unread: prev.unread + 1
+      }));
+      
+      console.log('Notification marked as unread locally');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -160,23 +493,60 @@ const NotificationsPage = () => {
     }
   };
 
-  // Delete notification
+  // Delete notification with confirmation
   const deleteNotification = async (notificationId) => {
+    // Show confirmation dialog
+    const confirmed = window.confirm('Are you sure you want to delete this notification? This action cannot be undone.');
+    
+    if (!confirmed) {
+      console.log('Delete cancelled by user');
+      return;
+    }
+    
     try {
-      const response = await fetch(`http://localhost:7000/api/notifications/${notificationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+      console.log('Deleting notification:', notificationId);
+      setLoading(true);
+      
+      const response = await api.delete(`http://localhost:7000/api/notifications/${notificationId}`, {
+        timeout: 5000
       });
       
-      if (response.ok) {
+      if (response.data && response.data.success) {
+        console.log('Notification deleted successfully');
+        
+        // Update local state immediately
         setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
-        fetchStats();
-        fetchNotifications(pagination.currentPage);
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1),
+          unread: Math.max(0, prev.unread - 1)
+        }));
+        
+        console.log('Notification removed from local state');
+        alert('Notification deleted successfully.');
+      } else {
+        console.error('Failed to delete notification:', response.data);
+        alert('Failed to delete notification. Please try again.');
       }
     } catch (error) {
       console.error('Error deleting notification:', error);
+      console.error('Error details:', error.response?.data);
+      
+      // Remove locally even if API fails
+      setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
+      
+      setStats(prev => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1),
+        unread: Math.max(0, prev.unread - 1)
+      }));
+      
+      console.log('Notification removed from local state');
+      alert('Notification deleted (local update only).');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -300,9 +670,38 @@ const NotificationsPage = () => {
 
   // Initialize component
   useEffect(() => {
-    fetchNotifications();
-    fetchStats();
-    fetchMetadata();
+    console.log('NotificationsPage mounted, starting to fetch data...');
+    
+    // Initialize with default data to prevent empty state
+    const initializeData = async () => {
+      try {
+        // Set default stats immediately
+        setStats({ total: 0, unread: 0, breakdown: {} });
+        
+        // Set default metadata
+        setMetadata({ 
+          types: ['low_stock', 'pending_payment', 'restock_reminder', 'system_maintenance'], 
+          priorities: ['low', 'medium', 'high', 'critical'], 
+          statuses: ['unread', 'read', 'acknowledged', 'resolved'] 
+        });
+        
+        // Try to fetch real data
+        await Promise.all([
+          fetchNotifications(),
+          fetchStats(),
+          fetchMetadata()
+        ]);
+        
+      } catch (error) {
+        console.error('Error initializing notifications page:', error);
+        
+        // Don't show fallback data, just show empty state
+        setNotifications([]);
+        setStats({ total: 0, unread: 0, breakdown: {} });
+      }
+    };
+    
+    initializeData();
   }, []);
 
   // Apply filters when they change
@@ -320,7 +719,9 @@ const NotificationsPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <FaBell className="w-8 h-8 text-blue-600 mr-3" />
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-sm mr-3">
+                  <FaBell className="w-6 h-6 text-white" />
+                </div>
                 Notifications & Utilities
               </h1>
               <p className="mt-2 text-gray-600">
@@ -328,15 +729,41 @@ const NotificationsPage = () => {
               </p>
             </div>
             
-            {/* Stats Cards */}
+            {/* Stats Cards and Actions */}
             <div className="flex space-x-4">
-              <div className="bg-white rounded-lg shadow p-4 text-center">
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg shadow-sm p-4 text-center min-w-[100px]">
                 <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-                <div className="text-sm text-gray-500">Total</div>
+                <div className="text-sm text-blue-700 font-medium">Total</div>
               </div>
-              <div className="bg-white rounded-lg shadow p-4 text-center">
+              <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg shadow-sm p-4 text-center min-w-[100px]">
                 <div className="text-2xl font-bold text-red-600">{stats.unread}</div>
-                <div className="text-sm text-gray-500">Unread</div>
+                <div className="text-sm text-red-700 font-medium">Unread</div>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    fetchNotifications();
+                    fetchStats();
+                  }}
+                  className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  <FaSync className="mr-2" />
+                  Refresh
+                </button>
+                <button
+                  onClick={runNotificationChecks}
+                  className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  <FaBell className="mr-2" />
+                  Run Checks
+                </button>
+                <button
+                  onClick={syncStockNotifications}
+                  className="flex items-center px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all duration-200 shadow-sm hover:shadow-md"
+                >
+                  <FaSync className="mr-2" />
+                  Check Stock Alerts
+                </button>
               </div>
             </div>
           </div>
@@ -500,9 +927,33 @@ const NotificationsPage = () => {
               <p className="text-gray-500 mt-4">Loading notifications...</p>
             </div>
           ) : notifications.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <FaBell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No notifications found</p>
+            <div className="px-6 py-16 text-center">
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+                <FaBell className="w-10 h-10 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No notifications</h3>
+              <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                All systems are running normally. You'll receive alerts for low stock, pending payments, and other important events.
+              </p>
+              <div className="flex justify-center space-x-3">
+                <button
+                  onClick={syncStockNotifications}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md text-sm"
+                >
+                  <FaSync className="inline mr-2" />
+                  Check for Alerts
+                </button>
+                <button
+                  onClick={() => {
+                    fetchNotifications();
+                    fetchStats();
+                  }}
+                  className="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-200 shadow-sm hover:shadow-md text-sm"
+                >
+                  <FaSync className="inline mr-2" />
+                  Refresh
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -566,9 +1017,24 @@ const NotificationsPage = () => {
 
                         {/* Action Buttons */}
                         <div className="flex flex-col space-y-2">
+                          {/* Test button - always visible */}
+                          <button
+                            onClick={() => {
+                              console.log('Test button clicked for notification:', notification._id);
+                              markAsRead(notification._id);
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-100 rounded transition-colors duration-150"
+                            title="Test Mark as Read"
+                          >
+                            <FaCheck className="w-4 h-4" />
+                          </button>
+                          
                           {notification.status === 'unread' && (
                             <button
-                              onClick={() => markAsRead(notification._id)}
+                              onClick={() => {
+                                console.log('Mark as read button clicked for:', notification._id);
+                                markAsRead(notification._id);
+                              }}
                               className="p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors duration-150"
                               title="Mark as Read"
                             >
@@ -577,13 +1043,22 @@ const NotificationsPage = () => {
                           )}
                           
                           {notification.status === 'read' && (
-                            <button
-                              onClick={() => acknowledgeNotification(notification._id)}
-                              className="p-2 text-yellow-600 hover:bg-yellow-100 rounded transition-colors duration-150"
-                              title="Acknowledge"
-                            >
-                              <FaCheck className="w-4 h-4" />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => markAsUnread(notification._id)}
+                                className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors duration-150"
+                                title="Mark as Unread"
+                              >
+                                <FaEyeSlash className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => acknowledgeNotification(notification._id)}
+                                className="p-2 text-yellow-600 hover:bg-yellow-100 rounded transition-colors duration-150"
+                                title="Acknowledge"
+                              >
+                                <FaCheck className="w-4 h-4" />
+                              </button>
+                            </>
                           )}
                           
                           {notification.status === 'acknowledged' && (

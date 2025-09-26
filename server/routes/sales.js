@@ -4,6 +4,14 @@ import Sale from "../model/Sale.js";
 import Inventory from "../model/inventory.js";
 import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { 
+  createSale, 
+  getAllSales, 
+  getSaleById, 
+  updateSale, 
+  deleteSale, 
+  processReturn 
+} from "../controller/salesController.js";
 
 const router = express.Router();
 

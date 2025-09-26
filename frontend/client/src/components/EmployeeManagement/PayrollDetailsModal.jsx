@@ -4,9 +4,6 @@ import { FaTimes, FaUser, FaIdCard, FaCalendarAlt, FaDollarSign, FaCreditCard, F
 export default function PayrollDetailsModal({ payroll, onClose }) {
   if (!payroll) return null;
 
-  // Debug logging to see what data we're receiving
-  console.log('PayrollDetailsModal - payroll data:', payroll);
-  console.log('PayrollDetailsModal - employee bankDetails:', payroll.employee?.bankDetails);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -236,28 +233,26 @@ export default function PayrollDetailsModal({ payroll, onClose }) {
           )}
 
           {/* Warehouse Information */}
-          {payroll.warehouse && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                <FaBuilding className="mr-2 text-indigo-500" />
-                Warehouse Information
-              </h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <FaBuilding className="mr-3 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Warehouse</p>
-                    <p className="font-medium text-gray-900">
-                      {payroll.warehouse.name || 'N/A'}
-                    </p>
-                    {payroll.warehouse.location && (
-                      <p className="text-sm text-gray-500">{payroll.warehouse.location}</p>
-                    )}
-                  </div>
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <FaBuilding className="mr-2 text-indigo-500" />
+              Warehouse Information
+            </h3>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center">
+                <FaBuilding className="mr-3 text-gray-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Assigned Warehouse</p>
+                  <p className="font-medium text-gray-900">
+                    {payroll.employee?.warehouse?.name || 'Not Assigned'}
+                  </p>
+                  {payroll.employee?.warehouse?.location && (
+                    <p className="text-sm text-gray-500">{payroll.employee.warehouse.location}</p>
+                  )}
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer */}

@@ -1,19 +1,50 @@
 import Warehouse from "../model/warehouse.js";
 
-// Add new warehouse
+// Add new warehouse (Admin only)
 export const addWarehouse = async (req, res) => {
   try {
     console.log('addWarehouse called with body:', req.body);
-    const { warehouseNumber, name, location, status, description } = req.body;
+    const { 
+      name, 
+      location, 
+      status, 
+      description, 
+      manager, 
+      capacity, 
+      contact 
+    } = req.body;
 
-    console.log('Extracted data:', { warehouseNumber, name, location, status, description });
+    console.log('Extracted data:', { name, location, status, description, manager, capacity, contact });
+
+    // If manager is provided, fetch their contact information
+    let managerContact = null;
+    if (manager) {
+      try {
+        const User = (await import("../model/user.js")).default;
+        const managerUser = await User.findById(manager).select('firstName lastName email phone address');
+        if (managerUser) {
+          managerContact = {
+            name: `${managerUser.firstName} ${managerUser.lastName}`,
+            email: managerUser.email,
+            phone: managerUser.phone,
+            address: managerUser.address
+          };
+          console.log('Fetched manager contact info:', managerContact);
+        }
+      } catch (error) {
+        console.error('Error fetching manager contact info:', error);
+        // Continue without manager contact info
+      }
+    }
 
     const newWarehouse = new Warehouse({
-      warehouseNumber,
       name,
       location,
       status,
-      description
+      description,
+      manager,
+      capacity,
+      contact: managerContact || contact // Use fetched manager contact or provided contact
     });
 
     console.log('Created warehouse object:', newWarehouse);
@@ -249,6 +280,111 @@ export const updateWarehouseStatus = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error updating warehouse status",
+      error: error.message
+    });
+  }
+};
+
+// Assign warehouse manager (Admin only)
+export const assignWarehouseManager = async (req, res) => {
+  try {
+    const { managerId } = req.body;
+    
+    if (!managerId) {
+      return res.status(400).json({
+        success: false,
+        message: "Manager ID is required"
+      });
+    }
+
+    const updatedWarehouse = await Warehouse.findByIdAndUpdate(
+      req.params.id,
+      { manager: managerId },
+      { new: true }
+    ).populate('manager', 'firstName lastName email role');
+
+    if (!updatedWarehouse) {
+      return res.status(404).json({
+        success: false,
+        message: "Warehouse not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Warehouse manager assigned successfully",
+      data: updatedWarehouse
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Error assigning warehouse manager",
+      error: error.message
+    });
+  }
+};
+
+// Get warehouse inventory summary
+export const getWarehouseInventorySummary = async (req, res) => {
+  try {
+    const warehouseId = req.params.id;
+    
+    // Import Inventory model
+    const Inventory = (await import("../model/inventory.js")).default;
+    
+    // Get inventory items for this warehouse
+    const inventoryItems = await Inventory.find({ warehouse: warehouseId });
+    
+    // Calculate summary
+    const summary = {
+      totalItems: inventoryItems.length,
+      lowStockItems: inventoryItems.filter(item => item.currentStock <= item.minimumStock).length,
+      outOfStockItems: inventoryItems.filter(item => item.currentStock === 0).length,
+      totalValue: inventoryItems.reduce((sum, item) => sum + (item.currentStock * (item.cost?.purchasePrice || 0)), 0),
+      categories: [...new Set(inventoryItems.map(item => item.category))]
+    };
+
+    res.status(200).json({
+      success: true,
+      data: summary
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving warehouse inventory summary",
+      error: error.message
+    });
+  }
+};
+
+// Get warehouse capacity status
+export const getWarehouseCapacityStatus = async (req, res) => {
+  try {
+    const warehouses = await Warehouse.find({ status: 'Active' });
+    
+    const capacityStatus = warehouses.map(warehouse => ({
+      id: warehouse._id,
+      name: warehouse.name,
+      location: warehouse.location,
+      totalCapacity: warehouse.capacity?.totalCapacity || 0,
+      currentUsage: warehouse.capacity?.currentUsage || 0,
+      availableCapacity: warehouse.availableCapacity,
+      capacityPercentage: warehouse.capacityPercentage,
+      capacityStatus: warehouse.capacityStatus,
+      unit: warehouse.capacity?.unit || '50kg bags'
+    }));
+    
+    res.json({
+      success: true,
+      data: capacityStatus
+    });
+  } catch (error) {
+    console.error("Get warehouse capacity status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error getting warehouse capacity status",
       error: error.message
     });
   }

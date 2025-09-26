@@ -288,17 +288,28 @@ router.get("/salaries", protect, async (req, res) => {
     if (warehouse) query.warehouse = warehouse;
     
     const salaries = await Salary.find(query)
-      .populate('employee', 'firstName lastName email employeeId bankDetails')
-      .populate('warehouse', 'name')
+      .populate({
+        path: 'employee',
+        select: 'firstName lastName email employeeId bankDetails warehouse',
+        populate: {
+          path: 'warehouse',
+          select: 'name location'
+        }
+      })
+      .populate('warehouse', 'name location')
       .populate('processedBy', 'firstName lastName')
       .sort({ month: -1, year: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
+    // Filter out salaries with deleted employees
+    const validSalaries = salaries.filter(salary => salary.employee !== null);
+    
+    
     const total = await Salary.countDocuments(query);
     
     res.json({
-      salaries,
+      salaries: validSalaries,
       totalPages: Math.ceil(total / limit),
       currentPage: page,
       total
@@ -312,8 +323,15 @@ router.get("/salaries", protect, async (req, res) => {
 router.get("/salaries/:id", protect, async (req, res) => {
   try {
     const salary = await Salary.findById(req.params.id)
-      .populate('employee', 'firstName lastName email employeeId bankDetails')
-      .populate('warehouse', 'name')
+      .populate({
+        path: 'employee',
+        select: 'firstName lastName email employeeId bankDetails warehouse',
+        populate: {
+          path: 'warehouse',
+          select: 'name location'
+        }
+      })
+      .populate('warehouse', 'name location')
       .populate('processedBy', 'firstName lastName');
     
     if (!salary) {
@@ -431,7 +449,14 @@ router.get("/summary", protect, async (req, res) => {
     
     // Pending salaries
     const pendingSalaries = await Salary.find({ ...query, paymentStatus: 'Pending' })
-      .populate('employee', 'firstName lastName bankDetails')
+      .populate({
+        path: 'employee',
+        select: 'firstName lastName bankDetails warehouse',
+        populate: {
+          path: 'warehouse',
+          select: 'name location'
+        }
+      })
       .sort({ month: -1, year: -1 })
       .limit(5);
     
@@ -469,6 +494,19 @@ router.get("/summary", protect, async (req, res) => {
         netWorth: totalAssets - totalLiabilities,
         netIncome: totalRevenue - totalExpenses
       }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Cleanup orphaned salary records (salaries with deleted employees)
+router.delete("/salaries/cleanup", protect, authorize("Admin"), async (req, res) => {
+  try {
+    const result = await Salary.deleteMany({ employee: null });
+    res.json({
+      message: `Cleaned up ${result.deletedCount} orphaned salary records`,
+      deletedCount: result.deletedCount
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

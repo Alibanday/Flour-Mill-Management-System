@@ -25,6 +25,7 @@ import customerRoutes from "./routes/customers.js";
 import stockTransferRoutes from "./routes/stockTransfers.js";
 import repackingRoutes from "./routes/repacking.js";
 import productionCostRoutes from "./routes/productionCosts.js";
+import dashboardRoutes from "./routes/dashboard.js";
 import fileUpload from "express-fileupload";
 import connectWithRetry from "./config/database.js";
 import NotificationService from "./services/notificationService.js";
@@ -40,7 +41,11 @@ app.use(fileUpload({
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: [
+    process.env.FRONTEND_URL || "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000"
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true
 }));
@@ -75,6 +80,7 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/stock-transfers", stockTransferRoutes);
 app.use("/api/repacking", repackingRoutes);
 app.use("/api/production-costs", productionCostRoutes);
+app.use("/api/dashboard", dashboardRoutes);
         
         // Health check endpoint
 app.get("/api/health", (_, res) => {

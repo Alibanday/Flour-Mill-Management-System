@@ -19,7 +19,8 @@ const validateEmployee = [
   body('department').isIn(['Production', 'Warehouse', 'Sales', 'Finance', 'HR', 'IT', 'Maintenance']).withMessage('Valid department is required'),
   body('position').notEmpty().withMessage('Position is required'),
   body('salary').isNumeric().withMessage('Salary must be a number'),
-  body('hireDate').isISO8601().withMessage('Valid hire date is required')
+  body('hireDate').isISO8601().withMessage('Valid hire date is required'),
+  body('warehouse').notEmpty().withMessage('Warehouse is required')
 ];
 
 const handleValidationErrors = (req, res, next) => {
@@ -64,7 +65,7 @@ const generateAutomaticPayroll = async (employee, createdBy) => {
     const salaryCount = await Salary.countDocuments();
     const salaryNumber = `SAL-${String(salaryCount + 1).padStart(6, '0')}`;
 
-    // Create automatic payroll record
+    // Create automatic payroll record - simplified to match employee form
     const salary = new Salary({
       salaryNumber,
       employee: employee._id,
@@ -76,6 +77,9 @@ const generateAutomaticPayroll = async (employee, createdBy) => {
       netSalary: employee.salary || 0,
       workingDays: 30,
       totalDays: 30,
+      overtimeHours: 0,
+      overtimeRate: 0,
+      overtimeAmount: 0,
       paymentDate: currentDate,
       paymentMethod: 'Bank Transfer',
       paymentStatus: 'Pending',
@@ -115,6 +119,7 @@ router.post('/create', authorize('Admin', 'Manager'), validateEmployee, handleVa
       data: employee
     });
   } catch (error) {
+    console.error('Error creating employee:', error);
     if (error.code === 11000) {
       res.status(400).json({
         success: false,
@@ -324,13 +329,19 @@ router.delete('/:id', authorize('Admin'), asyncHandler(async (req, res) => {
       });
     }
 
+    // Delete associated salary records
+    await Salary.deleteMany({ employee: req.params.id });
+    console.log(`Deleted salary records for employee ${employee.employeeId}`);
+
+    // Delete the employee
     await Employee.findByIdAndDelete(req.params.id);
 
     res.json({
       success: true,
-      message: 'Employee deleted successfully'
+      message: 'Employee and associated payroll records deleted successfully'
     });
   } catch (error) {
+    console.error('Error deleting employee:', error);
     res.status(500).json({
       success: false,
       message: 'Error deleting employee',

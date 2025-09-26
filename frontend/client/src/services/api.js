@@ -83,17 +83,26 @@ export const API_ENDPOINTS = {
     DELETE: (id) => `http://localhost:7000/api/inventory/${id}`,
     SUMMARY: 'http://localhost:7000/api/inventory/summary',
     LOW_STOCK: 'http://localhost:7000/api/inventory/low-stock',
+    FIND_EXISTING: 'http://localhost:7000/api/inventory/find-existing',
+    ADD_STOCK: (id) => `http://localhost:7000/api/inventory/${id}/add-stock`,
   },
   
-  // Stock management
-  STOCK: {
-    ADD: 'http://localhost:7000/api/stock/add',
-    GET_ALL: 'http://localhost:7000/api/stock/all',
-    GET_BY_ID: (id) => `http://localhost:7000/api/stock/${id}`,
-    UPDATE: (id) => `http://localhost:7000/api/stock/${id}`,
-    DELETE: (id) => `http://localhost:7000/api/stock/${id}`,
-    TRANSFER: 'http://localhost:7000/api/stock/transfer',
-  },
+        // Stock management
+        STOCK: {
+          ADD: 'http://localhost:7000/api/stock/add',
+          GET_ALL: 'http://localhost:7000/api/stock/all',
+          GET_BY_ID: (id) => `http://localhost:7000/api/stock/${id}`,
+          UPDATE: (id) => `http://localhost:7000/api/stock/${id}`,
+          DELETE: (id) => `http://localhost:7000/api/stock/${id}`,
+          SEARCH: 'http://localhost:7000/api/stock/search',
+          TRANSFER: 'http://localhost:7000/api/stock/transfer',
+          TRANSFER_BETWEEN: 'http://localhost:7000/api/stock/transfer-between',
+          UPDATE_QUANTITY: (id) => `http://localhost:7000/api/stock/quantity/${id}`,
+          LOW_STOCK: 'http://localhost:7000/api/stock/low-stock',
+          BY_CATEGORY: (category) => `http://localhost:7000/api/stock/category/${category}`,
+          SUMMARY: 'http://localhost:7000/api/stock/summary',
+          ALERTS: 'http://localhost:7000/api/stock/alerts',
+        },
   
   // Production management
   PRODUCTION: {

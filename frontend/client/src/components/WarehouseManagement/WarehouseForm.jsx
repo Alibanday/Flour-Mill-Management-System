@@ -14,7 +14,23 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
     name: '',
     location: '',
     status: 'Active',
-    description: ''
+    description: '',
+    manager: '',
+    capacity: {
+      totalCapacity: '',
+      unit: 'kg'
+    },
+    contact: {
+      phone: '',
+      email: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: 'Pakistan'
+      }
+    }
   });
 
   useEffect(() => {
@@ -24,7 +40,23 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
         name: warehouse.name || '',
         location: warehouse.location || '',
         status: warehouse.status || 'Active',
-        description: warehouse.description || ''
+        description: warehouse.description || '',
+        manager: warehouse.manager?._id || warehouse.manager || '',
+        capacity: {
+          totalCapacity: warehouse.capacity?.totalCapacity || '',
+          unit: warehouse.capacity?.unit || 'kg'
+        },
+        contact: {
+          phone: warehouse.contact?.phone || '',
+          email: warehouse.contact?.email || '',
+          address: {
+            street: warehouse.contact?.address?.street || '',
+            city: warehouse.contact?.address?.city || '',
+            state: warehouse.contact?.address?.state || '',
+            zipCode: warehouse.contact?.address?.zipCode || '',
+            country: warehouse.contact?.address?.country || 'Pakistan'
+          }
+        }
       });
     }
   }, [warehouse, mode]);
@@ -235,6 +267,123 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
               {errors.location && (
                 <p className="mt-1 text-sm text-red-600">{errors.location}</p>
               )}
+            </div>
+          </div>
+
+          {/* Manager Assignment */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+              <FaUser className="mr-2 text-blue-600" />
+              Manager Assignment
+            </h3>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Warehouse Manager
+              </label>
+              <select
+                name="manager"
+                value={formData.manager}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Manager (Optional)</option>
+                {/* This would be populated with actual managers from API */}
+                <option value="manager1">Manager 1</option>
+                <option value="manager2">Manager 2</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Capacity Information */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+              <FaBoxes className="mr-2 text-blue-600" />
+              Capacity Information
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Total Capacity
+                </label>
+                <input
+                  type="number"
+                  name="capacity.totalCapacity"
+                  value={formData.capacity.totalCapacity}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    capacity: { ...prev.capacity, totalCapacity: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter total capacity"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Capacity Unit
+                </label>
+                <select
+                  name="capacity.unit"
+                  value={formData.capacity.unit}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    capacity: { ...prev.capacity, unit: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="tons">Tons</option>
+                  <option value="bags">Bags</option>
+                  <option value="pcs">Pieces</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Information */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+              <FaPhone className="mr-2 text-blue-600" />
+              Contact Information
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  name="contact.phone"
+                  value={formData.contact.phone}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    contact: { ...prev.contact, phone: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter phone number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="contact.email"
+                  value={formData.contact.email}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    contact: { ...prev.contact, email: e.target.value }
+                  }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter email address"
+                />
+              </div>
             </div>
           </div>
 

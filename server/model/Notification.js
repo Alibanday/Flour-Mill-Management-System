@@ -13,7 +13,14 @@ const notificationSchema = new mongoose.Schema({
       'user_activity',
       'warehouse_transfer',
       'production_alert',
-      'financial_alert'
+      'financial_alert',
+      'production',
+      'sales',
+      'purchase',
+      'inventory',
+      'stock',
+      'warehouse',
+      'system'
     ],
     required: true
   },
@@ -38,7 +45,12 @@ const notificationSchema = new mongoose.Schema({
   recipient: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: false
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
@@ -56,6 +68,10 @@ const notificationSchema = new mongoose.Schema({
   metadata: {
     type: Map,
     of: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
+  data: {
+    type: mongoose.Schema.Types.Mixed,
     default: {}
   },
   readAt: {

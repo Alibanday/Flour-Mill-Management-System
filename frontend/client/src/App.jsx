@@ -22,6 +22,7 @@ import CustomerManagementPage from './pages/CustomerManagementPage';
 import StockTransferPage from './pages/StockTransferPage';
 import RepackingPage from './pages/RepackingPage';
 import ProductionCostPage from './pages/ProductionCostPage';
+import StockPage from './pages/StockPage';
 import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -236,12 +237,7 @@ function App() {
           path="/stock" 
           element={
             <EmployeeRoute>
-              <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="text-center">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-4">Stock Management</h1>
-                  <p className="text-gray-600">This module will be implemented next.</p>
-                </div>
-              </div>
+              <StockPage />
             </EmployeeRoute>
           } 
         />

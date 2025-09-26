@@ -198,11 +198,11 @@ const NotificationBell = () => {
     fetchNotifications();
     fetchStats();
 
-    // Poll for new notifications every 30 seconds
+    // Poll for new notifications every 5 minutes (reduced frequency)
     const interval = setInterval(() => {
       fetchNotifications();
       fetchStats();
-    }, 30000);
+    }, 300000); // 5 minutes instead of 30 seconds
 
     return () => clearInterval(interval);
   }, []);

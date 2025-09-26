@@ -7,7 +7,10 @@ import {
   deleteWarehouse,
   searchWarehouses,
   getActiveWarehouses,
-  updateWarehouseStatus
+  updateWarehouseStatus,
+  assignWarehouseManager,
+  getWarehouseInventorySummary,
+  getWarehouseCapacityStatus
 } from "../controller/warehouseController.js";
 import { protect, authorize } from "../middleware/auth.js";
 
@@ -47,5 +50,14 @@ router.delete("/:id", authorize('Admin'), deleteWarehouse);
 
 // Route to update warehouse status
 router.patch("/:id/status", authorize('Admin', 'Manager'), updateWarehouseStatus);
+
+// Route to assign warehouse manager (Admin only)
+router.patch("/:id/assign-manager", authorize('Admin'), assignWarehouseManager);
+
+// Route to get warehouse inventory summary
+router.get("/:id/inventory-summary", getWarehouseInventorySummary);
+
+// Route to get warehouse capacity status
+router.get("/capacity/status", getWarehouseCapacityStatus);
 
 export default router;

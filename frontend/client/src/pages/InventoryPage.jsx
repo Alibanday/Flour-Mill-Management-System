@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FaBoxes, FaWarehouse, FaExclamationTriangle, FaCheckCircle, 
-  FaTimesCircle, FaChartBar, FaPlus, FaSearch, FaFilter 
+  FaTimesCircle, FaChartBar, FaPlus, FaSearch, FaFilter, FaSync
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../services/api';
@@ -16,9 +16,29 @@ const InventoryPage = () => {
     totalValue: 0
   });
   const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
   useEffect(() => {
     fetchDashboardStats();
+    
+    // Listen for custom events to trigger refresh
+    const handleInventoryUpdate = () => {
+      console.log("InventoryPage: Received inventory update event, refreshing...");
+      fetchDashboardStats();
+    };
+
+    const handleStockUpdate = () => {
+      console.log("InventoryPage: Received stock update event, refreshing...");
+      fetchDashboardStats();
+    };
+
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate);
+    window.addEventListener('stockUpdated', handleStockUpdate);
+
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate);
+      window.removeEventListener('stockUpdated', handleStockUpdate);
+    };
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -32,6 +52,7 @@ const InventoryPage = () => {
         outOfStockItems: data.outOfStockItems || 0,
         totalValue: data.totalValue || 0
       });
+      setLastRefresh(new Date());
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
       // Set default values on error
@@ -140,10 +161,24 @@ const InventoryPage = () => {
           <div className="lg:col-span-3 space-y-8">
             {/* Statistics Dashboard */}
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-                <FaChartBar className="mr-2 text-green-600" />
-                Inventory Overview
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <FaChartBar className="mr-2 text-green-600" />
+                  Inventory Overview
+                </h2>
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={fetchDashboardStats}
+                    className="flex items-center px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    <FaSync className="mr-2" />
+                    Refresh
+                  </button>
+                  <div className="text-sm text-gray-500">
+                    Last updated: {lastRefresh.toLocaleString()}
+                  </div>
+                </div>
+              </div>
               
               {loading ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

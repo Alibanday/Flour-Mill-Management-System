@@ -12,16 +12,20 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
 
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
+    code: '', // Will be auto-generated
     category: 'Raw Materials',
+    subcategory: 'Wheat Grain',
     description: '',
-    unit: 'kg',
+    unit: '50kg bags',
     currentStock: '',
     minimumStock: '',
-    maximumStock: '',
     warehouse: '',
     cost: { purchasePrice: '', currency: 'PKR' }
   });
+  
+  const [existingItem, setExistingItem] = useState(null);
+  const [showExistingItem, setShowExistingItem] = useState(false);
+  const [addStockMode, setAddStockMode] = useState(false);
 
   useEffect(() => {
     fetchWarehouses();
@@ -30,11 +34,11 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
         name: inventory.name || '',
         code: inventory.code || '',
         category: inventory.category || 'Raw Materials',
+        subcategory: inventory.subcategory || 'Wheat Grain',
         description: inventory.description || '',
-        unit: inventory.unit || 'kg',
+        unit: inventory.unit || '50kg bags',
         currentStock: inventory.currentStock || '',
         minimumStock: inventory.minimumStock || '',
-        maximumStock: inventory.maximumStock || '',
         warehouse: inventory.warehouse?._id || inventory.warehouse || '',
         cost: { 
           purchasePrice: inventory.cost?.purchasePrice || '', 
@@ -53,11 +57,74 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
     }
   };
 
+  const checkExistingItem = async () => {
+    if (!formData.name || !formData.warehouse) {
+      toast.warning('Please enter item name and select warehouse first');
+      return;
+    }
+
+    try {
+      const response = await api.get(API_ENDPOINTS.INVENTORY.FIND_EXISTING, {
+        params: {
+          name: formData.name,
+          warehouse: formData.warehouse
+        }
+      });
+      
+      if (response.data.success && response.data.exists) {
+        setExistingItem(response.data.data);
+        setShowExistingItem(true);
+        toast.info('Similar item found! You can add stock to existing item or create new one.');
+      } else {
+        setExistingItem(null);
+        setShowExistingItem(false);
+        toast.success('No existing item found. You can create a new one.');
+      }
+    } catch (error) {
+      console.error('Error checking existing item:', error);
+      toast.error('Error checking for existing items: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleAddStockToExisting = async () => {
+    if (!existingItem || !formData.currentStock) {
+      toast.error('Please enter quantity to add');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.post(API_ENDPOINTS.INVENTORY.ADD_STOCK(existingItem._id), {
+        quantity: parseFloat(formData.currentStock),
+        reason: 'Stock Addition',
+        referenceNumber: `ADD-${Date.now()}`
+      });
+
+      if (response.data.success) {
+        toast.success(`Stock added successfully! New stock: ${response.data.data.newStock}`);
+        if (onSave) onSave(response.data.data.item);
+        
+        // Trigger stock list refresh by dispatching a custom event
+        window.dispatchEvent(new CustomEvent('stockUpdated'));
+        window.dispatchEvent(new CustomEvent('inventoryUpdated'));
+        
+        onCancel();
+      } else {
+        toast.error(response.data.message || 'Error adding stock');
+      }
+    } catch (error) {
+      const message = error.response?.data?.message || 'Error adding stock';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.code || !formData.warehouse) {
-      toast.error('Please fill all required fields');
+    if (!formData.name || !formData.warehouse || !formData.cost.purchasePrice) {
+      toast.error('Please fill all required fields including purchase price');
       return;
     }
 
@@ -81,6 +148,10 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
       }
 
       if (onSave) onSave(response.data.data);
+      
+      // Trigger stock list refresh by dispatching a custom event
+      window.dispatchEvent(new CustomEvent('stockUpdated'));
+      window.dispatchEvent(new CustomEvent('inventoryUpdated'));
     } catch (error) {
       const message = error.response?.data?.message || 'Error saving inventory item';
       toast.error(message);
@@ -89,8 +160,44 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
     }
   };
 
-  const categories = ['Raw Materials', 'Finished Goods', 'Packaging', 'Tools', 'Machinery', 'Other'];
-  const units = ['kg', 'tons', 'bags', 'pieces', 'liters', 'meters', 'units'];
+  const categories = [
+    { value: 'Raw Materials', label: 'Raw Materials' },
+    { value: 'Finished Products', label: 'Finished Products' },
+    { value: 'Packaging Materials', label: 'Packaging Materials' },
+    { value: 'Maintenance Supplies', label: 'Maintenance Supplies' }
+  ];
+
+  const subcategories = {
+    'Raw Materials': [
+      'Wheat Grain', 'Corn', 'Rice', 'Barley', 'Oats', 'Rye', 'Millet'
+    ],
+    'Finished Products': [
+      'Flour', 'Maida', 'Suji', 'Chokhar', 'Fine Flour', 'Whole Wheat Flour', 'Bread Flour', 'Cake Flour'
+    ],
+    'Packaging Materials': [
+      'Bags', 'Sacks', 'Labels', 'Tape', 'Twine', 'Plastic Sheets'
+    ],
+    'Maintenance Supplies': [
+      'Machine Parts', 'Lubricants', 'Cleaning Supplies', 'Safety Equipment', 'Tools'
+    ]
+  };
+
+  const units = [
+    'tons', 'quintals',
+    '50kg bags', '25kg bags', '10kg bags', '5kg bags',
+    '100kg sacks', '50kg sacks', '25kg sacks'
+  ];
+
+  const handleCategoryChange = (category) => {
+    const availableSubcategories = subcategories[category] || [];
+    const newSubcategory = availableSubcategories[0] || '';
+    
+    setFormData({
+      ...formData,
+      category,
+      subcategory: newSubcategory
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -124,26 +231,39 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Item Code *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Item Code</label>
               <input
                 type="text"
-                value={formData.code}
-                onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="e.g., INV001"
-                required
+                value={formData.code || 'Auto-generated'}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                placeholder="Will be auto-generated"
+                disabled
               />
+              <p className="text-xs text-gray-500 mt-1">Item code will be automatically generated by the system</p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
               >
                 {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
+                  <option key={category.value} value={category.value}>{category.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory *</label>
+              <select
+                value={formData.subcategory}
+                onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                {subcategories[formData.category]?.map(subcategory => (
+                  <option key={subcategory} value={subcategory}>{subcategory}</option>
                 ))}
               </select>
             </div>
@@ -186,20 +306,9 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Stock</label>
-              <input
-                type="number"
-                value={formData.maximumStock}
-                onChange={(e) => setFormData({...formData, maximumStock: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="0"
-                min="0"
-              />
-            </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price *</label>
               <input
                 type="number"
                 value={formData.cost.purchasePrice}
@@ -211,26 +320,134 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
                 placeholder="0.00"
                 min="0"
                 step="0.01"
+                required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Warehouse *</label>
-              <select
-                value={formData.warehouse}
-                onChange={(e) => setFormData({...formData, warehouse: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                required
-              >
-                <option value="">Select Warehouse</option>
-                {warehouses.map(warehouse => (
-                  <option key={warehouse._id} value={warehouse._id}>
-                    {warehouse.name} ({warehouse.code})
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  value={formData.warehouse}
+                  onChange={(e) => setFormData({...formData, warehouse: e.target.value})}
+                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                  required
+                >
+                  <option value="">Select Warehouse</option>
+                  {warehouses.map(warehouse => (
+                    <option key={warehouse._id} value={warehouse._id}>
+                      {warehouse.name} ({warehouse.code})
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={checkExistingItem}
+                  disabled={!formData.name || !formData.warehouse}
+                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Check Existing
+                </button>
+              </div>
             </div>
           </div>
+
+          {/* Existing Item Found */}
+          {showExistingItem && existingItem && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-yellow-800 mb-3">⚠️ Similar Item Found</h3>
+              <div className="bg-white rounded-lg p-4 border border-yellow-300">
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Item Name</label>
+                    <p className="text-gray-900">{existingItem.name}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Item Code</label>
+                    <p className="text-gray-900">{existingItem.code}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Current Stock</label>
+                    <p className="text-gray-900">{existingItem.currentStock} {existingItem.unit}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <p className="text-gray-900">{existingItem.category}</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAddStockMode(true)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Add Stock to Existing Item
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExistingItem(false);
+                      setExistingItem(null);
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                  >
+                    Create New Item Anyway
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add Stock to Existing Item */}
+          {addStockMode && existingItem && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-green-800 mb-3">Add Stock to Existing Item</h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantity to Add *</label>
+                  <input
+                    type="number"
+                    value={formData.currentStock}
+                    onChange={(e) => setFormData({...formData, currentStock: e.target.value})}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Enter quantity to add"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock</label>
+                  <p className="text-gray-900 py-3">{existingItem.currentStock} {existingItem.unit}</p>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleAddStockToExisting}
+                  disabled={loading || !formData.currentStock}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {loading ? 'Adding Stock...' : 'Add Stock'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddStockMode(false);
+                    setFormData({...formData, currentStock: ''});
+                  }}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
