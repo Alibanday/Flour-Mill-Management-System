@@ -1,9 +1,17 @@
 import Inventory from "../model/inventory.js";
-import Warehouse from "../model/warehouse.js";
+import Warehouse from "../model/wareHouse.js";
 
 // Create new inventory item
 export const createInventory = async (req, res) => {
   try {
+    console.log('📥 Inventory creation request received:', {
+      body: req.body,
+      name: req.body.name,
+      warehouse: req.body.warehouse,
+      currentStock: req.body.currentStock,
+      unit: req.body.unit
+    });
+
     const inventoryData = req.body;
     
     // Basic validation
@@ -20,37 +28,220 @@ export const createInventory = async (req, res) => {
         message: "Warehouse is required"
       });
     }
+
+    if (!inventoryData.category) {
+      return res.status(400).json({
+        success: false,
+        message: "Category is required"
+      });
+    }
+
+    if (!inventoryData.subcategory) {
+      return res.status(400).json({
+        success: false,
+        message: "Subcategory is required"
+      });
+    }
+
+    if (!inventoryData.unit) {
+      return res.status(400).json({
+        success: false,
+        message: "Unit is required"
+      });
+    }
     
     // Validate warehouse exists
+    console.log('🔍 Looking up warehouse with ID:', inventoryData.warehouse);
     const warehouse = await Warehouse.findById(inventoryData.warehouse);
     if (!warehouse) {
+      console.log('❌ Warehouse not found for ID:', inventoryData.warehouse);
       return res.status(400).json({
         success: false,
         message: "Warehouse not found"
       });
     }
+    console.log('✅ Warehouse found:', warehouse.name);
+    
+    // Check warehouse capacity if adding stock
+    if (inventoryData.currentStock > 0) {
+      const currentUsage = warehouse.capacity?.currentUsage || 0;
+      const totalCapacity = warehouse.capacity?.totalCapacity || 0;
+      const warehouseUnit = warehouse.capacity?.unit || 'kg';
+      const inventoryUnit = inventoryData.unit || 'kg';
+      
+      // Convert units to a common base for comparison (kg)
+      let stockInKg = inventoryData.currentStock;
+      let capacityInKg = totalCapacity;
+      
+      // Convert warehouse capacity to kg
+      switch (warehouseUnit) {
+        case 'tons':
+          capacityInKg = totalCapacity * 1000;
+          break;
+        case 'quintals':
+          capacityInKg = totalCapacity * 100;
+          break;
+        case '50kg bags':
+          capacityInKg = totalCapacity * 50;
+          break;
+        case '25kg bags':
+          capacityInKg = totalCapacity * 25;
+          break;
+        case '10kg bags':
+          capacityInKg = totalCapacity * 10;
+          break;
+        case '5kg bags':
+          capacityInKg = totalCapacity * 5;
+          break;
+        case '100kg sacks':
+          capacityInKg = totalCapacity * 100;
+          break;
+        case '50kg sacks':
+          capacityInKg = totalCapacity * 50;
+          break;
+        case '25kg sacks':
+          capacityInKg = totalCapacity * 25;
+          break;
+        default:
+          capacityInKg = totalCapacity; // Assume kg
+      }
+      
+      // Convert inventory stock to kg
+      switch (inventoryUnit) {
+        case 'tons':
+          stockInKg = inventoryData.currentStock * 1000;
+          break;
+        case 'quintals':
+          stockInKg = inventoryData.currentStock * 100;
+          break;
+        case '50kg bags':
+          stockInKg = inventoryData.currentStock * 50;
+          break;
+        case '25kg bags':
+          stockInKg = inventoryData.currentStock * 25;
+          break;
+        case '10kg bags':
+          stockInKg = inventoryData.currentStock * 10;
+          break;
+        case '5kg bags':
+          stockInKg = inventoryData.currentStock * 5;
+          break;
+        case '100kg sacks':
+          stockInKg = inventoryData.currentStock * 100;
+          break;
+        case '50kg sacks':
+          stockInKg = inventoryData.currentStock * 50;
+          break;
+        case '25kg sacks':
+          stockInKg = inventoryData.currentStock * 25;
+          break;
+        default:
+          stockInKg = inventoryData.currentStock; // Assume kg
+      }
+      
+      if (currentUsage + stockInKg > capacityInKg) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot add inventory: Would exceed warehouse capacity. Current usage: ${currentUsage}kg, Adding: ${stockInKg}kg, Capacity: ${capacityInKg}kg`
+        });
+      }
+    }
     
     // Create inventory object with all provided fields
-    const inventory = new Inventory(inventoryData);
+    console.log('📦 Creating inventory with data:', inventoryData);
+    
+    // Ensure required fields have default values
+    const safeInventoryData = {
+      ...inventoryData,
+      currentStock: inventoryData.currentStock || 0,
+      minimumStock: inventoryData.minimumStock || 0,
+      status: inventoryData.status || 'Active'
+    };
+    
+    console.log('📦 Safe inventory data:', safeInventoryData);
+    
+    const inventory = new Inventory(safeInventoryData);
     
     // Save the inventory with the initial stock as provided
+    console.log('💾 Saving inventory...');
     await inventory.save();
+    console.log('✅ Inventory saved successfully with ID:', inventory._id);
+    
+    // Update warehouse capacity usage
+    if (inventory.currentStock > 0) {
+      const currentUsage = warehouse.capacity?.currentUsage || 0;
+      const warehouseUnit = warehouse.capacity?.unit || 'kg';
+      const inventoryUnit = inventoryData.unit || 'kg';
+      
+      // Convert inventory stock to kg for capacity calculation
+      let stockInKg = inventoryData.currentStock;
+      switch (inventoryUnit) {
+        case 'tons':
+          stockInKg = inventoryData.currentStock * 1000;
+          break;
+        case 'quintals':
+          stockInKg = inventoryData.currentStock * 100;
+          break;
+        case '50kg bags':
+          stockInKg = inventoryData.currentStock * 50;
+          break;
+        case '25kg bags':
+          stockInKg = inventoryData.currentStock * 25;
+          break;
+        case '10kg bags':
+          stockInKg = inventoryData.currentStock * 10;
+          break;
+        case '5kg bags':
+          stockInKg = inventoryData.currentStock * 5;
+          break;
+        case '100kg sacks':
+          stockInKg = inventoryData.currentStock * 100;
+          break;
+        case '50kg sacks':
+          stockInKg = inventoryData.currentStock * 50;
+          break;
+        case '25kg sacks':
+          stockInKg = inventoryData.currentStock * 25;
+          break;
+        default:
+          stockInKg = inventoryData.currentStock; // Assume kg
+      }
+      
+      // Update warehouse capacity usage
+      try {
+        await Warehouse.findByIdAndUpdate(warehouse._id, {
+          $inc: { 'capacity.currentUsage': stockInKg }
+        });
+        
+        console.log(`Updated warehouse capacity usage: +${stockInKg}kg (Total: ${currentUsage + stockInKg}kg)`);
+      } catch (warehouseUpdateError) {
+        console.error('Error updating warehouse capacity:', warehouseUpdateError);
+        // Don't fail the entire operation if warehouse update fails
+        console.log('Continuing without warehouse capacity update...');
+      }
+    }
     
     // Create a stock movement record for initial stock to track it properly
     if (inventory.currentStock > 0) {
-      const Stock = (await import("../model/stock.js")).default;
-      const stockMovement = new Stock({
-        inventoryItem: inventory._id,
-        movementType: 'in',
-        quantity: inventory.currentStock,
-        reason: 'Initial Stock',
-        referenceNumber: `INIT-${inventory.code}`,
-        warehouse: inventory.warehouse,
-        createdBy: req.user?.id || null
-      });
-      
-      await stockMovement.save();
-      console.log('Initial stock movement created for inventory:', inventory.name, 'with quantity:', inventory.currentStock);
+      try {
+        const Stock = (await import("../model/stock.js")).default;
+        const stockMovement = new Stock({
+          inventoryItem: inventory._id,
+          movementType: 'in',
+          quantity: inventory.currentStock,
+          reason: 'Initial Stock',
+          referenceNumber: `INIT-${inventory.code || inventory._id.toString().slice(-6)}`,
+          warehouse: inventory.warehouse,
+          createdBy: req.user?.id || null
+        });
+        
+        await stockMovement.save();
+        console.log('Initial stock movement created for inventory:', inventory.name, 'with quantity:', inventory.currentStock);
+      } catch (stockError) {
+        console.error('Error creating stock movement:', stockError);
+        // Don't fail the entire operation if stock movement creation fails
+        console.log('Continuing without stock movement record...');
+      }
     }
     
     res.status(201).json({
@@ -60,10 +251,15 @@ export const createInventory = async (req, res) => {
     });
   } catch (error) {
     console.error("Create inventory error:", error);
+    console.error("Error details:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Request body:", req.body);
+    
     res.status(500).json({
       success: false,
       message: "Error creating inventory item",
-      error: error.message
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };

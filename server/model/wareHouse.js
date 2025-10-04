@@ -43,7 +43,7 @@ const warehouseSchema = new mongoose.Schema({
     },
     unit: {
       type: String,
-      enum: ['tons', 'quintals', '50kg bags', '25kg bags', '10kg bags', '5kg bags', '100kg sacks', '50kg sacks', '25kg sacks'],
+      enum: ['tons', 'quintals', '50kg bags', '25kg bags', '10kg bags', '5kg bags', '100kg sacks', '50kg sacks', '25kg sacks', 'bags', 'pieces', 'rolls', 'sheets', 'boxes', 'packets', 'bundles', 'units', 'sets', 'kits', 'pairs', 'meters', 'liters'],
       default: '50kg bags'
     },
     currentUsage: {
@@ -132,4 +132,7 @@ warehouseSchema.virtual("capacityPercentage").get(function() {
   return Math.round((this.capacity.currentUsage / this.capacity.totalCapacity) * 100);
 });
 
-export default mongoose.model("Warehouse", warehouseSchema);
+// Check if model already exists to prevent overwrite errors
+const Warehouse = mongoose.models.Warehouse || mongoose.model("Warehouse", warehouseSchema);
+
+export default Warehouse;

@@ -3,6 +3,7 @@ import { body, validationResult } from "express-validator";
 import Sale from "../model/Sale.js";
 import Inventory from "../model/inventory.js";
 import Warehouse from "../model/warehouse.js";
+import CustomerNew from "../model/CustomerNew.js";
 import { protect, authorize } from "../middleware/auth.js";
 import { 
   createSale, 
@@ -18,12 +19,54 @@ const router = express.Router();
 // Apply authentication to all routes
 router.use(protect);
 
+// @route   GET /api/sales/customers/search
+// @desc    Search customers for sales form
+// @access  Private (Manager, Admin, Cashier)
+router.get("/customers/search", [
+  authorize("Manager", "Admin", "Cashier")
+], async (req, res) => {
+  try {
+    const { q, limit = 10 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    const customers = await CustomerNew.find({
+      $or: [
+        { firstName: { $regex: q, $options: 'i' } },
+        { lastName: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { phone: { $regex: q, $options: 'i' } },
+        { businessName: { $regex: q, $options: 'i' } }
+      ]
+    })
+    .select('firstName lastName email phone businessName businessType customerType creditLimit creditUsed status')
+    .limit(parseInt(limit))
+    .lean();
+    
+    res.json({
+      success: true,
+      data: customers
+    });
+  } catch (error) {
+    console.error("Search customers error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+});
+
 // @route   POST /api/sales
 // @desc    Create new sale invoice (FR 19) - Base route
 // @access  Private (Manager, Admin, Cashier)
 router.post("/", [
   authorize("Manager", "Admin", "Cashier"),
-  body("invoiceNumber").trim().notEmpty().withMessage("Invoice number is required"),
   body("customer.name").trim().notEmpty().withMessage("Customer name is required"),
   body("items").isArray({ min: 1 }).withMessage("At least one item is required"),
   body("items.*.product").isMongoId().withMessage("Valid product ID is required"),
@@ -31,115 +74,13 @@ router.post("/", [
   body("items.*.unitPrice").isNumeric().withMessage("Unit price must be a number"),
   body("warehouse").isMongoId().withMessage("Valid warehouse ID is required"),
   body("paymentMethod").isIn(["Cash", "Bank Transfer", "Cheque", "Credit"]).withMessage("Invalid payment method")
-], async (req, res) => {
-  try {
-    // Check validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    // Check if invoice number already exists
-    const existingInvoice = await Sale.findOne({ invoiceNumber: req.body.invoiceNumber });
-    if (existingInvoice) {
-      return res.status(400).json({
-        success: false,
-        message: "Invoice number already exists"
-      });
-    }
-
-    // Verify warehouse exists
-    const warehouse = await Warehouse.findById(req.body.warehouse);
-    if (!warehouse) {
-      return res.status(404).json({
-        success: false,
-        message: "Warehouse not found"
-      });
-    }
-
-    // Process items and calculate totals
-    const processedItems = [];
-    let subtotal = 0;
-
-    for (const item of req.body.items) {
-      // Verify product exists
-      const product = await Inventory.findById(item.product);
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: `Product with ID ${item.product} not found`
-        });
-      }
-
-      // Calculate total price for item
-      const totalPrice = item.quantity * item.unitPrice;
-      subtotal += totalPrice;
-
-      processedItems.push({
-        product: item.product,
-        productName: product.name,
-        quantity: item.quantity,
-        unit: item.unit || product.unit || 'kg',
-        unitPrice: item.unitPrice,
-        totalPrice: totalPrice
-      });
-    }
-
-    // Calculate discount amount
-    let discountAmount = 0;
-    if (req.body.discount?.type === 'percentage') {
-      discountAmount = (subtotal * (req.body.discount.value || 0)) / 100;
-    } else if (req.body.discount?.type === 'fixed') {
-      discountAmount = req.body.discount.value || 0;
-    }
-
-    // Calculate total amount
-    const taxAmount = req.body.tax || 0;
-    const totalAmount = subtotal - discountAmount + taxAmount;
-
-    // Create sale data
-    const saleData = {
-      ...req.body,
-      items: processedItems,
-      subtotal: subtotal,
-      totalAmount: totalAmount,
-      discount: {
-        type: req.body.discount?.type || 'none',
-        value: req.body.discount?.value || 0,
-        amount: discountAmount
-      },
-      tax: taxAmount,
-      createdBy: req.user._id || req.user.id
-    };
-
-    const sale = new Sale(saleData);
-    await sale.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Sale invoice created successfully",
-      data: sale
-    });
-
-  } catch (error) {
-    console.error("Create sale error:", error);
-    res.status(500).json({
-        success: false,
-        message: "Server error",
-        error: error.message
-      });
-  }
-});
+], createSale);
 
 // @route   POST /api/sales/create
 // @desc    Create new sale invoice (FR 19) - Create route
 // @access  Private (Manager, Admin, Cashier)
 router.post("/create", [
   authorize("Manager", "Admin", "Cashier"),
-  body("invoiceNumber").trim().notEmpty().withMessage("Invoice number is required"),
   body("customer.name").trim().notEmpty().withMessage("Customer name is required"),
   body("items").isArray({ min: 1 }).withMessage("At least one item is required"),
   body("items.*.product").isMongoId().withMessage("Valid product ID is required"),
@@ -147,108 +88,7 @@ router.post("/create", [
   body("items.*.unitPrice").isNumeric().withMessage("Unit price must be a number"),
   body("warehouse").isMongoId().withMessage("Valid warehouse ID is required"),
   body("paymentMethod").isIn(["Cash", "Bank Transfer", "Cheque", "Credit"]).withMessage("Invalid payment method")
-], async (req, res) => {
-  try {
-    // Check validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        errors: errors.array()
-      });
-    }
-
-    // Check if invoice number already exists
-    const existingInvoice = await Sale.findOne({ invoiceNumber: req.body.invoiceNumber });
-    if (existingInvoice) {
-      return res.status(400).json({
-        success: false,
-        message: "Invoice number already exists"
-      });
-    }
-
-    // Verify warehouse exists
-    const warehouse = await Warehouse.findById(req.body.warehouse);
-    if (!warehouse) {
-      return res.status(404).json({
-        success: false,
-        message: "Warehouse not found"
-      });
-    }
-
-    // Process items and calculate totals
-    const processedItems = [];
-    let subtotal = 0;
-
-    for (const item of req.body.items) {
-      // Verify product exists
-      const product = await Inventory.findById(item.product);
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: `Product with ID ${item.product} not found`
-        });
-      }
-
-      // Calculate total price for item
-      const totalPrice = item.quantity * item.unitPrice;
-      subtotal += totalPrice;
-
-      processedItems.push({
-        product: item.product,
-        productName: product.name,
-        quantity: item.quantity,
-        unit: item.unit || product.unit || 'kg',
-        unitPrice: item.unitPrice,
-        totalPrice: totalPrice
-      });
-    }
-
-    // Calculate discount amount
-    let discountAmount = 0;
-    if (req.body.discount?.type === 'percentage') {
-      discountAmount = (subtotal * (req.body.discount.value || 0)) / 100;
-    } else if (req.body.discount?.type === 'fixed') {
-      discountAmount = req.body.discount.value || 0;
-    }
-
-    // Calculate total amount
-    const taxAmount = req.body.tax || 0;
-    const totalAmount = subtotal - discountAmount + taxAmount;
-
-    // Create sale data
-    const saleData = {
-      ...req.body,
-      items: processedItems,
-      subtotal: subtotal,
-      totalAmount: totalAmount,
-      discount: {
-        type: req.body.discount?.type || 'none',
-        value: req.body.discount?.value || 0,
-        amount: discountAmount
-      },
-      tax: taxAmount,
-      createdBy: req.user._id || req.user.id
-    };
-
-    const sale = new Sale(saleData);
-    await sale.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Sale invoice created successfully",
-      data: sale
-    });
-
-  } catch (error) {
-    console.error("Create sale error:", error);
-    res.status(500).json({
-        success: false,
-        message: "Server error",
-        error: error.message
-      });
-  }
-});
+], createSale);
 
 // @route   GET /api/sales
 // @desc    Get all sales with filtering and pagination - Base route

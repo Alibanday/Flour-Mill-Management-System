@@ -4,6 +4,8 @@ import { FaUsers, FaHome, FaSignOutAlt, FaUserCog, FaUserPlus, FaList, FaClock, 
 import { useAuth } from '../hooks/useAuth';
 import EmployeeList from '../components/EmployeeManagement/EmployeeList';
 import EmployeeForm from '../components/EmployeeManagement/EmployeeForm';
+import EmployeeDashboard from '../components/EmployeeManagement/EmployeeDashboard';
+import EmployeeReports from '../components/EmployeeManagement/EmployeeReports';
 import AttendanceManagement from '../components/EmployeeManagement/AttendanceManagement';
 import PayrollManagement from '../components/EmployeeManagement/PayrollManagement';
 
@@ -38,9 +40,11 @@ export default function EmployeesPage() {
 
 
   const tabs = [
+    { id: 'dashboard', name: 'Dashboard', icon: <FaUserCog className="mr-2" /> },
     { id: 'employees', name: 'Employees', icon: <FaUsers className="mr-2" /> },
     { id: 'attendance', name: 'Attendance', icon: <FaClock className="mr-2" /> },
-    { id: 'payroll', name: 'Payroll', icon: <FaMoneyBillWave className="mr-2" /> }
+    { id: 'payroll', name: 'Payroll', icon: <FaMoneyBillWave className="mr-2" /> },
+    { id: 'reports', name: 'Reports', icon: <FaList className="mr-2" /> }
   ];
 
   return (
@@ -167,6 +171,9 @@ export default function EmployeesPage() {
 
           {/* Tab Content */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+            {activeTab === 'dashboard' && (
+              <EmployeeDashboard />
+            )}
             {activeTab === 'employees' && (
               <EmployeeList 
                 onEditEmployee={handleEditEmployee}
@@ -178,6 +185,9 @@ export default function EmployeesPage() {
             )}
             {activeTab === 'payroll' && (
               <PayrollManagement />
+            )}
+            {activeTab === 'reports' && (
+              <EmployeeReports />
             )}
           </div>
 

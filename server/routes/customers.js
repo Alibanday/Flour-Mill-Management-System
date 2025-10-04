@@ -1,6 +1,6 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
-import Customer from "../model/Customer.js";
+import CustomerNew from "../model/CustomerNew.js";
 import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -15,32 +15,33 @@ router.use(protect);
 // Get all customers
 router.get("/all", authorize("Admin", "Manager", "Cashier"), async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, status, creditStatus } = req.query;
+    const { page = 1, limit = 10, search, status, customerType, creditStatus } = req.query;
     
     let query = {};
     
     if (search) {
       query.$or = [
-        { customerNumber: { $regex: search, $options: 'i' } },
+        { customerId: { $regex: search, $options: 'i' } },
         { firstName: { $regex: search, $options: 'i' } },
         { lastName: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { phone: { $regex: search, $options: 'i' } },
-        { 'businessInfo.businessName': { $regex: search, $options: 'i' } }
+        { businessName: { $regex: search, $options: 'i' } }
       ];
     }
     
     if (status) query.status = status;
+    if (customerType) query.customerType = customerType;
     if (creditStatus) query['creditInfo.creditStatus'] = creditStatus;
     
-    const customers = await Customer.find(query)
+    const customers = await CustomerNew.find(query)
       .populate('createdBy', 'firstName lastName')
       .populate('updatedBy', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
     
-    const total = await Customer.countDocuments(query);
+    const total = await CustomerNew.countDocuments(query);
     
     res.json({
       success: true,
@@ -56,15 +57,49 @@ router.get("/all", authorize("Admin", "Manager", "Cashier"), async (req, res) =>
   }
 });
 
+// Search customers for sales form
+router.get("/search", authorize("Admin", "Manager", "Cashier"), async (req, res) => {
+  try {
+    const { q, limit = 10 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    const customers = await CustomerNew.find({
+      $or: [
+        { firstName: { $regex: q, $options: 'i' } },
+        { lastName: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { phone: { $regex: q, $options: 'i' } },
+        { businessName: { $regex: q, $options: 'i' } }
+      ]
+    })
+    .select('firstName lastName email phone businessName businessType customerType creditLimit creditUsed status')
+    .limit(parseInt(limit))
+    .lean();
+    
+    res.json({
+      success: true,
+      data: customers
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get customer by ID
 router.get("/:id", authorize("Admin", "Manager", "Cashier"), async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id)
+    const customer = await CustomerNew.findById(req.params.id)
       .populate('createdBy', 'firstName lastName')
       .populate('updatedBy', 'firstName lastName');
     
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     res.json({ success: true, data: customer });
@@ -79,13 +114,7 @@ router.post("/create", [
   body('firstName').notEmpty().withMessage('First name is required'),
   body('lastName').notEmpty().withMessage('Last name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
-  body('phone').notEmpty().withMessage('Phone number is required'),
-  body('cnic').notEmpty().withMessage('CNIC is required'),
-  body('address.street').notEmpty().withMessage('Street address is required'),
-  body('address.city').notEmpty().withMessage('City is required'),
-  body('address.state').notEmpty().withMessage('State is required'),
-  body('address.zipCode').notEmpty().withMessage('Zip code is required'),
-  body('creditInfo.creditLimit').isNumeric().withMessage('Credit limit must be a number')
+  body('phone').notEmpty().withMessage('Phone number is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -93,28 +122,47 @@ router.post("/create", [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
     
-    // Generate customer number
-    const customerNumber = await Customer.generateCustomerNumber();
+    // Check if email already exists
+    const existingCustomer = await CustomerNew.findOne({ email: req.body.email });
+    if (existingCustomer) {
+      return res.status(400).json({
+        success: false,
+        message: 'Customer with this email already exists',
+        field: 'email'
+      });
+    }
+    
+    // Generate unique customerNumber to avoid database index constraint
+    const uniqueCustomerNumber = 'CUST-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
     
     const customerData = {
-      ...req.body,
-      customerNumber,
-      createdBy: req.user.id
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      email: req.body.email,
+      phone: req.body.phone,
+      businessName: req.body.businessName || '',
+      businessType: req.body.businessType || 'Individual',
+      customerType: req.body.customerType || 'New',
+      status: req.body.status || 'Active',
+      createdBy: req.user ? req.user.id : null,
+      customerNumber: uniqueCustomerNumber
     };
     
-    const customer = new Customer(customerData);
+    const customer = new CustomerNew(customerData);
     await customer.save();
     
     res.status(201).json({
       success: true,
-      message: 'Customer created successfully',
+      message: 'CustomerNew created successfully',
       data: customer
     });
   } catch (error) {
+    console.log('CustomerNew creation error:', error);
     if (error.code === 11000) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Customer with this email or CNIC already exists' 
+        message: 'CustomerNew with this email or phone already exists',
+        details: error.message
       });
     }
     res.status(500).json({ success: false, message: error.message });
@@ -136,9 +184,9 @@ router.put("/:id", [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
     
-    const customer = await Customer.findById(req.params.id);
+    const customer = await CustomerNew.findById(req.params.id);
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     const updatedData = {
@@ -146,7 +194,7 @@ router.put("/:id", [
       updatedBy: req.user.id
     };
     
-    const updatedCustomer = await Customer.findByIdAndUpdate(
+    const updatedCustomerNew = await CustomerNew.findByIdAndUpdate(
       req.params.id,
       updatedData,
       { new: true, runValidators: true }
@@ -154,14 +202,14 @@ router.put("/:id", [
     
     res.json({
       success: true,
-      message: 'Customer updated successfully',
-      data: updatedCustomer
+      message: 'CustomerNew updated successfully',
+      data: updatedCustomerNew
     });
   } catch (error) {
     if (error.code === 11000) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Customer with this email or CNIC already exists' 
+        message: 'CustomerNew with this email or CNIC already exists' 
       });
     }
     res.status(500).json({ success: false, message: error.message });
@@ -180,7 +228,7 @@ router.patch("/:id/status", authorize("Admin", "Manager"), async (req, res) => {
       });
     }
     
-    const customer = await Customer.findByIdAndUpdate(
+    const customer = await CustomerNew.findByIdAndUpdate(
       req.params.id,
       { 
         status,
@@ -190,12 +238,12 @@ router.patch("/:id/status", authorize("Admin", "Manager"), async (req, res) => {
     );
     
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     res.json({
       success: true,
-      message: 'Customer status updated successfully',
+      message: 'CustomerNew status updated successfully',
       data: customer
     });
   } catch (error) {
@@ -216,9 +264,9 @@ router.patch("/:id/credit-limit", authorize("Admin", "Manager"), [
     
     const { creditLimit, creditStatus } = req.body;
     
-    const customer = await Customer.findById(req.params.id);
+    const customer = await CustomerNew.findById(req.params.id);
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     customer.creditInfo.creditLimit = creditLimit;
@@ -252,9 +300,9 @@ router.patch("/:id/credit-balance", authorize("Admin", "Manager", "Cashier"), [
     
     const { amount, type } = req.body;
     
-    const customer = await Customer.findById(req.params.id);
+    const customer = await CustomerNew.findById(req.params.id);
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     await customer.updateCreditBalance(amount, type);
@@ -281,9 +329,9 @@ router.post("/:id/check-credit", authorize("Admin", "Manager", "Cashier"), [
     
     const { amount } = req.body;
     
-    const customer = await Customer.findById(req.params.id);
+    const customer = await CustomerNew.findById(req.params.id);
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     const canPurchase = customer.canMakePurchase(amount);
@@ -306,32 +354,41 @@ router.post("/:id/check-credit", authorize("Admin", "Manager", "Cashier"), [
 // Get customer statistics
 router.get("/stats/overview", authorize("Admin", "Manager"), async (req, res) => {
   try {
-    const totalCustomers = await Customer.countDocuments();
-    const activeCustomers = await Customer.countDocuments({ status: 'Active' });
-    const customersWithCredit = await Customer.countDocuments({ 
-      'creditInfo.creditLimit': { $gt: 0 } 
-    });
-    const customersOverCreditLimit = await Customer.countDocuments({
-      $expr: { $gt: ['$creditInfo.currentBalance', '$creditInfo.creditLimit'] }
-    });
+    const totalCustomerNews = await CustomerNew.countDocuments();
+    const activeCustomerNews = await CustomerNew.countDocuments({ status: 'Active' });
+    const inactiveCustomerNews = await CustomerNew.countDocuments({ status: 'Inactive' });
     
-    const totalCreditLimit = await Customer.aggregate([
-      { $group: { _id: null, total: { $sum: '$creditInfo.creditLimit' } } }
+    // Get customers by type
+    const customersByType = await CustomerNew.aggregate([
+      { $group: { _id: '$customerType', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
     ]);
     
-    const totalOutstanding = await Customer.aggregate([
-      { $group: { _id: null, total: { $sum: '$creditInfo.currentBalance' } } }
+    // Get recent customers (last 5)
+    const recentCustomerNews = await CustomerNew.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('firstName lastName businessName customerType createdAt')
+      .lean();
+    
+    // Get top customers by business type
+    const topCustomerNews = await CustomerNew.aggregate([
+      { $group: { _id: '$businessType', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
     ]);
     
     res.json({
       success: true,
       data: {
-        totalCustomers,
-        activeCustomers,
-        customersWithCredit,
-        customersOverCreditLimit,
-        totalCreditLimit: totalCreditLimit[0]?.total || 0,
-        totalOutstanding: totalOutstanding[0]?.total || 0
+        totalCustomers: totalCustomerNews,
+        activeCustomers: activeCustomerNews,
+        inactiveCustomers: inactiveCustomerNews,
+        totalRevenue: 0, // Will be calculated from sales data later
+        averageOrderValue: 0, // Will be calculated from sales data later
+        customersByType,
+        topCustomers: topCustomerNews,
+        recentCustomers: recentCustomerNews
       }
     });
   } catch (error) {
@@ -342,7 +399,7 @@ router.get("/stats/overview", authorize("Admin", "Manager"), async (req, res) =>
 // Delete customer (soft delete)
 router.delete("/:id", authorize("Admin"), async (req, res) => {
   try {
-    const customer = await Customer.findByIdAndUpdate(
+    const customer = await CustomerNew.findByIdAndUpdate(
       req.params.id,
       { 
         status: 'Inactive',
@@ -352,12 +409,12 @@ router.delete("/:id", authorize("Admin"), async (req, res) => {
     );
     
     if (!customer) {
-      return res.status(404).json({ success: false, message: 'Customer not found' });
+      return res.status(404).json({ success: false, message: 'CustomerNew not found' });
     }
     
     res.json({
       success: true,
-      message: 'Customer deactivated successfully'
+      message: 'CustomerNew deactivated successfully'
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

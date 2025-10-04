@@ -138,12 +138,122 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // Clean up form data - remove empty fields that cause validation errors
+      const cleanedFormData = { ...formData };
+      if (!cleanedFormData.description || cleanedFormData.description === '') {
+        delete cleanedFormData.description;
+      }
+      if (!cleanedFormData.subcategory || cleanedFormData.subcategory === '') {
+        delete cleanedFormData.subcategory;
+      }
+      if (!cleanedFormData.minimumStock || cleanedFormData.minimumStock === '') {
+        delete cleanedFormData.minimumStock;
+      }
+
+      // Convert string numbers to actual numbers
+      if (cleanedFormData.currentStock) {
+        cleanedFormData.currentStock = parseFloat(cleanedFormData.currentStock);
+      }
+      if (cleanedFormData.cost.purchasePrice) {
+        cleanedFormData.cost.purchasePrice = parseFloat(cleanedFormData.cost.purchasePrice);
+      }
+
+      console.log('Submitting inventory with cleaned data:', cleanedFormData);
+
+      // Check warehouse capacity before creating inventory
+      if (mode === 'create' && cleanedFormData.currentStock > 0) {
+        const warehouseResponse = await api.get(API_ENDPOINTS.WAREHOUSES.GET_BY_ID(cleanedFormData.warehouse));
+        const warehouse = warehouseResponse.data.data;
+        
+        if (warehouse && warehouse.capacity) {
+          const currentUsage = warehouse.capacity.currentUsage || 0;
+          const totalCapacity = warehouse.capacity.totalCapacity || 0;
+          const newStock = cleanedFormData.currentStock || 0;
+          
+          // Convert units to a common base for comparison (assuming kg as base)
+          let stockInKg = newStock;
+          let capacityInKg = totalCapacity;
+          
+          // Convert warehouse capacity to kg based on unit
+          switch (warehouse.capacity.unit) {
+            case 'tons':
+              capacityInKg = totalCapacity * 1000;
+              break;
+            case 'quintals':
+              capacityInKg = totalCapacity * 100;
+              break;
+            case '50kg bags':
+              capacityInKg = totalCapacity * 50;
+              break;
+            case '25kg bags':
+              capacityInKg = totalCapacity * 25;
+              break;
+            case '10kg bags':
+              capacityInKg = totalCapacity * 10;
+              break;
+            case '5kg bags':
+              capacityInKg = totalCapacity * 5;
+              break;
+            case '100kg sacks':
+              capacityInKg = totalCapacity * 100;
+              break;
+            case '50kg sacks':
+              capacityInKg = totalCapacity * 50;
+              break;
+            case '25kg sacks':
+              capacityInKg = totalCapacity * 25;
+              break;
+            default:
+              capacityInKg = totalCapacity; // Assume kg
+          }
+          
+          // Convert inventory stock to kg based on unit
+          switch (cleanedFormData.unit) {
+            case 'tons':
+              stockInKg = newStock * 1000;
+              break;
+            case 'quintals':
+              stockInKg = newStock * 100;
+              break;
+            case '50kg bags':
+              stockInKg = newStock * 50;
+              break;
+            case '25kg bags':
+              stockInKg = newStock * 25;
+              break;
+            case '10kg bags':
+              stockInKg = newStock * 10;
+              break;
+            case '5kg bags':
+              stockInKg = newStock * 5;
+              break;
+            case '100kg sacks':
+              stockInKg = newStock * 100;
+              break;
+            case '50kg sacks':
+              stockInKg = newStock * 50;
+              break;
+            case '25kg sacks':
+              stockInKg = newStock * 25;
+              break;
+            default:
+              stockInKg = newStock; // Assume kg
+          }
+          
+          if (currentUsage + stockInKg > capacityInKg) {
+            toast.error(`Cannot add inventory: Would exceed warehouse capacity. Current usage: ${currentUsage}kg, Adding: ${stockInKg}kg, Capacity: ${capacityInKg}kg`);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
       let response;
       if (mode === 'create') {
-        response = await api.post(API_ENDPOINTS.INVENTORY.CREATE, formData);
+        response = await api.post(API_ENDPOINTS.INVENTORY.CREATE, cleanedFormData);
         toast.success('Inventory item created successfully!');
       } else {
-        response = await api.put(API_ENDPOINTS.INVENTORY.UPDATE(inventory._id), formData);
+        response = await api.put(API_ENDPOINTS.INVENTORY.UPDATE(inventory._id), cleanedFormData);
         toast.success('Inventory item updated successfully!');
       }
 

@@ -119,6 +119,7 @@ employeeSchema.index({ email: 1 });
 employeeSchema.index({ department: 1 });
 employeeSchema.index({ status: 1 });
 
-const Employee = mongoose.model('Employee', employeeSchema);
+// Check if model already exists to prevent overwrite errors
+const Employee = mongoose.models.Employee || mongoose.model('Employee', employeeSchema);
 
 export default Employee;

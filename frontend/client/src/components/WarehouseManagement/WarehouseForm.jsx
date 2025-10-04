@@ -10,7 +10,6 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
   const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
-    warehouseNumber: '',
     name: '',
     location: '',
     status: 'Active',
@@ -18,7 +17,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
     manager: '',
     capacity: {
       totalCapacity: '',
-      unit: 'kg'
+      unit: '50kg bags'
     },
     contact: {
       phone: '',
@@ -36,7 +35,6 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
   useEffect(() => {
     if (warehouse && mode === 'edit') {
       setFormData({
-        warehouseNumber: warehouse.warehouseNumber || '',
         name: warehouse.name || '',
         location: warehouse.location || '',
         status: warehouse.status || 'Active',
@@ -44,7 +42,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
         manager: warehouse.manager?._id || warehouse.manager || '',
         capacity: {
           totalCapacity: warehouse.capacity?.totalCapacity || '',
-          unit: warehouse.capacity?.unit || 'kg'
+          unit: warehouse.capacity?.unit || '50kg bags'
         },
         contact: {
           phone: warehouse.contact?.phone || '',
@@ -58,21 +56,39 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
           }
         }
       });
+    } else if (mode === 'create') {
+      // Reset form for create mode
+      setFormData({
+        name: '',
+        location: '',
+        status: 'Active',
+        description: '',
+        manager: '',
+        capacity: {
+          totalCapacity: '',
+          unit: '50kg bags'
+        },
+        contact: {
+          phone: '',
+          email: '',
+          address: {
+            street: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            country: 'Pakistan'
+          }
+        }
+      });
     }
+    // Clear any existing errors when form opens
+    setErrors({});
   }, [warehouse, mode]);
 
   const validateForm = () => {
     const newErrors = {};
 
     // Required fields validation
-    if (!formData.warehouseNumber.trim()) {
-      newErrors.warehouseNumber = 'Warehouse number is required';
-    } else if (formData.warehouseNumber.length < 2) {
-      newErrors.warehouseNumber = 'Warehouse number must be at least 2 characters';
-    } else if (formData.warehouseNumber.length > 20) {
-      newErrors.warehouseNumber = 'Warehouse number cannot exceed 20 characters';
-    }
-
     if (!formData.name.trim()) {
       newErrors.name = 'Warehouse name is required';
     } else if (formData.name.length < 2) {
@@ -98,10 +114,14 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    console.log('Form submission started with data:', formData);
+
     if (!validateForm()) {
+      console.log('Form validation failed');
       return;
     }
 
+    console.log('Form validation passed, submitting...');
     setLoading(true);
 
     try {
@@ -110,23 +130,129 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
         headers: { Authorization: `Bearer ${token}` }
       };
 
+      console.log('Submitting to:', API_ENDPOINTS.WAREHOUSES.CREATE);
+      console.log('Raw form data:', JSON.stringify(formData, null, 2));
+
+      // Clean up form data - remove empty fields that cause validation errors
+      const cleanedFormData = { ...formData };
+      
+      // Remove empty manager field (causes ObjectId validation error)
+      if (!cleanedFormData.manager || cleanedFormData.manager === '' || cleanedFormData.manager === null) {
+        delete cleanedFormData.manager;
+      }
+      
+      // Remove empty description field
+      if (!cleanedFormData.description || cleanedFormData.description === '' || cleanedFormData.description === null) {
+        delete cleanedFormData.description;
+      }
+      
+      // Clean contact object - remove empty fields
+      if (cleanedFormData.contact) {
+        if (!cleanedFormData.contact.phone || cleanedFormData.contact.phone === '' || cleanedFormData.contact.phone === null) {
+          delete cleanedFormData.contact.phone;
+        }
+        if (!cleanedFormData.contact.email || cleanedFormData.contact.email === '' || cleanedFormData.contact.email === null) {
+          delete cleanedFormData.contact.email;
+        }
+        
+        // Clean address object - remove empty fields
+        if (cleanedFormData.contact.address) {
+          const address = cleanedFormData.contact.address;
+          if (!address.street || address.street === '' || address.street === null) {
+            delete address.street;
+          }
+          if (!address.city || address.city === '' || address.city === null) {
+            delete address.city;
+          }
+          if (!address.state || address.state === '' || address.state === null) {
+            delete address.state;
+          }
+          if (!address.zipCode || address.zipCode === '' || address.zipCode === null) {
+            delete address.zipCode;
+          }
+        }
+      }
+
+      // Convert string numbers to actual numbers
+      if (cleanedFormData.capacity && cleanedFormData.capacity.totalCapacity) {
+        cleanedFormData.capacity.totalCapacity = parseFloat(cleanedFormData.capacity.totalCapacity);
+        
+        // Ensure it's a valid number
+        if (isNaN(cleanedFormData.capacity.totalCapacity)) {
+          cleanedFormData.capacity.totalCapacity = 0;
+        }
+      }
+
+      // Final safety check - remove any remaining empty strings that could cause issues
+      Object.keys(cleanedFormData).forEach(key => {
+        if (cleanedFormData[key] === '' || cleanedFormData[key] === null || cleanedFormData[key] === undefined) {
+          if (key !== 'description' && key !== 'manager') { // Keep these as they're handled above
+            delete cleanedFormData[key];
+          }
+        }
+      });
+
+      // Clean nested objects
+      if (cleanedFormData.contact) {
+        Object.keys(cleanedFormData.contact).forEach(key => {
+          if (cleanedFormData.contact[key] === '' || cleanedFormData.contact[key] === null || cleanedFormData.contact[key] === undefined) {
+            delete cleanedFormData.contact[key];
+          }
+        });
+        
+        if (cleanedFormData.contact.address) {
+          Object.keys(cleanedFormData.contact.address).forEach(key => {
+            if (cleanedFormData.contact.address[key] === '' || cleanedFormData.contact.address[key] === null || cleanedFormData.contact.address[key] === undefined) {
+              delete cleanedFormData.contact.address[key];
+            }
+          });
+        }
+      }
+
+      console.log('Cleaned form data:', JSON.stringify(cleanedFormData, null, 2));
+
       let response;
       if (mode === 'edit' && warehouse) {
         // Update existing warehouse
-        response = await api.put(API_ENDPOINTS.WAREHOUSES.UPDATE(warehouse._id), formData);
+        response = await api.put(API_ENDPOINTS.WAREHOUSES.UPDATE(warehouse._id), cleanedFormData);
         toast.success('Warehouse updated successfully!');
       } else {
         // Create new warehouse
-        response = await api.post(API_ENDPOINTS.WAREHOUSES.CREATE, formData);
+        response = await api.post(API_ENDPOINTS.WAREHOUSES.CREATE, cleanedFormData);
+        console.log('Warehouse creation response:', response.data);
         toast.success('Warehouse created successfully!');
       }
 
       onSave(response.data.data || response.data);
+      
+      // Trigger warehouse update event for real-time dashboard
+      if (mode === 'create') {
+        window.dispatchEvent(new CustomEvent('warehouseAdded', { 
+          detail: { warehouse: response.data.data || response.data } 
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent('warehouseUpdated', { 
+          detail: { warehouse: response.data.data || response.data } 
+        }));
+      }
+      
       onCancel();
 
     } catch (error) {
       console.error('Error saving warehouse:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to save warehouse';
+      console.error('Error response:', error.response?.data);
+      console.error('Full error:', error);
+      
+      let errorMessage = 'Failed to save warehouse';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -200,27 +326,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
               Basic Information
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Warehouse Number *
-                </label>
-                <input
-                  type="text"
-                  name="warehouseNumber"
-                  value={formData.warehouseNumber}
-                  onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    errors.warehouseNumber ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter warehouse number"
-                  maxLength="20"
-                />
-                {errors.warehouseNumber && (
-                  <p className="mt-1 text-sm text-red-600">{errors.warehouseNumber}</p>
-                )}
-              </div>
-
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Warehouse Name *
@@ -239,6 +345,9 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
                 {errors.name && (
                   <p className="mt-1 text-sm text-red-600">{errors.name}</p>
                 )}
+                <p className="mt-1 text-sm text-gray-500">
+                  Warehouse number will be generated automatically
+                </p>
               </div>
             </div>
           </div>
@@ -334,10 +443,15 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
                   }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="kg">Kilograms (kg)</option>
                   <option value="tons">Tons</option>
-                  <option value="bags">Bags</option>
-                  <option value="pcs">Pieces</option>
+                  <option value="quintals">Quintals</option>
+                  <option value="50kg bags">50kg Bags</option>
+                  <option value="25kg bags">25kg Bags</option>
+                  <option value="10kg bags">10kg Bags</option>
+                  <option value="5kg bags">5kg Bags</option>
+                  <option value="100kg sacks">100kg Sacks</option>
+                  <option value="50kg sacks">50kg Sacks</option>
+                  <option value="25kg sacks">25kg Sacks</option>
                 </select>
               </div>
             </div>

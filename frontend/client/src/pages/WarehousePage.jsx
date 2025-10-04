@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaBoxes, FaPallet, FaClipboardList, FaTruckLoading,
   FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome,
-  FaMapMarkerAlt, FaPhone, FaClock, FaIndustry
+  FaMapMarkerAlt, FaPhone, FaClock, FaIndustry, FaSync
 } from "react-icons/fa";
 import WarehouseList from "../components/WarehouseManagement/WarehouseList";
 import WarehouseForm from "../components/WarehouseManagement/WarehouseForm";
@@ -14,6 +14,75 @@ export default function WarehousePage() {
   const { user, isAdmin, isManager, isEmployee } = useAuth();
   const [activeMenu, setActiveMenu] = useState("Warehouses");
   const [showAddWarehouse, setShowAddWarehouse] = useState(false);
+  const [warehouseStats, setWarehouseStats] = useState({
+    totalWarehouses: 0,
+    activeWarehouses: 0,
+    totalCapacity: 0,
+    inMaintenance: 0,
+    loading: true
+  });
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  // Fetch real-time warehouse statistics
+  const fetchWarehouseStats = async () => {
+    try {
+      setWarehouseStats(prev => ({ ...prev, loading: true }));
+      
+      const response = await fetch('http://localhost:7000/api/warehouses/stats', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setWarehouseStats({
+            totalWarehouses: data.data.totalWarehouses || 0,
+            activeWarehouses: data.data.activeWarehouses || 0,
+            totalCapacity: data.data.totalCapacity || 0,
+            inMaintenance: data.data.inMaintenance || 0,
+            loading: false
+          });
+          setLastUpdated(new Date());
+          console.log('📊 Warehouse stats updated:', data.data);
+        }
+      } else {
+        console.error('Failed to fetch warehouse stats:', response.statusText);
+        setWarehouseStats(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error('Error fetching warehouse stats:', error);
+      setWarehouseStats(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Set up real-time updates
+  useEffect(() => {
+    // Initial fetch
+    fetchWarehouseStats();
+
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(fetchWarehouseStats, 30000);
+
+    // Listen for warehouse updates
+    const handleWarehouseUpdate = () => {
+      console.log('🔄 Warehouse updated, refreshing stats...');
+      fetchWarehouseStats();
+    };
+
+    window.addEventListener('warehouseUpdated', handleWarehouseUpdate);
+    window.addEventListener('warehouseAdded', handleWarehouseUpdate);
+    window.addEventListener('warehouseDeleted', handleWarehouseUpdate);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('warehouseUpdated', handleWarehouseUpdate);
+      window.removeEventListener('warehouseAdded', handleWarehouseUpdate);
+      window.removeEventListener('warehouseDeleted', handleWarehouseUpdate);
+    };
+  }, []);
 
   const warehouseMenu = [
     { name: "Warehouses", icon: <FaWarehouse className="mr-3" />, roles: ['Admin', 'Manager', 'Employee'] },
@@ -52,11 +121,11 @@ export default function WarehousePage() {
     }
   ];
 
-  // Mock data for warehouse statistics
-  const warehouseStats = [
+  // Real-time warehouse statistics
+  const getWarehouseStatsData = () => [
     { 
       title: "Total Warehouses", 
-      value: "12", 
+      value: warehouseStats.loading ? "..." : warehouseStats.totalWarehouses.toString(), 
       change: "+2", 
       changeType: "positive",
       icon: <FaWarehouse className="text-2xl" />,
@@ -64,7 +133,7 @@ export default function WarehousePage() {
     },
     { 
       title: "Active Warehouses", 
-      value: "10", 
+      value: warehouseStats.loading ? "..." : warehouseStats.activeWarehouses.toString(), 
       change: "+1", 
       changeType: "positive",
       icon: <FaIndustry className="text-2xl" />,
@@ -72,7 +141,7 @@ export default function WarehousePage() {
     },
     { 
       title: "Total Capacity", 
-      value: "2,500 tons", 
+      value: warehouseStats.loading ? "..." : `${warehouseStats.totalCapacity.toLocaleString()} tons`, 
       change: "+150", 
       changeType: "positive",
       icon: <FaBoxes className="text-2xl" />,
@@ -80,7 +149,7 @@ export default function WarehousePage() {
     },
     { 
       title: "In Maintenance", 
-      value: "2", 
+      value: warehouseStats.loading ? "..." : warehouseStats.inMaintenance.toString(), 
       change: "-1", 
       changeType: "negative",
       icon: <FaClock className="text-2xl" />,
@@ -112,16 +181,30 @@ export default function WarehousePage() {
                              <div>
                  <h1 className="text-2xl font-bold text-gray-900">Warehouse Management</h1>
                  <p className="text-gray-600">Manage warehouses, inventory, and stock</p>
+                 <p className="text-sm text-gray-500 mt-1">
+                   Last updated: {lastUpdated.toLocaleTimeString()}
+                   {warehouseStats.loading && <span className="ml-2 text-blue-600">🔄 Updating...</span>}
+                 </p>
                </div>
-               {(isAdmin() || isManager()) && (
+               <div className="flex items-center space-x-3">
                  <button
-                   onClick={() => setShowAddWarehouse(true)}
-                   className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                   onClick={fetchWarehouseStats}
+                   disabled={warehouseStats.loading}
+                   className="inline-flex items-center px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
                  >
-                   <FaPlus className="mr-2" />
-                   Add Warehouse
+                   <FaSync className={`mr-2 ${warehouseStats.loading ? 'animate-spin' : ''}`} />
+                   Refresh
                  </button>
-               )}
+                 {(isAdmin() || isManager()) && (
+                   <button
+                     onClick={() => setShowAddWarehouse(true)}
+                     className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                   >
+                     <FaPlus className="mr-2" />
+                     Add Warehouse
+                   </button>
+                 )}
+               </div>
             </div>
           </div>
         </div>
@@ -130,7 +213,7 @@ export default function WarehousePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {warehouseStats.map((stat, index) => (
+          {getWarehouseStatsData().map((stat, index) => (
             <div key={index} className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center">
                 <div className={`p-3 rounded-lg ${stat.color} text-white`}>

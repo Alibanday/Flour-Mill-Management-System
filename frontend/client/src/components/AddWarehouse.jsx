@@ -7,11 +7,14 @@ import { useNavigate } from "react-router-dom";
 export default function AddWarehouse() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    warehouseNumber: "",
     name: "",
     location: "",
     status: "Active",
-    description: ""
+    description: "",
+    capacity: {
+      totalCapacity: "",
+      unit: "50kg bags"
+    }
   });
 
   const handleChange = (e) => {
@@ -35,21 +38,12 @@ export default function AddWarehouse() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="bg-white shadow-lg rounded-lg p-8 max-w-lg w-full">
         <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Add New Warehouse</h2>
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm text-blue-700">
+            <strong>Note:</strong> Warehouse number will be generated automatically when you create the warehouse.
+          </p>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Warehouse Number */}
-          <div className="w-full">
-            <label className="block mb-2 text-sm font-semibold text-black">Warehouse Number</label>
-            <input
-              type="text"
-              name="warehouseNumber"
-              required
-              value={formData.warehouseNumber}
-              onChange={handleChange}
-              className="w-full border border-black rounded-md p-3 placeholder-gray-400 text-black"
-              placeholder="Enter warehouse number"
-            />
-          </div>
-
           {/* Name */}
           <div className="w-full">
             <label className="block mb-2 text-sm font-semibold text-black">Name</label>

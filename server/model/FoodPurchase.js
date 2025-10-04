@@ -28,8 +28,8 @@ const foodPurchaseSchema = new mongoose.Schema(
       category: {
         type: String,
         required: true,
-        enum: ["Wheat", "Raw Materials", "Other"],
-        default: "Wheat",
+        enum: ["Wheat Grain", "Raw Materials", "Other"],
+        default: "Wheat Grain",
       },
       quantity: {
         type: Number,
@@ -39,8 +39,8 @@ const foodPurchaseSchema = new mongoose.Schema(
       unit: {
         type: String,
         required: true,
-        enum: ["KG", "TON", "BAG", "LITER"],
-        default: "KG",
+        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+        default: "tons",
       },
       unitPrice: {
         type: Number,
@@ -151,12 +151,21 @@ const foodPurchaseSchema = new mongoose.Schema(
 // Add pagination plugin
 foodPurchaseSchema.plugin(mongoosePaginate);
 
-// Generate purchase number
+// Pre-save middleware to auto-generate purchase number
 foodPurchaseSchema.pre("save", async function (next) {
   if (this.isNew && !this.purchaseNumber) {
-    const count = await this.constructor.countDocuments();
-    const year = new Date().getFullYear();
-    this.purchaseNumber = `FP${year}${String(count + 1).padStart(4, "0")}`;
+    try {
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const day = String(new Date().getDate()).padStart(2, '0');
+      this.purchaseNumber = `FP-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
+      console.log('Generated food purchase number:', this.purchaseNumber);
+    } catch (error) {
+      console.error('Error generating food purchase number:', error);
+      // Fallback to timestamp-based number
+      this.purchaseNumber = `FP-${Date.now()}`;
+    }
   }
   next();
 });

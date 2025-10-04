@@ -1,108 +1,168 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const customerSchema = new mongoose.Schema({
-  customerNumber: {
+  customerId: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: false
   },
+  // Personal Information
   firstName: {
     type: String,
-    required: true,
+    required: [true, "First name is required"],
     trim: true
   },
   lastName: {
     type: String,
-    required: true,
+    required: [true, "Last name is required"],
     trim: true
   },
   email: {
     type: String,
-    required: true,
-    unique: true,
+    required: [true, "Email is required"],
     lowercase: true,
-    trim: true
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, "Please enter a valid email"]
   },
   phone: {
     type: String,
-    required: true,
-    trim: true
+    required: [true, "Phone number is required"]
   },
-  cnic: {
+  alternatePhone: {
     type: String,
-    required: true,
-    unique: true,
-    trim: true
+    default: ""
   },
+  
+  // Business Information
+  businessName: {
+    type: String,
+    default: ""
+  },
+  businessType: {
+    type: String,
+    enum: ["Individual", "Retailer", "Wholesaler", "Restaurant", "Bakery", "Distributor", "Other"],
+    default: "Individual"
+  },
+  businessRegistrationNumber: {
+    type: String,
+    default: ""
+  },
+  
+  // Address Information
   address: {
-    street: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    zipCode: { type: String, required: true },
-    country: { type: String, default: 'Pakistan' }
-  },
-  businessInfo: {
-    businessName: { type: String, trim: true },
-    businessType: { 
-      type: String, 
-      enum: ['Retailer', 'Wholesaler', 'Distributor', 'Individual', 'Other'],
-      default: 'Individual'
-    },
-    taxNumber: { type: String, trim: true }
-  },
-  creditInfo: {
-    creditLimit: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0
-    },
-    currentBalance: {
-      type: Number,
-      default: 0
-    },
-    availableCredit: {
-      type: Number,
-      default: 0
-    },
-    creditTerms: {
-      type: Number,
-      default: 30, // days
-      min: 0
-    },
-    creditStatus: {
+    street: {
       type: String,
-      enum: ['Active', 'Suspended', 'Blocked'],
-      default: 'Active'
+      default: ""
+    },
+    city: {
+      type: String,
+      default: ""
+    },
+    state: {
+      type: String,
+      default: ""
+    },
+    zipCode: {
+      type: String,
+      default: ""
+    },
+    country: {
+      type: String,
+      default: "Pakistan"
     }
   },
-  salesInfo: {
-    totalPurchases: {
-      type: Number,
-      default: 0
-    },
-    totalAmount: {
-      type: Number,
-      default: 0
-    },
-    lastPurchaseDate: {
-      type: Date
-    },
-    averageOrderValue: {
-      type: Number,
-      default: 0
-    }
+  
+  // Customer Classification
+  customerType: {
+    type: String,
+    enum: ["Regular", "Premium", "VIP", "New"],
+    default: "New"
   },
+  creditLimit: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  creditUsed: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  
+  // Payment Information
+  paymentTerms: {
+    type: String,
+    enum: ["Cash", "Credit", "Net 15", "Net 30", "Net 60", "COD"],
+    default: "Cash"
+  },
+  preferredPaymentMethod: {
+    type: String,
+    enum: ["Cash", "Bank Transfer", "Cheque", "Credit Card", "Mobile Payment"],
+    default: "Cash"
+  },
+  
+  // Business Relationship
+  assignedSalesRep: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee',
+    default: null
+  },
+  warehouse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Warehouse',
+    default: null
+  },
+  
+  // Customer Status
   status: {
     type: String,
-    enum: ['Active', 'Inactive', 'Suspended'],
-    default: 'Active'
+    enum: ["Active", "Inactive", "Suspended", "Blacklisted"],
+    default: "Active"
   },
+  
+  // Additional Information
   notes: {
     type: String,
-    trim: true
+    default: ""
   },
+  tags: [{
+    type: String,
+    trim: true
+  }],
+  
+  // Contact Preferences
+  contactPreferences: {
+    emailNotifications: {
+      type: Boolean,
+      default: true
+    },
+    smsNotifications: {
+      type: Boolean,
+      default: true
+    },
+    phoneCalls: {
+      type: Boolean,
+      default: true
+    }
+  },
+  
+  // Statistics
+  totalOrders: {
+    type: Number,
+    default: 0
+  },
+  totalSpent: {
+    type: Number,
+    default: 0
+  },
+  lastOrderDate: {
+    type: Date,
+    default: null
+  },
+  averageOrderValue: {
+    type: Number,
+    default: 0
+  },
+  
+  // System Fields
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -113,78 +173,161 @@ const customerSchema = new mongoose.Schema({
     ref: 'User'
   }
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
+
+// Indexes for efficient querying
+customerSchema.index({ customerId: 1 });
+customerSchema.index({ email: 1 });
+customerSchema.index({ phone: 1 });
+customerSchema.index({ businessName: 1 });
+customerSchema.index({ customerType: 1 });
+customerSchema.index({ status: 1 });
+customerSchema.index({ assignedSalesRep: 1 });
+customerSchema.index({ warehouse: 1 });
+customerSchema.index({ createdAt: -1 });
 
 // Virtual for full name
 customerSchema.virtual('fullName').get(function() {
   return `${this.firstName} ${this.lastName}`;
 });
 
-// Virtual for available credit calculation
-customerSchema.virtual('availableCreditAmount').get(function() {
-  return Math.max(0, this.creditInfo.creditLimit - this.creditInfo.currentBalance);
+// Virtual for available credit
+customerSchema.virtual('availableCredit').get(function() {
+  return Math.max(0, this.creditLimit - this.creditUsed);
 });
 
-// Pre-save middleware to update available credit
-customerSchema.pre('save', function(next) {
-  this.creditInfo.availableCredit = this.availableCreditAmount;
+// Virtual for customer status color
+customerSchema.virtual('statusColor').get(function() {
+  const statusColors = {
+    'Active': 'green',
+    'Inactive': 'gray',
+    'Suspended': 'yellow',
+    'Blacklisted': 'red'
+  };
+  return statusColors[this.status] || 'gray';
+});
+
+// Virtual for customer type badge
+customerSchema.virtual('typeBadge').get(function() {
+  const typeBadges = {
+    'Regular': 'blue',
+    'Premium': 'purple',
+    'VIP': 'gold',
+    'New': 'green'
+  };
+  return typeBadges[this.customerType] || 'blue';
+});
+
+// Pre-save middleware to generate customer ID
+customerSchema.pre('save', async function(next) {
+  try {
+    if (!this.customerId) {
+      let attempts = 0;
+      const maxAttempts = 10;
+      let customerId;
+      
+      do {
+        const year = new Date().getFullYear();
+        const count = await mongoose.model('Customer').countDocuments();
+        const sequence = String(count + 1).padStart(4, '0');
+        customerId = `CUST${year}${sequence}`;
+        
+        attempts++;
+        
+        // Check if customer ID already exists
+        const existingCustomer = await mongoose.model('Customer').findOne({ customerId });
+        if (!existingCustomer) {
+          break;
+        }
+        
+        if (attempts >= maxAttempts) {
+          throw new Error('Unable to generate unique customer ID after maximum attempts');
+        }
+      } while (attempts < maxAttempts);
+      
+      this.customerId = customerId;
+      console.log('Generated unique customer ID:', this.customerId);
+    }
+    next();
+  } catch (error) {
+    console.error('Error generating customer ID:', error);
+    next(error);
+  }
+});
+
+// Static method to get customer statistics
+customerSchema.statics.getCustomerStats = async function() {
+  const stats = await this.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalCustomers: { $sum: 1 },
+        activeCustomers: { $sum: { $cond: [{ $eq: ["$status", "Active"] }, 1, 0] } },
+        totalRevenue: { $sum: "$totalSpent" },
+        averageOrderValue: { $avg: "$averageOrderValue" }
+      }
+    }
+  ]);
+  
+  return stats[0] || {
+    totalCustomers: 0,
+    activeCustomers: 0,
+    totalRevenue: 0,
+    averageOrderValue: 0
+  };
+};
+
+// Static method to get customers by type
+customerSchema.statics.getCustomersByType = async function() {
+  return await this.aggregate([
+    {
+      $group: {
+        _id: "$customerType",
+        count: { $sum: 1 },
+        totalSpent: { $sum: "$totalSpent" }
+      }
+    },
+    { $sort: { count: -1 } }
+  ]);
+};
+
+// Static method to get top customers
+customerSchema.statics.getTopCustomers = async function(limit = 10) {
+  return await this.find({ status: "Active" })
+    .sort({ totalSpent: -1 })
+    .limit(limit)
+    .select('customerId firstName lastName businessName totalSpent totalOrders')
+    .populate('assignedSalesRep', 'firstName lastName')
+    .populate('warehouse', 'name location');
+};
+
+// Method to update customer statistics
+customerSchema.methods.updateStats = async function(orderValue) {
+  this.totalOrders += 1;
+  this.totalSpent += orderValue;
+  this.lastOrderDate = new Date();
+  this.averageOrderValue = this.totalSpent / this.totalOrders;
+  
+  await this.save();
+};
+
+// Method to check if customer can make credit purchase
+customerSchema.methods.canMakeCreditPurchase = function(amount) {
+  if (this.paymentTerms === 'Cash') return false;
+  return (this.creditUsed + amount) <= this.creditLimit;
+};
+
+// Pre-save middleware to auto-generate customerId
+customerSchema.pre('save', async function(next) {
+  if (!this.customerId) {
+    const count = await Customer.countDocuments();
+    this.customerId = `CUST-${String(count + 1).padStart(6, '0')}`;
+  }
   next();
 });
 
-// Indexes for better performance
-customerSchema.index({ customerNumber: 1 });
-customerSchema.index({ email: 1 });
-customerSchema.index({ phone: 1 });
-customerSchema.index({ cnic: 1 });
-customerSchema.index({ 'creditInfo.creditStatus': 1 });
-customerSchema.index({ status: 1 });
-customerSchema.index({ createdAt: -1 });
+// Force new model definition to avoid existing indexes
+const Customer = mongoose.model('CustomerNew', customerSchema);
 
-// Static method to generate customer number
-customerSchema.statics.generateCustomerNumber = async function() {
-  const count = await this.countDocuments();
-  return `CUST${String(count + 1).padStart(6, '0')}`;
-};
-
-// Static method to check credit availability
-customerSchema.statics.checkCreditAvailability = async function(customerId, amount) {
-  const customer = await this.findById(customerId);
-  if (!customer) {
-    throw new Error('Customer not found');
-  }
-  
-  if (customer.creditInfo.creditStatus !== 'Active') {
-    throw new Error('Customer credit is not active');
-  }
-  
-  if (customer.creditInfo.availableCredit < amount) {
-    throw new Error('Insufficient credit limit');
-  }
-  
-  return true;
-};
-
-// Instance method to update credit balance
-customerSchema.methods.updateCreditBalance = function(amount, type = 'debit') {
-  if (type === 'debit') {
-    this.creditInfo.currentBalance += amount;
-  } else if (type === 'credit') {
-    this.creditInfo.currentBalance = Math.max(0, this.creditInfo.currentBalance - amount);
-  }
-  
-  this.creditInfo.availableCredit = this.availableCreditAmount;
-  return this.save();
-};
-
-// Instance method to check if customer can make purchase
-customerSchema.methods.canMakePurchase = function(amount) {
-  return this.status === 'Active' && 
-         this.creditInfo.creditStatus === 'Active' && 
-         this.creditInfo.availableCredit >= amount;
-};
-
-export default mongoose.model('Customer', customerSchema);
-
+export default Customer;

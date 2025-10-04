@@ -1,52 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useValidation } from '../../utils/validation';
-import FormField from '../UI/FormField';
+import { FaTimes, FaSave, FaUser, FaSpinner } from 'react-icons/fa';
 
-const CustomerForm = ({ customer, onSubmit, onClose }) => {
+export default function CustomerForm({ customer, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    cnic: '',
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: 'Pakistan'
-    },
-    businessInfo: {
-      businessName: '',
-      businessType: 'Individual',
-      taxNumber: ''
-    },
-    creditInfo: {
-      creditLimit: 0,
-      creditTerms: 30,
-      creditStatus: 'Active'
-    },
-    status: 'Active',
-    notes: ''
+    businessName: '',
+    businessType: 'Individual',
+    customerType: 'New',
+    status: 'Active'
   });
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-
-  const validationSchema = {
-    firstName: { required: true, minLength: 2 },
-    lastName: { required: true, minLength: 2 },
-    email: { required: true, email: true },
-    phone: { required: true, minLength: 10 },
-    cnic: { required: true, minLength: 13 },
-    'address.street': { required: true },
-    'address.city': { required: true },
-    'address.state': { required: true },
-    'address.zipCode': { required: true },
-    'creditInfo.creditLimit': { required: true, min: 0 }
-  };
-
-  const { validateField, validateForm } = useValidation(validationSchema);
+  const [serverError, setServerError] = useState('');
 
   useEffect(() => {
     if (customer) {
@@ -55,33 +24,19 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
         lastName: customer.lastName || '',
         email: customer.email || '',
         phone: customer.phone || '',
-        cnic: customer.cnic || '',
-        address: {
-          street: customer.address?.street || '',
-          city: customer.address?.city || '',
-          state: customer.address?.state || '',
-          zipCode: customer.address?.zipCode || '',
-          country: customer.address?.country || 'Pakistan'
-        },
-        businessInfo: {
-          businessName: customer.businessInfo?.businessName || '',
-          businessType: customer.businessInfo?.businessType || 'Individual',
-          taxNumber: customer.businessInfo?.taxNumber || ''
-        },
-        creditInfo: {
-          creditLimit: customer.creditInfo?.creditLimit || 0,
-          creditTerms: customer.creditInfo?.creditTerms || 30,
-          creditStatus: customer.creditInfo?.creditStatus || 'Active'
-        },
-        status: customer.status || 'Active',
-        notes: customer.notes || ''
+        businessName: customer.businessName || '',
+        businessType: customer.businessType || 'Individual',
+        customerType: customer.customerType || 'New',
+        status: customer.status || 'Active'
       });
     }
   }, [customer]);
 
-  const handleInputChange = (field, value) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
       setFormData(prev => ({
         ...prev,
         [parent]: {
@@ -92,284 +47,325 @@ const CustomerForm = ({ customer, onSubmit, onClose }) => {
     } else {
       setFormData(prev => ({
         ...prev,
-        [field]: value
+        [name]: type === 'checkbox' ? checked : value
       }));
     }
 
     // Clear error when user starts typing
-    if (errors[field]) {
+    if (errors[name]) {
       setErrors(prev => ({
         ...prev,
-        [field]: null
+        [name]: ''
       }));
     }
   };
 
-  const handleBlur = (field) => {
-    const error = validateField(field, formData);
-    if (error) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: error
-      }));
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
     }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const validationErrors = validateForm(formData);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    if (!validateForm()) {
       return;
     }
 
     setLoading(true);
+    setServerError('');
+
     try {
-      await onSubmit(formData);
+      const token = localStorage.getItem('token');
+      const url = customer 
+        ? `http://localhost:7000/api/customers/${customer._id}`
+        : 'http://localhost:7000/api/customers/create';
+      
+      const method = customer ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        
+        // Handle field-specific errors
+        if (errorData.field === 'email') {
+          setErrors({ email: errorData.message });
+        } else {
+          setServerError(errorData.message || 'Failed to save customer');
+        }
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(customer ? 'Customer updated successfully!' : 'Customer added successfully!');
+        onSuccess();
+      } else {
+        setServerError(data.message || 'Failed to save customer');
+      }
     } catch (error) {
-      console.error('Form submission error:', error);
+      console.error('Error saving customer:', error);
+      setServerError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center">
+          <div className="bg-blue-100 p-3 rounded-lg mr-4">
+            <FaUser className="text-blue-600 text-xl" />
+          </div>
+          <div>
             <h2 className="text-2xl font-bold text-gray-900">
               {customer ? 'Edit Customer' : 'Add New Customer'}
             </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <p className="text-gray-600">
+              {customer ? 'Update customer information' : 'Enter customer details'}
+            </p>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Personal Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  label="First Name"
-                  type="text"
-                  value={formData.firstName}
-                  onChange={(value) => handleInputChange('firstName', value)}
-                  onBlur={() => handleBlur('firstName')}
-                  error={errors.firstName}
-                  required
-                />
-                <FormField
-                  label="Last Name"
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(value) => handleInputChange('lastName', value)}
-                  onBlur={() => handleBlur('lastName')}
-                  error={errors.lastName}
-                  required
-                />
-                <FormField
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(value) => handleInputChange('email', value)}
-                  onBlur={() => handleBlur('email')}
-                  error={errors.email}
-                  required
-                />
-                <FormField
-                  label="Phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(value) => handleInputChange('phone', value)}
-                  onBlur={() => handleBlur('phone')}
-                  error={errors.phone}
-                  required
-                />
-                <FormField
-                  label="CNIC"
-                  type="text"
-                  value={formData.cnic}
-                  onChange={(value) => handleInputChange('cnic', value)}
-                  onBlur={() => handleBlur('cnic')}
-                  error={errors.cnic}
-                  required
-                  placeholder="12345-1234567-1"
-                />
-              </div>
-            </div>
-
-            {/* Address Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Address Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <FormField
-                    label="Street Address"
-                    type="text"
-                    value={formData.address.street}
-                    onChange={(value) => handleInputChange('address.street', value)}
-                    onBlur={() => handleBlur('address.street')}
-                    error={errors['address.street']}
-                    required
-                  />
-                </div>
-                <FormField
-                  label="City"
-                  type="text"
-                  value={formData.address.city}
-                  onChange={(value) => handleInputChange('address.city', value)}
-                  onBlur={() => handleBlur('address.city')}
-                  error={errors['address.city']}
-                  required
-                />
-                <FormField
-                  label="State"
-                  type="text"
-                  value={formData.address.state}
-                  onChange={(value) => handleInputChange('address.state', value)}
-                  onBlur={() => handleBlur('address.state')}
-                  error={errors['address.state']}
-                  required
-                />
-                <FormField
-                  label="Zip Code"
-                  type="text"
-                  value={formData.address.zipCode}
-                  onChange={(value) => handleInputChange('address.zipCode', value)}
-                  onBlur={() => handleBlur('address.zipCode')}
-                  error={errors['address.zipCode']}
-                  required
-                />
-                <FormField
-                  label="Country"
-                  type="text"
-                  value={formData.address.country}
-                  onChange={(value) => handleInputChange('address.country', value)}
-                  disabled
-                />
-              </div>
-            </div>
-
-            {/* Business Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Business Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  label="Business Name"
-                  type="text"
-                  value={formData.businessInfo.businessName}
-                  onChange={(value) => handleInputChange('businessInfo.businessName', value)}
-                />
-                <FormField
-                  label="Business Type"
-                  type="select"
-                  value={formData.businessInfo.businessType}
-                  onChange={(value) => handleInputChange('businessInfo.businessType', value)}
-                  options={[
-                    { value: 'Individual', label: 'Individual' },
-                    { value: 'Retailer', label: 'Retailer' },
-                    { value: 'Wholesaler', label: 'Wholesaler' },
-                    { value: 'Distributor', label: 'Distributor' },
-                    { value: 'Other', label: 'Other' }
-                  ]}
-                />
-                <FormField
-                  label="Tax Number"
-                  type="text"
-                  value={formData.businessInfo.taxNumber}
-                  onChange={(value) => handleInputChange('businessInfo.taxNumber', value)}
-                />
-              </div>
-            </div>
-
-            {/* Credit Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Credit Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  label="Credit Limit (PKR)"
-                  type="number"
-                  value={formData.creditInfo.creditLimit}
-                  onChange={(value) => handleInputChange('creditInfo.creditLimit', parseFloat(value) || 0)}
-                  onBlur={() => handleBlur('creditInfo.creditLimit')}
-                  error={errors['creditInfo.creditLimit']}
-                  required
-                  min="0"
-                />
-                <FormField
-                  label="Credit Terms (Days)"
-                  type="number"
-                  value={formData.creditInfo.creditTerms}
-                  onChange={(value) => handleInputChange('creditInfo.creditTerms', parseInt(value) || 30)}
-                  min="0"
-                />
-                <FormField
-                  label="Credit Status"
-                  type="select"
-                  value={formData.creditInfo.creditStatus}
-                  onChange={(value) => handleInputChange('creditInfo.creditStatus', value)}
-                  options={[
-                    { value: 'Active', label: 'Active' },
-                    { value: 'Suspended', label: 'Suspended' },
-                    { value: 'Blocked', label: 'Blocked' }
-                  ]}
-                />
-              </div>
-            </div>
-
-            {/* Status and Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                label="Status"
-                type="select"
-                value={formData.status}
-                onChange={(value) => handleInputChange('status', value)}
-                options={[
-                  { value: 'Active', label: 'Active' },
-                  { value: 'Inactive', label: 'Inactive' },
-                  { value: 'Suspended', label: 'Suspended' }
-                ]}
-              />
-              <FormField
-                label="Notes"
-                type="textarea"
-                value={formData.notes}
-                onChange={(value) => handleInputChange('notes', value)}
-                rows={3}
-              />
-            </div>
-
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-4 pt-6 border-t">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Saving...' : (customer ? 'Update Customer' : 'Create Customer')}
-              </button>
-            </div>
-          </form>
         </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <FaTimes className="text-xl" />
+        </button>
       </div>
+
+      {/* Server Error Display */}
+      {serverError && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Error</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>{serverError}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Customer Information */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <FaUser className="mr-2 text-blue-600" />
+            Customer Details
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                First Name *
+              </label>
+              <input
+                type="text"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.firstName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter first name"
+              />
+              {errors.firstName && (
+                <p className="text-red-500 text-sm mt-1">{errors.firstName}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Last Name *
+              </label>
+              <input
+                type="text"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.lastName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter last name"
+              />
+              {errors.lastName && (
+                <p className="text-red-500 text-sm mt-1">{errors.lastName}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email *
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter email address"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone *
+              </label>
+              <input
+                type="tel"
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.phone ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="Enter phone number"
+              />
+              {errors.phone && (
+                <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Business Name
+              </label>
+              <input
+                type="text"
+                name="businessName"
+                value={formData.businessName}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter business name"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Business Type
+              </label>
+              <select
+                name="businessType"
+                value={formData.businessType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Individual">Individual</option>
+                <option value="Retailer">Retailer</option>
+                <option value="Wholesaler">Wholesaler</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Bakery">Bakery</option>
+                <option value="Distributor">Distributor</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Customer Type
+              </label>
+              <select
+                name="customerType"
+                value={formData.customerType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="New">New</option>
+                <option value="Regular">Regular</option>
+                <option value="Premium">Premium</option>
+                <option value="VIP">VIP</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Suspended">Suspended</option>
+                <option value="Blacklisted">Blacklisted</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Form Actions */}
+        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            {loading ? (
+              <>
+                <FaSpinner className="animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <FaSave className="mr-2" />
+                {customer ? 'Update Customer' : 'Add Customer'}
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
-};
-
-export default CustomerForm;
-
+}

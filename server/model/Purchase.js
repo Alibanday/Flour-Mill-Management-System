@@ -4,7 +4,7 @@ const purchaseSchema = new mongoose.Schema({
   // Purchase Information
   purchaseNumber: {
     type: String,
-    required: [true, "Purchase number is required"],
+    required: false, // Will be auto-generated
     unique: true,
     trim: true,
     uppercase: true
@@ -17,6 +17,13 @@ const purchaseSchema = new mongoose.Schema({
     enum: ["Bags", "Food", "Other"]
   },
 
+  // Original Purchase Type from Frontend
+  originalPurchaseType: {
+    type: String,
+    required: false,
+    enum: ["Raw Materials", "Finished Products", "Packaging Materials", "Maintenance Supplies", "Bags", "Food", "Other"]
+  },
+
   // Bags Purchasing (FR 23)
   bags: {
     ata: {
@@ -27,8 +34,8 @@ const purchaseSchema = new mongoose.Schema({
       },
       unit: {
         type: String,
-        enum: ["pcs", "boxes", "bundles"],
-        default: "pcs"
+        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+        default: "50kg bags"
       },
       unitPrice: {
         type: Number,
@@ -49,8 +56,8 @@ const purchaseSchema = new mongoose.Schema({
       },
       unit: {
         type: String,
-        enum: ["pcs", "boxes", "bundles"],
-        default: "pcs"
+        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+        default: "50kg bags"
       },
       unitPrice: {
         type: Number,
@@ -71,8 +78,8 @@ const purchaseSchema = new mongoose.Schema({
       },
       unit: {
         type: String,
-        enum: ["pcs", "boxes", "bundles"],
-        default: "pcs"
+        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+        default: "50kg bags"
       },
       unitPrice: {
         type: Number,
@@ -93,8 +100,8 @@ const purchaseSchema = new mongoose.Schema({
       },
       unit: {
         type: String,
-        enum: ["pcs", "boxes", "bundles"],
-        default: "pcs"
+        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+        default: "50kg bags"
       },
       unitPrice: {
         type: Number,
@@ -119,8 +126,8 @@ const purchaseSchema = new mongoose.Schema({
       },
       unit: {
         type: String,
-        enum: ["kg", "tons", "bags"],
-        default: "kg"
+        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks"],
+        default: "tons"
       },
       unitPrice: {
         type: Number,
@@ -141,6 +148,23 @@ const purchaseSchema = new mongoose.Schema({
         type: String,
         enum: ["Premium", "Standard", "Economy"],
         default: "Standard"
+      },
+      grade: {
+        type: String,
+        enum: ["A", "B", "C"],
+        default: "A"
+      },
+      governmentApproval: {
+        type: String,
+        default: ""
+      },
+      procurementDate: {
+        type: Date,
+        default: null
+      },
+      expiryDate: {
+        type: Date,
+        default: null
       }
     }
   },
@@ -259,6 +283,24 @@ const purchaseSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Pre-save middleware to auto-generate purchase number
+purchaseSchema.pre("save", async function(next) {
+  if (this.isNew && !this.purchaseNumber) {
+    try {
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const day = String(new Date().getDate()).padStart(2, '0');
+      this.purchaseNumber = `PUR-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating purchase number:', error);
+      // Fallback to timestamp-based number
+      this.purchaseNumber = `PUR-${Date.now()}`;
+    }
+  }
+  next();
 });
 
 // Pre-save middleware to calculate totals

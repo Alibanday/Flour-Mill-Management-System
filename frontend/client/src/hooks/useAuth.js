@@ -56,6 +56,10 @@ export const useAuth = () => {
     return role === 'Cashier';
   };
 
+  const isSales = () => {
+    return role === 'Sales';
+  };
+
   // Permission-based helper functions
   const hasAnyPermission = (requiredPermissions) => {
     if (!requiredPermissions || requiredPermissions.length === 0) {
@@ -96,6 +100,12 @@ export const useAuth = () => {
         'sales.create', 'sales.read', 'sales.update',
         'purchase.read',
         'inventory.read'
+      ],
+      'Sales': [
+        'sales.create', 'sales.read', 'sales.update',
+        'customer.create', 'customer.read', 'customer.update',
+        'inventory.read',
+        'reports.read'
       ]
     };
 
@@ -143,6 +153,12 @@ export const useAuth = () => {
         'sales.create', 'sales.read', 'sales.update',
         'purchase.read',
         'inventory.read'
+      ],
+      'Sales': [
+        'sales.create', 'sales.read', 'sales.update',
+        'customer.create', 'customer.read', 'customer.update',
+        'inventory.read',
+        'reports.read'
       ]
     };
 
@@ -163,6 +179,7 @@ export const useAuth = () => {
     isManager,
     isEmployee,
     isCashier,
+    isSales,
     hasAnyPermission,
     hasAllPermissions
   };

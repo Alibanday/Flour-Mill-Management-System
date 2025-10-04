@@ -1,231 +1,205 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaUsers, FaHome, FaSignOutAlt, FaUserPlus, FaList, FaChartBar, FaSearch, FaFilter } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
-import api, { API_ENDPOINTS } from '../services/api';
-import CustomerForm from '../components/CustomerManagement/CustomerForm';
 import CustomerList from '../components/CustomerManagement/CustomerList';
-import CustomerStats from '../components/CustomerManagement/CustomerStats';
-import { toast } from 'react-toastify';
+import CustomerForm from '../components/CustomerManagement/CustomerForm';
+import CustomerDashboard from '../components/CustomerManagement/CustomerDashboard';
+import CustomerReports from '../components/CustomerManagement/CustomerReports';
 
-const CustomerManagementPage = () => {
-  const { user, hasPermission } = useAuth();
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+export default function CustomerManagementPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('customers');
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [filters, setFilters] = useState({
-    search: '',
-    status: '',
-    creditStatus: ''
-  });
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0
-  });
 
-  useEffect(() => {
-    fetchCustomers();
-    fetchStats();
-  }, [pagination.page, filters]);
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: pagination.page,
-        limit: pagination.limit,
-        ...filters
-      });
-
-      const response = await api.get(`${API_ENDPOINTS.CUSTOMERS}?${params}`);
-      
-      if (response.data.success) {
-        setCustomers(response.data.data);
-        setPagination(prev => ({
-          ...prev,
-          total: response.data.pagination.total,
-          totalPages: response.data.pagination.totalPages
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      toast.error('Failed to fetch customers');
-    } finally {
-      setLoading(false);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
   };
 
-  const fetchStats = async () => {
-    try {
-      const response = await api.get(`${API_ENDPOINTS.CUSTOMERS}/stats/overview`);
-      if (response.data.success) {
-        setStats(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching customer stats:', error);
-    }
-  };
-
-  const handleCreateCustomer = async (customerData) => {
-    try {
-      const response = await api.post(API_ENDPOINTS.CUSTOMERS, customerData);
-      
-      if (response.data.success) {
-        toast.success('Customer created successfully');
-        setShowForm(false);
-        fetchCustomers();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error creating customer:', error);
-      toast.error(error.response?.data?.message || 'Failed to create customer');
-    }
-  };
-
-  const handleUpdateCustomer = async (customerData) => {
-    try {
-      const response = await api.put(`${API_ENDPOINTS.CUSTOMERS}/${editingCustomer._id}`, customerData);
-      
-      if (response.data.success) {
-        toast.success('Customer updated successfully');
-        setShowForm(false);
-        setEditingCustomer(null);
-        fetchCustomers();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      toast.error(error.response?.data?.message || 'Failed to update customer');
-    }
+  const handleAddCustomer = () => {
+    setEditingCustomer(null);
+    setShowCustomerForm(true);
   };
 
   const handleEditCustomer = (customer) => {
     setEditingCustomer(customer);
-    setShowForm(true);
+    setShowCustomerForm(true);
   };
 
-  const handleDeleteCustomer = async (customerId) => {
-    if (window.confirm('Are you sure you want to deactivate this customer?')) {
-      try {
-        const response = await api.delete(`${API_ENDPOINTS.CUSTOMERS}/${customerId}`);
-        
-        if (response.data.success) {
-          toast.success('Customer deactivated successfully');
-          fetchCustomers();
-          fetchStats();
-        }
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-        toast.error('Failed to deactivate customer');
-      }
-    }
+  const handleCloseForm = () => {
+    setShowCustomerForm(false);
+    setEditingCustomer(null);
   };
 
-  const handleUpdateStatus = async (customerId, status) => {
-    try {
-      const response = await api.patch(`${API_ENDPOINTS.CUSTOMERS}/${customerId}/status`, { status });
-      
-      if (response.data.success) {
-        toast.success('Customer status updated successfully');
-        fetchCustomers();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error updating customer status:', error);
-      toast.error('Failed to update customer status');
-    }
+  const handleCustomerSuccess = () => {
+    handleCloseForm();
+    // Dispatch event to refresh dashboard
+    window.dispatchEvent(new CustomEvent('customerUpdated'));
   };
 
-  const handleUpdateCreditLimit = async (customerId, creditData) => {
-    try {
-      const response = await api.patch(`${API_ENDPOINTS.CUSTOMERS}/${customerId}/credit-limit`, creditData);
-      
-      if (response.data.success) {
-        toast.success('Credit limit updated successfully');
-        fetchCustomers();
-        fetchStats();
-      }
-    } catch (error) {
-      console.error('Error updating credit limit:', error);
-      toast.error('Failed to update credit limit');
-    }
-  };
-
-  const handleFilterChange = (newFilters) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
-  };
-
-  if (!hasPermission(['Admin', 'Manager', 'Cashier'])) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
-          <p className="text-gray-600">You don't have permission to access customer management.</p>
-        </div>
-      </div>
-    );
-  }
+  const tabs = [
+    { id: 'dashboard', name: 'Dashboard', icon: <FaChartBar className="mr-2" /> },
+    { id: 'customers', name: 'Customers', icon: <FaUsers className="mr-2" /> },
+    { id: 'reports', name: 'Reports', icon: <FaList className="mr-2" /> }
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Customer Management</h1>
-          <p className="text-gray-600 mt-1">Manage customers, credit limits, and outstanding balances</p>
+    <div className="min-h-screen w-full bg-cover bg-center bg-no-repeat bg-fixed relative"
+         style={{ backgroundImage: "url('/dashboard.jpg')" }}>
+      
+      {/* Top Navigation */}
+      <header className="bg-white shadow-sm w-full">
+        <div className="px-6 py-3 flex items-center justify-between w-full">
+          <div className="flex items-center">
+            <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
+            <nav className="hidden md:flex space-x-8">
+              <button 
+                className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm flex items-center"
+                onClick={() => navigate("/dashboard")}
+              >
+                <FaHome className="inline mr-2" />
+                Back to Dashboard
+              </button>
+            </nav>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-gray-600">
+              <FaUsers className="text-lg" />
+              <span className="text-sm">{user?.firstName} {user?.lastName}</span>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 bg-transparent"
+            >
+              <FaSignOutAlt />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
-        {hasPermission(['Admin', 'Manager']) && (
-          <button
-            onClick={() => {
-              setEditingCustomer(null);
-              setShowForm(true);
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Add Customer
-          </button>
-        )}
+      </header>
+
+      <div className="flex w-full">
+        {/* Sidebar */}
+        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
+          <div className="p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">CUSTOMER MENU</h3>
+            <ul className="space-y-1">
+              {tabs.map((tab) => (
+                <li key={tab.id}>
+                  <button
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                      activeTab === tab.id 
+                        ? 'bg-blue-50 text-blue-600' 
+                        : 'bg-transparent text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 p-6 w-full">
+          {/* Header */}
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Customer Management</h1>
+            <p className="text-gray-600">Manage customer registrations, relationships, and sales data</p>
+          </div>
+
+          {/* Tab Navigation for Mobile */}
+          <div className="md:hidden mb-6">
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    activeTab === tab.id 
+                      ? 'bg-white text-blue-600 shadow-sm' 
+                      : 'text-gray-600 hover:text-blue-600'
+                  }`}
+                >
+                  {tab.icon}
+                  <span className="ml-1">{tab.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          {activeTab === 'customers' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <button 
+                onClick={handleAddCustomer}
+                className="flex flex-col items-center justify-center p-4 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-all duration-200"
+              >
+                <FaUserPlus className="h-8 w-8 mb-2" />
+                <span className="font-medium">Add Customer</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('customers')}
+                className="flex flex-col items-center justify-center p-4 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 transition-all duration-200"
+              >
+                <FaList className="h-8 w-8 mb-2" />
+                <span className="font-medium">View Customers</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className="flex flex-col items-center justify-center p-4 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition-all duration-200"
+              >
+                <FaChartBar className="h-8 w-8 mb-2" />
+                <span className="font-medium">Dashboard</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('reports')}
+                className="flex flex-col items-center justify-center p-4 bg-orange-600 text-white rounded-xl shadow-lg hover:bg-orange-700 transition-all duration-200"
+              >
+                <FaList className="h-8 w-8 mb-2" />
+                <span className="font-medium">Reports</span>
+              </button>
+            </div>
+          )}
+
+          {/* Tab Content */}
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200">
+            {activeTab === 'dashboard' && (
+              <CustomerDashboard />
+            )}
+            {activeTab === 'customers' && (
+              <CustomerList 
+                onEditCustomer={handleEditCustomer}
+                onAddCustomer={handleAddCustomer}
+              />
+            )}
+            {activeTab === 'reports' && (
+              <CustomerReports />
+            )}
+          </div>
+
+          {/* Customer Form Modal */}
+          {showCustomerForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" style={{ zIndex: 9999 }}>
+              <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <CustomerForm
+                  customer={editingCustomer}
+                  onClose={handleCloseForm}
+                  onSuccess={handleCustomerSuccess}
+                />
+              </div>
+            </div>
+          )}
+
+        </main>
       </div>
-
-      {/* Stats */}
-      {stats && <CustomerStats stats={stats} />}
-
-      {/* Customer List */}
-      <CustomerList
-        customers={customers}
-        loading={loading}
-        filters={filters}
-        pagination={pagination}
-        onEdit={handleEditCustomer}
-        onDelete={handleDeleteCustomer}
-        onUpdateStatus={handleUpdateStatus}
-        onUpdateCreditLimit={handleUpdateCreditLimit}
-        onFilterChange={handleFilterChange}
-        onPageChange={handlePageChange}
-        hasPermission={hasPermission}
-      />
-
-      {/* Customer Form Modal */}
-      {showForm && (
-        <CustomerForm
-          customer={editingCustomer}
-          onSubmit={editingCustomer ? handleUpdateCustomer : handleCreateCustomer}
-          onClose={() => {
-            setShowForm(false);
-            setEditingCustomer(null);
-          }}
-        />
-      )}
     </div>
   );
-};
-
-export default CustomerManagementPage;
-
+}

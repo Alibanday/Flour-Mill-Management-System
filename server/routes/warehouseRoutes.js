@@ -60,4 +60,53 @@ router.get("/:id/inventory-summary", getWarehouseInventorySummary);
 // Route to get warehouse capacity status
 router.get("/capacity/status", getWarehouseCapacityStatus);
 
+// Route to get warehouse statistics
+router.get("/stats", async (req, res) => {
+  try {
+    const Warehouse = (await import("../model/warehouse.js")).default;
+    
+    // Get total warehouses
+    const totalWarehouses = await Warehouse.countDocuments();
+    
+    // Get active warehouses
+    const activeWarehouses = await Warehouse.countDocuments({ status: 'Active' });
+    
+    // Get warehouses in maintenance
+    const inMaintenance = await Warehouse.countDocuments({ status: 'Maintenance' });
+    
+    // Calculate total capacity
+    const capacityStats = await Warehouse.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalCapacity: { $sum: "$capacity.totalCapacity" },
+          totalCurrentUsage: { $sum: "$capacity.currentUsage" }
+        }
+      }
+    ]);
+    
+    const totalCapacity = capacityStats.length > 0 ? capacityStats[0].totalCapacity : 0;
+    const totalCurrentUsage = capacityStats.length > 0 ? capacityStats[0].totalCurrentUsage : 0;
+    
+    res.json({
+      success: true,
+      data: {
+        totalWarehouses,
+        activeWarehouses,
+        inMaintenance,
+        totalCapacity,
+        totalCurrentUsage,
+        availableCapacity: totalCapacity - totalCurrentUsage
+      }
+    });
+  } catch (error) {
+    console.error("Get warehouse stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching warehouse statistics",
+      error: error.message
+    });
+  }
+});
+
 export default router;

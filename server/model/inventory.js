@@ -47,7 +47,9 @@ const inventorySchema = new mongoose.Schema({
     enum: [
       "tons", "quintals",
       "50kg bags", "25kg bags", "10kg bags", "5kg bags",
-      "100kg sacks", "50kg sacks", "25kg sacks"
+      "100kg sacks", "50kg sacks", "25kg sacks",
+      "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles",
+      "units", "sets", "kits", "pairs", "meters", "liters"
     ],
     default: "50kg bags"
   },
@@ -236,4 +238,7 @@ inventorySchema.statics.getOutOfStockItems = function() {
   return this.find({ currentStock: 0 });
 };
 
-export default mongoose.model("Inventory", inventorySchema);
+// Check if model already exists to prevent overwrite errors
+const Inventory = mongoose.models.Inventory || mongoose.model("Inventory", inventorySchema);
+
+export default Inventory;

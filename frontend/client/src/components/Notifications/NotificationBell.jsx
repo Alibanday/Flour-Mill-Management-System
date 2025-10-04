@@ -23,8 +23,8 @@ const NotificationBell = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setNotifications(data.data);
-        setUnreadCount(data.data.length);
+        setNotifications(data.data || []);
+        setUnreadCount(data.data ? data.data.length : 0);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -44,8 +44,8 @@ const NotificationBell = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setStats(data.data);
-        setUnreadCount(data.data.unread);
+        setStats(data.data || {});
+        setUnreadCount(data.data ? data.data.unread || 0 : 0);
       }
     } catch (error) {
       console.error('Error fetching notification stats:', error);

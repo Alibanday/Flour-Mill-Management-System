@@ -11,7 +11,6 @@ export const createSale = async (req, res) => {
     console.log("Sale creation - User object:", req.user);
 
     const {
-      invoiceNumber,
       customer,
       items,
       warehouse,
@@ -20,15 +19,6 @@ export const createSale = async (req, res) => {
       tax,
       notes
     } = req.body;
-
-    // Check if invoice number already exists
-    const existingInvoice = await Sale.findOne({ invoiceNumber });
-    if (existingInvoice) {
-      return res.status(400).json({
-        success: false,
-        message: "Invoice number already exists"
-      });
-    }
 
     // Verify warehouse exists
     const warehouseExists = await Warehouse.findById(warehouse);
@@ -98,7 +88,6 @@ export const createSale = async (req, res) => {
 
     // Create sale data
     const saleData = {
-      invoiceNumber,
       customer,
       items: processedItems,
       subtotal: subtotal,
@@ -128,8 +117,8 @@ export const createSale = async (req, res) => {
         inventoryItem: item.product,
         movementType: 'out',
         quantity: item.quantity,
-        reason: `Sale - Invoice ${invoiceNumber}`,
-        referenceNumber: invoiceNumber,
+        reason: `Sale - Invoice ${sale.invoiceNumber}`,
+        referenceNumber: sale.invoiceNumber,
         warehouse: warehouse,
         createdBy: req.user._id || req.user.id
       });
@@ -147,11 +136,13 @@ export const createSale = async (req, res) => {
           type: "inventory",
           priority: "high",
           user: req.user._id || req.user.id,
+          relatedEntity: "inventory",
+          entityId: item.product,
           data: {
             productId: item.product,
             productName: item.productName,
             currentStock: 0,
-            invoiceNumber: invoiceNumber
+            invoiceNumber: sale.invoiceNumber
           }
         });
         await notification.save();
@@ -163,12 +154,14 @@ export const createSale = async (req, res) => {
           type: "inventory",
           priority: "medium",
           user: req.user._id || req.user.id,
+          relatedEntity: "inventory",
+          entityId: item.product,
           data: {
             productId: item.product,
             productName: item.productName,
             currentStock: updatedProduct.currentStock,
             minimumStock: updatedProduct.minimumStock,
-            invoiceNumber: invoiceNumber
+            invoiceNumber: sale.invoiceNumber
           }
         });
         await notification.save();
@@ -178,13 +171,15 @@ export const createSale = async (req, res) => {
     // Create sale completion notification
     const saleNotification = new Notification({
       title: "Sale Completed",
-      message: `Sale invoice ${invoiceNumber} has been processed successfully`,
+      message: `Sale invoice ${sale.invoiceNumber} has been processed successfully`,
       type: "sales",
       priority: "low",
       user: req.user._id || req.user.id,
+      relatedEntity: "sale",
+      entityId: sale._id,
       data: {
         saleId: sale._id,
-        invoiceNumber: invoiceNumber,
+        invoiceNumber: sale.invoiceNumber,
         totalAmount: totalAmount,
         customerName: customer.name
       }
@@ -435,6 +430,8 @@ export const processReturn = async (req, res) => {
       type: "sales",
       priority: "medium",
       user: req.user._id || req.user.id,
+      relatedEntity: "sale",
+      entityId: sale._id,
       data: {
         saleId: sale._id,
         invoiceNumber: sale.invoiceNumber,

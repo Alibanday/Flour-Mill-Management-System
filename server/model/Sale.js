@@ -4,7 +4,7 @@ const saleSchema = new mongoose.Schema({
   // Invoice Information (FR 19)
   invoiceNumber: {
     type: String,
-    required: [true, "Invoice number is required"],
+    required: false, // Will be auto-generated
     unique: true,
     trim: true,
     uppercase: true
@@ -12,6 +12,12 @@ const saleSchema = new mongoose.Schema({
 
   // Customer Information
   customer: {
+    // Reference to CustomerNew model
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CustomerNew",
+      required: false // Optional for backward compatibility
+    },
     name: {
       type: String,
       required: [true, "Customer name is required"],
@@ -60,7 +66,7 @@ const saleSchema = new mongoose.Schema({
     unit: {
       type: String,
       required: [true, "Unit is required"],
-      enum: ["kg", "tons", "bags", "pcs"]
+      enum: ["kg", "tons", "bags", "pcs", "25kg bags", "50kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks"]
     },
     unitPrice: {
       type: Number,
@@ -172,7 +178,7 @@ const saleSchema = new mongoose.Schema({
   // Status and Notes
   status: {
     type: String,
-    enum: ["Draft", "Confirmed", "Shipped", "Delivered", "Cancelled"],
+    enum: ["Draft", "Confirmed", "Shipped", "Delivered", "Cancelled", "Completed", "Pending"],
     default: "Draft"
   },
 
@@ -196,6 +202,24 @@ const saleSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Pre-save middleware to auto-generate invoice number
+saleSchema.pre("save", async function(next) {
+  if (this.isNew && !this.invoiceNumber) {
+    try {
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const day = String(new Date().getDate()).padStart(2, '0');
+      this.invoiceNumber = `INV-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating invoice number:', error);
+      // Fallback to timestamp-based number
+      this.invoiceNumber = `INV-${Date.now()}`;
+    }
+  }
+  next();
 });
 
 // Pre-save middleware to calculate totals

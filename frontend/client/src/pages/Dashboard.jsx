@@ -4,7 +4,7 @@ import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
   FaCog, FaSignOutAlt, FaUserCog, FaChartBar, FaHome, FaWarehouse,
-  FaWeightHanging, FaUsers, FaUserShield, FaChartLine, FaDatabase, FaPassport, FaBell
+  FaWeightHanging, FaUsers, FaUserShield, FaChartLine, FaDatabase, FaPassport, FaBell, FaUserPlus
 } from "react-icons/fa";
 import { useAuth } from '../hooks/useAuth';
 import NotificationBell from '../components/Notifications/NotificationBell';
@@ -15,7 +15,7 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role, isAdmin, isManager, isEmployee, isCashier } = useAuth();
+  const { user, role, isAdmin, isManager, isEmployee, isCashier, isSales } = useAuth();
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
@@ -141,8 +141,16 @@ export default function Dashboard() {
         color: "bg-pink-100 text-pink-600"
       },
       { 
-        name: "Reports", 
+        name: "Customer Management", 
         shortcut: "F13", 
+        icon: <FaUserPlus />, 
+        action: () => navigate("/customers"),
+        roles: ['Admin', 'Manager', 'Sales'],
+        color: "bg-indigo-100 text-indigo-600"
+      },
+      { 
+        name: "Reports", 
+        shortcut: "F14", 
         icon: <FaChartLine />, 
         action: () => navigate("/reports"),
         roles: ['Admin', 'Manager'],
@@ -150,7 +158,7 @@ export default function Dashboard() {
       },
       { 
         name: "Notifications & Utilities", 
-        shortcut: "F14", 
+        shortcut: "F15", 
         icon: <FaBell />, 
         action: () => navigate("/notifications"),
         roles: ['Admin', 'Manager'],
@@ -158,7 +166,7 @@ export default function Dashboard() {
       },
       { 
         name: "System Configuration", 
-        shortcut: "F15", 
+        shortcut: "F16", 
         icon: <FaCog />, 
         action: () => navigate("/system-config"),
         roles: ['Admin'],
@@ -371,6 +379,19 @@ export default function Dashboard() {
                   {t('navigation.inventoryManagement')}
                 </button>
               </li>
+
+              {/* Customer Management - Admin, Manager, Sales */}
+              {(isAdmin() || isManager() || role === 'Sales') && (
+                <li>
+                  <button
+                    onClick={() => navigate("/customers")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                  >
+                    <FaUserPlus className="mr-3" />
+                    Customer Management
+                  </button>
+                </li>
+              )}
               
               {mastersMenu.map((item, index) => (
                 <li key={index}>

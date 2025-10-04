@@ -1,137 +1,222 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaSpinner, FaEye, FaUser, FaBuilding, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
 
-const CustomerList = ({
-  customers,
-  loading,
-  filters,
-  pagination,
-  onEdit,
-  onDelete,
-  onUpdateStatus,
-  onUpdateCreditLimit,
-  onFilterChange,
-  onPageChange,
-  hasPermission
-}) => {
-  const [showCreditModal, setShowCreditModal] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [creditData, setCreditData] = useState({
-    creditLimit: 0,
-    creditStatus: 'Active'
-  });
+export default function CustomerList({ onEditCustomer, onAddCustomer }) {
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCustomers, setTotalCustomers] = useState(0);
 
-  const handleCreditLimitUpdate = (customer) => {
-    setSelectedCustomer(customer);
-    setCreditData({
-      creditLimit: customer.creditInfo.creditLimit,
-      creditStatus: customer.creditInfo.creditStatus
-    });
-    setShowCreditModal(true);
+  const fetchCustomers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        setError('You are not logged in. Please log in first.');
+        setCustomers([]);
+        setLoading(false);
+        return;
+      }
+
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+        ...(searchTerm && { search: searchTerm }),
+        ...(filterType && { customerType: filterType }),
+        ...(filterStatus && { status: filterStatus })
+      });
+
+      const response = await fetch(`http://localhost:7000/api/customers/all?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          alert('Your session has expired. Please log in again.');
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error('Failed to fetch customers');
+      }
+
+      const data = await response.json();
+      setCustomers(data.data);
+      setTotalPages(data.pagination.totalPages);
+      setTotalCustomers(data.pagination.totalCustomers);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError(err.message || 'Failed to fetch customers');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCreditSubmit = () => {
-    onUpdateCreditLimit(selectedCustomer._id, creditData);
-    setShowCreditModal(false);
-    setSelectedCustomer(null);
-  };
-
-  const getStatusBadge = (status) => {
-    const statusClasses = {
-      Active: 'bg-green-100 text-green-800',
-      Inactive: 'bg-gray-100 text-gray-800',
-      Suspended: 'bg-red-100 text-red-800'
+  useEffect(() => {
+    fetchCustomers();
+    
+    // Listen for customer updates
+    const handleCustomerUpdate = () => {
+      fetchCustomers();
     };
-    return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
-      </span>
-    );
-  };
-
-  const getCreditStatusBadge = (status) => {
-    const statusClasses = {
-      Active: 'bg-green-100 text-green-800',
-      Suspended: 'bg-yellow-100 text-yellow-800',
-      Blocked: 'bg-red-100 text-red-800'
+    
+    window.addEventListener('customerUpdated', handleCustomerUpdate);
+    
+    return () => {
+      window.removeEventListener('customerUpdated', handleCustomerUpdate);
     };
+  }, [currentPage, searchTerm, filterType, filterStatus]);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this customer?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:7000/api/customers/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete customer');
+      }
+
+      alert('Customer deleted successfully!');
+      fetchCustomers(); // Refresh the list
+    } catch (err) {
+      setError(err.message || 'Failed to delete customer');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (page) => {
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterTypeChange = (e) => {
+    setFilterType(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterStatusChange = (e) => {
+    setFilterStatus(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'Active': 'bg-green-100 text-green-800',
+      'Inactive': 'bg-gray-100 text-gray-800',
+      'Suspended': 'bg-yellow-100 text-yellow-800',
+      'Blacklisted': 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getTypeColor = (type) => {
+    const colors = {
+      'Regular': 'bg-blue-100 text-blue-800',
+      'Premium': 'bg-purple-100 text-purple-800',
+      'VIP': 'bg-yellow-100 text-yellow-800',
+      'New': 'bg-green-100 text-green-800'
+    };
+    return colors[type] || 'bg-blue-100 text-blue-800';
+  };
+
+  if (loading && customers.length === 0) {
     return (
-      <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status}
-      </span>
+      <div className="flex justify-center items-center p-6">
+        <FaSpinner className="animate-spin text-blue-500 text-3xl" />
+        <p className="ml-3 text-gray-600">Loading customers...</p>
+      </div>
     );
-  };
+  }
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR'
-    }).format(amount);
-  };
-
-  if (loading) {
+  if (error) {
     return (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="p-6 text-red-600 bg-red-50 border border-red-200 rounded-lg">
+        <p className="font-medium">Error: {error}</p>
+        <p className="text-sm mt-1">Please try refreshing the page or logging in again.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => onFilterChange({ search: e.target.value })}
-              placeholder="Search customers..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => onFilterChange({ status: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Suspended">Suspended</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Credit Status</label>
-            <select
-              value={filters.creditStatus}
-              onChange={(e) => onFilterChange({ creditStatus: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">All Credit Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Suspended">Suspended</option>
-              <option value="Blocked">Blocked</option>
-            </select>
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={() => onFilterChange({ search: '', status: '', creditStatus: '' })}
-              className="w-full px-3 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-            >
-              Clear Filters
-            </button>
-          </div>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Customer List ({totalCustomers})</h2>
+        <button
+          onClick={onAddCustomer}
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-md"
+        >
+          <FaPlus className="mr-2" /> Add New Customer
+        </button>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="mb-6 flex flex-wrap gap-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <input
+            type="text"
+            placeholder="Search by name, email, phone, business..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        </div>
+
+        <div className="relative flex-1 min-w-[150px]">
+          <select
+            value={filterType}
+            onChange={handleFilterTypeChange}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+          >
+            <option value="">All Types</option>
+            <option value="Regular">Regular</option>
+            <option value="Premium">Premium</option>
+            <option value="VIP">VIP</option>
+            <option value="New">New</option>
+          </select>
+          <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        </div>
+
+        <div className="relative flex-1 min-w-[150px]">
+          <select
+            value={filterStatus}
+            onChange={handleFilterStatusChange}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+          >
+            <option value="">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Suspended">Suspended</option>
+            <option value="Blacklisted">Blacklisted</option>
+          </select>
+          <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
@@ -145,16 +230,19 @@ const CustomerList = ({
                   Customer
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Business
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Credit Info
+                  Contact
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Credit
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -165,73 +253,66 @@ const CustomerList = ({
               {customers.map((customer) => (
                 <tr key={customer._id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {customer.firstName} {customer.lastName}
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <FaUser className="h-5 w-5 text-blue-600" />
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {customer.customerNumber}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm text-gray-900">{customer.email}</div>
-                      <div className="text-sm text-gray-500">{customer.phone}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm text-gray-900">
-                        {customer.businessInfo?.businessName || 'N/A'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {customer.businessInfo?.businessType}
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {customer.firstName} {customer.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ID: {customer.customerId}
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm text-gray-900">
-                        {formatCurrency(customer.creditInfo.creditLimit)}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Available: {formatCurrency(customer.creditInfo.availableCredit)}
-                      </div>
-                      <div className="mt-1">
-                        {getCreditStatusBadge(customer.creditInfo.creditStatus)}
-                      </div>
+                    <div className="text-sm text-gray-900">{customer.businessName || 'N/A'}</div>
+                    <div className="text-sm text-gray-500">{customer.businessType}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-900">
+                      <FaPhone className="h-4 w-4 text-gray-400 mr-2" />
+                      {customer.phone}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FaEnvelope className="h-4 w-4 text-gray-400 mr-2" />
+                      {customer.email}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(customer.status)}
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(customer.customerType)}`}>
+                      {customer.customerType}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(customer.status)}`}>
+                      {customer.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div>Limit: ₹{customer.creditLimit?.toLocaleString() || 0}</div>
+                    <div className="text-gray-500">Used: ₹{customer.creditUsed?.toLocaleString() || 0}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      {hasPermission(['Admin', 'Manager']) && (
-                        <>
-                          <button
-                            onClick={() => onEdit(customer)}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleCreditLimitUpdate(customer)}
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Credit
-                          </button>
-                        </>
-                      )}
-                      {hasPermission(['Admin']) && (
-                        <button
-                          onClick={() => onDelete(customer._id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          Delete
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onEditCustomer(customer)}
+                        className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                        title="Edit Customer"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(customer._id)}
+                        className="text-red-600 hover:text-red-900 p-1 rounded"
+                        title="Delete Customer"
+                      >
+                        <FaTrash />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -241,20 +322,20 @@ const CustomerList = ({
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {totalPages > 1 && (
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
-                onClick={() => onPageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
               <button
-                onClick={() => onPageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
               </button>
@@ -262,45 +343,23 @@ const CustomerList = ({
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing{' '}
-                  <span className="font-medium">
-                    {(pagination.page - 1) * pagination.limit + 1}
-                  </span>{' '}
-                  to{' '}
-                  <span className="font-medium">
-                    {Math.min(pagination.page * pagination.limit, pagination.total)}
-                  </span>{' '}
-                  of{' '}
-                  <span className="font-medium">{pagination.total}</span>{' '}
-                  results
+                  Showing page <span className="font-medium">{currentPage}</span> of{' '}
+                  <span className="font-medium">{totalPages}</span>
                 </p>
               </div>
               <div>
                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                   <button
-                    onClick={() => onPageChange(pagination.page - 1)}
-                    disabled={pagination.page === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Previous
                   </button>
-                  {[...Array(pagination.totalPages)].map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => onPageChange(i + 1)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        pagination.page === i + 1
-                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
                   <button
-                    onClick={() => onPageChange(pagination.page + 1)}
-                    disabled={pagination.page === pagination.totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Next
                   </button>
@@ -310,68 +369,6 @@ const CustomerList = ({
           </div>
         )}
       </div>
-
-      {/* Credit Limit Modal */}
-      {showCreditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Update Credit Limit
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Credit Limit (PKR)
-                </label>
-                <input
-                  type="number"
-                  value={creditData.creditLimit}
-                  onChange={(e) => setCreditData(prev => ({
-                    ...prev,
-                    creditLimit: parseFloat(e.target.value) || 0
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Credit Status
-                </label>
-                <select
-                  value={creditData.creditStatus}
-                  onChange={(e) => setCreditData(prev => ({
-                    ...prev,
-                    creditStatus: e.target.value
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Suspended">Suspended</option>
-                  <option value="Blocked">Blocked</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-4 mt-6">
-              <button
-                onClick={() => setShowCreditModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreditSubmit}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Update
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-};
-
-export default CustomerList;
-
+}

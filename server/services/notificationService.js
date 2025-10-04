@@ -13,6 +13,8 @@ class NotificationService {
         type: "inventory",
         priority: "high",
         user: user,
+        relatedEntity: "inventory",
+        entityId: inventoryItem._id,
         data: {
           productId: inventoryItem._id,
           productName: inventoryItem.name,
@@ -40,6 +42,8 @@ class NotificationService {
         type: "inventory",
         priority: "critical",
         user: user,
+        relatedEntity: "inventory",
+        entityId: inventoryItem._id,
         data: {
           productId: inventoryItem._id,
           productName: inventoryItem.name,
@@ -357,6 +361,81 @@ class NotificationService {
       return stats[0] || { total: 0, unread: 0, byType: [] };
     } catch (error) {
       console.error("Error getting notification stats:", error);
+      throw error;
+    }
+  }
+
+  // Get user notification statistics
+  static async getUserNotificationStats(userId) {
+    try {
+      const stats = await Notification.aggregate([
+        {
+          $match: {
+            $or: [
+              { user: userId },
+              { recipient: userId }
+            ]
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            unread: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "unread"] }, 1, 0]
+              }
+            },
+            byType: {
+              $push: {
+                type: "$type",
+                status: "$status",
+                priority: "$priority"
+              }
+            }
+          }
+        }
+      ]);
+
+      return stats[0] || { total: 0, unread: 0, byType: [] };
+    } catch (error) {
+      console.error("Error getting user notification stats:", error);
+      throw error;
+    }
+  }
+
+  // Run all notification checks
+  static async runAllChecks() {
+    try {
+      console.log("Running notification checks...");
+      
+      // Check for low stock items - simplified query
+      const allItems = await Inventory.find({}).lean();
+      
+      for (const item of allItems) {
+        const threshold = item.minimumStock * 1.2;
+        if (item.currentStock <= threshold) {
+          // Create low stock alert
+          await this.createLowStockAlert(item, null);
+        }
+      }
+
+      // Check for out of stock items
+      const outOfStockItems = await Inventory.find({
+        currentStock: { $lte: 0 }
+      });
+
+      for (const item of outOfStockItems) {
+        await this.createOutOfStockAlert(item, null);
+      }
+
+      // Clean up expired notifications
+      await this.cleanupExpiredNotifications();
+
+      console.log("Notification checks completed");
+      return { success: true, message: "All checks completed" };
+    } catch (error) {
+      console.error("Error running notification checks:", error);
       throw error;
     }
   }
