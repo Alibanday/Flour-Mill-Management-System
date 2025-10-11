@@ -15,7 +15,7 @@ import { useTranslation } from '../hooks/useTranslation';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role, isAdmin, isManager, isEmployee, isCashier, isSales } = useAuth();
+  const { user, role, isAdmin, isGeneralManager, isSalesManager, isProductionManager, isWarehouseManager, isManager, isEmployee, isCashier, isSales } = useAuth();
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
@@ -30,12 +30,12 @@ export default function Dashboard() {
   // Role-based masters menu
   const getMastersMenu = () => {
     const baseMenu = [
-      { name: "Ledger", icon: <FaBook className="mr-3" />, roles: ['Admin', 'Manager'] },
-      { name: "Bags", icon: <FaShoppingBag className="mr-3" />, roles: ['Admin', 'Manager', 'Employee'] },
-      { name: "Food Purchase", icon: <FaIndustry className="mr-3" />, roles: ['Admin', 'Manager'] },
-      { name: "Private Purchase", icon: <FaCashRegister className="mr-3" />, roles: ['Admin', 'Manager'] },
-      { name: "Transactions", icon: <FaBook className="mr-3" />, roles: ['Admin', 'Manager'] },
-      { name: "Help", icon: <FaCog className="mr-3" />, roles: ['Admin', 'Manager', 'Employee', 'Cashier'] },
+      { name: "Ledger", icon: <FaBook className="mr-3" />, roles: ['Admin', 'General Manager'] },
+      { name: "Bags", icon: <FaShoppingBag className="mr-3" />, roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'] },
+      { name: "Food Purchase", icon: <FaIndustry className="mr-3" />, roles: ['Admin', 'General Manager'] },
+      { name: "Private Purchase", icon: <FaCashRegister className="mr-3" />, roles: ['Admin', 'General Manager'] },
+      { name: "Transactions", icon: <FaBook className="mr-3" />, roles: ['Admin', 'General Manager'] },
+      { name: "Help", icon: <FaCog className="mr-3" />, roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'] },
     ];
 
     return baseMenu.filter(item => item.roles.includes(role));
@@ -49,7 +49,7 @@ export default function Dashboard() {
         shortcut: "F1", 
         icon: <FaUserShield />, 
         action: () => navigate("/users"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-purple-100 text-purple-600"
       },
       { 
@@ -57,7 +57,7 @@ export default function Dashboard() {
         shortcut: "F2", 
         icon: <FaFolderOpen />, 
         action: () => navigate("/AccountsPage"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-blue-100 text-blue-600"
       },
       { 
@@ -65,7 +65,7 @@ export default function Dashboard() {
         shortcut: "F3", 
         icon: <FaChartLine />, 
         action: () => navigate("/financial"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-emerald-100 text-emerald-600"
       },
       { 
@@ -73,7 +73,7 @@ export default function Dashboard() {
         shortcut: "F4", 
         icon: <FaUsers />, 
         action: () => navigate("/suppliers"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-yellow-100 text-yellow-600"
       },
       {
@@ -81,7 +81,7 @@ export default function Dashboard() {
         shortcut: "F5",
         icon: <FaShoppingBag />,
         action: () => navigate("/bag-food-purchase"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-orange-100 text-orange-600"
       },
       { 
@@ -89,7 +89,7 @@ export default function Dashboard() {
         shortcut: "F6", 
         icon: <FaPassport />, 
         action: () => navigate("/gate-pass"),
-        roles: ['Admin', 'Manager', 'Employee'],
+        roles: ['Admin', 'General Manager', 'Production Manager', 'Warehouse Manager'],
         color: "bg-purple-100 text-purple-600"
       },
       { 
@@ -97,7 +97,7 @@ export default function Dashboard() {
         shortcut: "F7", 
         icon: <FaIndustry />, 
         action: () => navigate("/production"),
-        roles: ['Admin', 'Manager', 'Employee'],
+        roles: ['Admin', 'General Manager', 'Production Manager'],
         color: "bg-green-100 text-green-600"
       },
       { 
@@ -105,7 +105,7 @@ export default function Dashboard() {
         shortcut: "F8", 
         icon: <FaReceipt />,
         action: () => navigate("/sales"),
-        roles: ['Admin', 'Manager', 'Cashier'],
+        roles: ['Admin', 'General Manager', 'Sales Manager'],
         color: "bg-orange-100 text-orange-600"
       },
       { 
@@ -113,15 +113,23 @@ export default function Dashboard() {
         shortcut: "F9", 
         icon: <FaWarehouse />, 
         action: () => navigate("/warehouse"),
-        roles: ['Admin', 'Manager', 'Employee'],
+        roles: ['Admin', 'General Manager', 'Warehouse Manager'],
         color: "bg-indigo-100 text-indigo-600"
+      },
+      { 
+        name: "Warehouse Dashboard", 
+        shortcut: "F17", 
+        icon: <FaWarehouse />, 
+        action: () => navigate("/warehouse-manager-dashboard"),
+        roles: ['Warehouse Manager'],
+        color: "bg-purple-100 text-purple-600"
       },
       { 
         name: "Inventory", 
         shortcut: "F10", 
         icon: <FaBoxes />, 
         action: () => navigate("/inventory"),
-        roles: ['Admin', 'Manager', 'Employee'],
+        roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
         color: "bg-cyan-100 text-cyan-600"
       },
       { 
@@ -129,7 +137,7 @@ export default function Dashboard() {
         shortcut: "F11", 
         icon: <FaBoxes />, 
         action: () => navigate("/stock"),
-        roles: ['Admin', 'Manager', 'Employee'],
+        roles: ['Admin', 'General Manager', 'Warehouse Manager'],
         color: "bg-teal-100 text-teal-600"
       },
       { 
@@ -137,7 +145,7 @@ export default function Dashboard() {
         shortcut: "F12", 
         icon: <FaUsers />, 
         action: () => navigate("/employees"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-pink-100 text-pink-600"
       },
       { 
@@ -145,7 +153,7 @@ export default function Dashboard() {
         shortcut: "F13", 
         icon: <FaUserPlus />, 
         action: () => navigate("/customers"),
-        roles: ['Admin', 'Manager', 'Sales'],
+        roles: ['Admin', 'General Manager', 'Sales Manager'],
         color: "bg-indigo-100 text-indigo-600"
       },
       { 
@@ -153,7 +161,7 @@ export default function Dashboard() {
         shortcut: "F14", 
         icon: <FaChartLine />, 
         action: () => navigate("/reports"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-red-100 text-red-600"
       },
       { 
@@ -161,7 +169,7 @@ export default function Dashboard() {
         shortcut: "F15", 
         icon: <FaBell />, 
         action: () => navigate("/notifications"),
-        roles: ['Admin', 'Manager'],
+        roles: ['Admin', 'General Manager'],
         color: "bg-orange-100 text-orange-600"
       },
       { 

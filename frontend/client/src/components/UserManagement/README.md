@@ -10,7 +10,7 @@ The User Management Module is a comprehensive system for managing users, roles, 
   - Personal Information (First Name, Last Name, Email, Phone, CNIC)
   - Address Information (Address, City, State, ZIP Code)
   - Profile Picture upload with preview
-  - Role assignment (Admin, Manager, Employee, Cashier)
+  - Role assignment (Admin, General Manager, Sales Manager, Production Manager, Warehouse Manager)
   - Warehouse assignment for managers
   - Active/Inactive status
 
@@ -126,24 +126,34 @@ Auth/
 ## Role Descriptions
 
 ### Admin
-- **Full system access** to all modules
-- **User management** capabilities
-- **System configuration** access
+- **Full system access** to all modules and system settings
+- **Complete user management** capabilities
+- **System configuration** and administration access
+- **Complete oversight** of all operations
 
-### Manager
-- **Warehouse management** responsibilities
-- **Team supervision** capabilities
-- **Production oversight** access
+### General Manager
+- **Overall operations management** and oversight
+- **User and warehouse management** responsibilities
+- **Financial management** and reporting access
+- **Supplier and purchase** operations management
 
-### Employee
-- **Basic system access** for daily operations
-- **Limited administrative** functions
-- **Data entry** and reporting access
+### Sales Manager
+- **Sales operations** and customer management
+- **Sales transaction** processing and management
+- **Customer relationship** management
+- **Sales reporting** and financial data access
 
-### Cashier
-- **Sales and financial** operations
-- **Customer service** functions
-- **Transaction processing** access
+### Production Manager
+- **Production processes** and quality control
+- **Production workflow** management
+- **Warehouse and inventory** access for production
+- **Production reporting** and gate pass management
+
+### Warehouse Manager
+- **Inventory and warehouse** operations
+- **Warehouse management** and stock operations
+- **Gate pass** creation and management
+- **Warehouse reporting** and inventory tracking
 
 ## Validation Rules
 

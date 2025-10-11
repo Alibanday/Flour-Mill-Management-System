@@ -7,11 +7,12 @@ const router = express.Router();
 // All routes require authentication
 router.use(protect);
 
-router.post("/create", authorize('Admin', 'Manager'), createUser);
+router.post("/create", authorize('Admin', 'General Manager'), createUser);
+router.get("/", getAllUsers); // Support query parameters like ?role=Warehouse Manager
 router.get("/all", getAllUsers);
 router.get("/:id", getUser);
 router.delete("/:id", authorize('Admin'), deleteUser);
-router.put("/:id", authorize('Admin', 'Manager'), updateUser);
+router.put("/:id", authorize('Admin', 'General Manager'), updateUser);
 
 export default router;
 

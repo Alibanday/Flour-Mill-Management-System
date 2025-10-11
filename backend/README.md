@@ -105,28 +105,39 @@ npm start
 ## 🔐 Role-Based Access Control
 
 ### Admin Role
-- Full access to all features
+- Full access to all features and system settings
 - Can create, edit, delete users and warehouses
 - Can assign users to warehouses
-- Can manage system settings
+- Can manage system configuration
+- Complete oversight of all operations
 
-### Manager Role
-- Can view and manage assigned warehouses
-- Can view user information
-- Can toggle user status
-- Limited administrative functions
+### General Manager Role
+- Overall operations management and oversight
+- Can view and manage users, warehouses, and inventory
+- Can access financial management and reports
+- Can manage suppliers and purchase operations
+- Limited system configuration access
 
-### Employee Role
-- Basic system access
-- Can view own profile
-- Can update personal information
-- No administrative functions
+### Sales Manager Role
+- Sales operations and customer management
+- Can manage sales transactions and customer data
+- Can view inventory for sales purposes
+- Can access sales reports and financial data
+- Focus on sales and customer relationship management
 
-### Cashier Role
-- Sales and financial access
-- Can view own profile
-- Can update personal information
-- No administrative functions
+### Production Manager Role
+- Production processes and quality control
+- Can manage production operations and workflows
+- Can access warehouse and inventory data for production
+- Can create gate passes for production-related activities
+- Can view production reports and financial data
+
+### Warehouse Manager Role
+- Inventory and warehouse operations
+- Can create, update, and manage warehouses
+- Can handle inventory management and stock operations
+- Can create and manage gate passes
+- Can access warehouse-related reports
 
 ## 📁 Project Structure
 

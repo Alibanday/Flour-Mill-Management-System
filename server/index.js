@@ -26,6 +26,7 @@ import stockTransferRoutes from "./routes/stockTransfers.js";
 import repackingRoutes from "./routes/repacking.js";
 import productionCostRoutes from "./routes/productionCosts.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import warehouseManagerRoutes from "./routes/warehouseManager.js";
 import fileUpload from "express-fileupload";
 import connectWithRetry from "./config/database.js";
 import NotificationService from "./services/notificationService.js";
@@ -81,6 +82,7 @@ app.use("/api/stock-transfers", stockTransferRoutes);
 app.use("/api/repacking", repackingRoutes);
 app.use("/api/production-costs", productionCostRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/warehouse-manager", warehouseManagerRoutes);
         
         // Health check endpoint
 app.get("/api/health", (_, res) => {

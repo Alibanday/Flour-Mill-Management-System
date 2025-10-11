@@ -18,7 +18,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     city: '',
     state: '',
     zipCode: '',
-    role: 'Employee',
+    role: 'Production Manager',
     assignedWarehouses: [],
     isActive: true,
     profilePicture: null
@@ -40,6 +40,14 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     },
     role: {
       required: (value) => !value ? 'Role is required' : null
+    },
+    assignedWarehouses: {
+      required: (value) => {
+        if (['General Manager', 'Warehouse Manager'].includes(formData.role) && (!value || value.length === 0)) {
+          return 'This role must be assigned to at least one warehouse';
+        }
+        return null;
+      }
     }
   });
 
@@ -48,10 +56,11 @@ export default function UserForm({ user = null, onCancel, onSave }) {
   const [imagePreview, setImagePreview] = useState('');
 
   const roles = [
-    { value: 'Admin', label: 'Administrator', description: 'Full system access' },
-    { value: 'Manager', label: 'Manager', description: 'Warehouse and team management' },
-    { value: 'Employee', label: 'Employee', description: 'Basic system access' },
-    { value: 'Cashier', label: 'Cashier', description: 'Sales and financial access' }
+    { value: 'Admin', label: 'Administrator', description: 'Full system access and user management' },
+    { value: 'General Manager', label: 'General Manager', description: 'Overall operations management and oversight' },
+    { value: 'Sales Manager', label: 'Sales Manager', description: 'Sales operations and customer management' },
+    { value: 'Production Manager', label: 'Production Manager', description: 'Production processes and quality control' },
+    { value: 'Warehouse Manager', label: 'Warehouse Manager', description: 'Inventory and warehouse operations' }
   ];
 
   useEffect(() => {
@@ -113,59 +122,12 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    }
-
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-
-    if (!user && !formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
-
-    if (!formData.cnic.trim()) {
-      newErrors.cnic = 'CNIC is required';
-    } else if (!/^\d{5}-\d{7}-\d$/.test(formData.cnic)) {
-      newErrors.cnic = 'CNIC format should be 12345-1234567-1';
-    }
-
-    if (!formData.role) {
-      newErrors.role = 'Role is required';
-    }
-
-    if (formData.role === 'Manager' && formData.assignedWarehouses.length === 0) {
-      newErrors.assignedWarehouses = 'Managers must be assigned to at least one warehouse';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const validationResult = validateFormData();
+    if (!validationResult.isValid) {
       return;
     }
 
@@ -530,7 +492,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
           </div>
 
           {/* Warehouse Assignment for Managers */}
-          {formData.role === 'Manager' && (
+          {['General Manager', 'Warehouse Manager'].includes(formData.role) && (
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
                 <FaBuilding className="mr-2 text-blue-600" />

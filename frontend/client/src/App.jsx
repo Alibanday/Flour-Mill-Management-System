@@ -23,7 +23,8 @@ import StockTransferPage from './pages/StockTransferPage';
 import RepackingPage from './pages/RepackingPage';
 import ProductionCostPage from './pages/ProductionCostPage';
 import StockPage from './pages/StockPage';
-import ProtectedRoute, { AdminRoute, ManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
+import WarehouseManagerDashboard from './pages/WarehouseManagerDashboard';
+import ProtectedRoute, { AdminRoute, GeneralManagerRoute, SalesManagerRoute, ProductionManagerRoute, WarehouseManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
   return (
@@ -54,87 +55,87 @@ function App() {
           } 
         />
         
-        {/* Accounts - Admin and Manager only */}
+        {/* Accounts - Admin and General Manager only */}
         <Route 
           path="/accounts" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <AccountsPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Employees - Admin and Manager only */}
+        {/* Employees - Admin and General Manager only */}
         <Route 
           path="/employees" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <EmployeesPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Sales & Purchase Management - Admin, Manager, and Cashier */}
+        {/* Sales & Purchase Management - Admin, General Manager, and Sales Manager */}
         <Route 
           path="/sales" 
           element={
-            <CashierRoute>
+            <SalesManagerRoute>
               <SalesPurchasePage />
-            </CashierRoute>
+            </SalesManagerRoute>
           } 
         />
         
-        {/* Production - Admin, Manager, and Employee */}
+        {/* Production - Admin, General Manager, and Production Manager */}
         <Route 
           path="/production" 
           element={
-            <EmployeeRoute>
+            <ProductionManagerRoute>
               <ProductionPage />
-            </EmployeeRoute>
+            </ProductionManagerRoute>
           } 
         />
         
-        {/* Reports - Admin and Manager only */}
+        {/* Reports - Admin and General Manager only */}
         <Route 
           path="/reports" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <ReportsPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Financial Management - Admin and Manager only */}
+        {/* Financial Management - Admin and General Manager only */}
         <Route 
           path="/financial" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <FinancialManagementPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Bag & Food Purchase - Admin and Manager only */}
+        {/* Bag & Food Purchase - Admin and General Manager only */}
         <Route 
           path="/bag-food-purchase" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <BagFoodPurchasePage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Supplier & Vendor Management - Admin and Manager only */}
+        {/* Supplier & Vendor Management - Admin and General Manager only */}
         <Route 
           path="/suppliers" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <SupplierManagementPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Gate Pass System - Admin, Manager, and Employee */}
+        {/* Gate Pass System - Admin, General Manager, Production Manager, and Warehouse Manager */}
         <Route 
           path="/gate-pass" 
           element={
@@ -144,13 +145,13 @@ function App() {
           } 
         />
         
-        {/* Notifications & Utilities - Admin and Manager only */}
+        {/* Notifications & Utilities - Admin and General Manager only */}
         <Route 
           path="/notifications" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <NotificationsPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
@@ -174,17 +175,17 @@ function App() {
           } 
         />
 
-        {/* Customer Management - Admin, Manager, and Cashier */}
+        {/* Customer Management - Admin, General Manager, and Sales Manager */}
         <Route 
           path="/customers" 
           element={
-            <CashierRoute>
+            <SalesManagerRoute>
               <CustomerManagementPage />
-            </CashierRoute>
+            </SalesManagerRoute>
           } 
         />
 
-        {/* Stock Transfer - Admin, Manager, and Employee */}
+        {/* Stock Transfer - Admin, General Manager, Production Manager, and Warehouse Manager */}
         <Route 
           path="/stock-transfers" 
           element={
@@ -194,33 +195,33 @@ function App() {
           } 
         />
 
-        {/* Repacking - Admin, Manager, and Employee */}
+        {/* Repacking - Admin, General Manager, and Production Manager */}
         <Route 
           path="/repacking" 
           element={
-            <EmployeeRoute>
+            <ProductionManagerRoute>
               <RepackingPage />
-            </EmployeeRoute>
+            </ProductionManagerRoute>
           } 
         />
 
-        {/* Production Cost Analysis - Admin and Manager only */}
+        {/* Production Cost Analysis - Admin and General Manager only */}
         <Route 
           path="/production-costs" 
           element={
-            <ManagerRoute>
+            <GeneralManagerRoute>
               <ProductionCostPage />
-            </ManagerRoute>
+            </GeneralManagerRoute>
           } 
         />
         
-        {/* Warehouse - Admin, Manager, and Employee */}
+        {/* Warehouse - Admin, General Manager, and Warehouse Manager */}
                 <Route
           path="/warehouse"
           element={
-            <EmployeeRoute>
+            <WarehouseManagerRoute>
               <WarehousePage />
-            </EmployeeRoute>
+            </WarehouseManagerRoute>
           }
         />
         <Route
@@ -232,13 +233,23 @@ function App() {
           }
         />
         
-        {/* Stock - Admin, Manager, and Employee */}
+        {/* Stock - Admin, General Manager, and Warehouse Manager */}
         <Route 
           path="/stock" 
           element={
-            <EmployeeRoute>
+            <WarehouseManagerRoute>
               <StockPage />
-            </EmployeeRoute>
+            </WarehouseManagerRoute>
+          } 
+        />
+        
+        {/* Warehouse Manager Dashboard */}
+        <Route 
+          path="/warehouse-manager-dashboard" 
+          element={
+            <WarehouseManagerRoute>
+              <WarehouseManagerDashboard />
+            </WarehouseManagerRoute>
           } 
         />
         

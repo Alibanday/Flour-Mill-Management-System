@@ -36,11 +36,31 @@ export const createUser = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({ role: { $ne: "admin" } }); // exclude admin users
-    res.status(200).json({ users });
+    const { role } = req.query;
+    
+    let query = {};
+    
+    // Filter by role if provided
+    if (role) {
+      query.role = role;
+    } else {
+      // Exclude admin users by default unless specifically requested
+      query.role = { $ne: "Admin" };
+    }
+    
+    const users = await User.find(query).select('-password');
+    
+    res.status(200).json({ 
+      success: true,
+      data: users,
+      total: users.length 
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ 
+      success: false,
+      message: "Server error" 
+    });
   }
 };
 

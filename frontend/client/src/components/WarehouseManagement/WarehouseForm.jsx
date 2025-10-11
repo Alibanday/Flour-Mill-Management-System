@@ -8,6 +8,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
   const { user, isAdmin, isManager } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [managers, setManagers] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -31,6 +32,24 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
       }
     }
   });
+
+  // Fetch warehouse managers
+  useEffect(() => {
+    const fetchManagers = async () => {
+      try {
+        const response = await api.get('/api/users?role=Warehouse Manager');
+        if (response.data.success) {
+          setManagers(response.data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching managers:', error);
+        // Set empty array on error to prevent form issues
+        setManagers([]);
+      }
+    };
+
+    fetchManagers();
+  }, []);
 
   useEffect(() => {
     if (warehouse && mode === 'edit') {
@@ -397,9 +416,11 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Manager (Optional)</option>
-                {/* This would be populated with actual managers from API */}
-                <option value="manager1">Manager 1</option>
-                <option value="manager2">Manager 2</option>
+                {managers.map(manager => (
+                  <option key={manager._id} value={manager._id}>
+                    {manager.firstName} {manager.lastName} ({manager.email})
+                  </option>
+                ))}
               </select>
             </div>
           </div>

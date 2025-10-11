@@ -38,26 +38,43 @@ export const useAuth = () => {
   };
 
   // Role-based helper functions
-  const role = user?.role || 'Employee';
+  const role = user?.role || 'Production Manager';
   
   const isAdmin = () => {
     return role === 'Admin';
   };
 
+  const isGeneralManager = () => {
+    return role === 'General Manager';
+  };
+
+  const isSalesManager = () => {
+    return role === 'Sales Manager';
+  };
+
+  const isProductionManager = () => {
+    return role === 'Production Manager';
+  };
+
+  const isWarehouseManager = () => {
+    return role === 'Warehouse Manager';
+  };
+
+  // Legacy functions for backward compatibility
   const isManager = () => {
-    return role === 'Manager';
+    return ['General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'].includes(role);
   };
 
   const isEmployee = () => {
-    return role === 'Employee';
+    return ['Sales Manager', 'Production Manager', 'Warehouse Manager'].includes(role);
   };
 
   const isCashier = () => {
-    return role === 'Cashier';
+    return role === 'Sales Manager';
   };
 
   const isSales = () => {
-    return role === 'Sales';
+    return role === 'Sales Manager';
   };
 
   // Permission-based helper functions
@@ -80,7 +97,7 @@ export const useAuth = () => {
         'gatepass.create', 'gatepass.read', 'gatepass.update',
         'financial.create', 'financial.read', 'financial.update'
       ],
-      'Manager': [
+      'General Manager': [
         'user.create', 'user.read', 'user.update',
         'warehouse.create', 'warehouse.read', 'warehouse.update',
         'inventory.create', 'inventory.read', 'inventory.update',
@@ -91,20 +108,25 @@ export const useAuth = () => {
         'gatepass.create', 'gatepass.read', 'gatepass.update',
         'financial.create', 'financial.read', 'financial.update'
       ],
-      'Employee': [
-        'warehouse.read', 'inventory.read',
-        'production.create', 'production.read',
-        'gatepass.create', 'gatepass.read'
-      ],
-      'Cashier': [
-        'sales.create', 'sales.read', 'sales.update',
-        'purchase.read',
-        'inventory.read'
-      ],
-      'Sales': [
+      'Sales Manager': [
         'sales.create', 'sales.read', 'sales.update',
         'customer.create', 'customer.read', 'customer.update',
+        'purchase.read',
         'inventory.read',
+        'reports.read',
+        'financial.read'
+      ],
+      'Production Manager': [
+        'production.create', 'production.read', 'production.update',
+        'warehouse.read', 'inventory.read', 'inventory.update',
+        'gatepass.create', 'gatepass.read',
+        'reports.read',
+        'financial.read'
+      ],
+      'Warehouse Manager': [
+        'warehouse.create', 'warehouse.read', 'warehouse.update',
+        'inventory.create', 'inventory.read', 'inventory.update',
+        'gatepass.create', 'gatepass.read', 'gatepass.update',
         'reports.read'
       ]
     };
@@ -176,6 +198,11 @@ export const useAuth = () => {
     logout,
     isAuthenticated,
     isAdmin,
+    isGeneralManager,
+    isSalesManager,
+    isProductionManager,
+    isWarehouseManager,
+    // Legacy functions for backward compatibility
     isManager,
     isEmployee,
     isCashier,

@@ -35,7 +35,7 @@ export default function UserList() {
       email: 'jane.smith@flourmill.com',
       phone: '+92-300-1234568',
       cnic: '12345-1234567-2',
-      role: 'Manager',
+      role: 'General Manager',
       isActive: true,
       createdAt: '2024-01-16',
       lastLogin: '2024-01-19'
@@ -47,7 +47,7 @@ export default function UserList() {
       email: 'mike.johnson@flourmill.com',
       phone: '+92-300-1234569',
       cnic: '12345-1234567-3',
-      role: 'Employee',
+      role: 'Production Manager',
       isActive: false,
       createdAt: '2024-01-17',
       lastLogin: '2024-01-18'
@@ -284,9 +284,10 @@ export default function UserList() {
             >
               <option value="all">All Roles</option>
               <option value="Admin">Admin</option>
-              <option value="Manager">Manager</option>
-              <option value="Employee">Employee</option>
-              <option value="Cashier">Cashier</option>
+              <option value="General Manager">General Manager</option>
+              <option value="Sales Manager">Sales Manager</option>
+              <option value="Production Manager">Production Manager</option>
+              <option value="Warehouse Manager">Warehouse Manager</option>
             </select>
           </div>
 
@@ -345,9 +346,11 @@ export default function UserList() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       user.role === 'Admin' ? 'bg-red-100 text-red-800' :
-                      user.role === 'Manager' ? 'bg-blue-100 text-blue-800' :
-                      user.role === 'Employee' ? 'bg-green-100 text-green-800' :
-                      'bg-purple-100 text-purple-800'
+                      user.role === 'General Manager' ? 'bg-blue-100 text-blue-800' :
+                      user.role === 'Sales Manager' ? 'bg-green-100 text-green-800' :
+                      user.role === 'Production Manager' ? 'bg-orange-100 text-orange-800' :
+                      user.role === 'Warehouse Manager' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800'
                     }`}>
                       {user.role}
                     </span>
