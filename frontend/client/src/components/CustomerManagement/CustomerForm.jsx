@@ -9,7 +9,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
     phone: '',
     businessName: '',
     businessType: 'Individual',
-    customerType: 'New',
+    creditLimit: 0,
     status: 'Active'
   });
 
@@ -26,7 +26,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
         phone: customer.phone || '',
         businessName: customer.businessName || '',
         businessType: customer.businessType || 'Individual',
-        customerType: customer.customerType || 'New',
+        creditLimit: customer.creditLimit || 0,
         status: customer.status || 'Active'
       });
     }
@@ -47,7 +47,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
     } else {
       setFormData(prev => ({
         ...prev,
-        [name]: type === 'checkbox' ? checked : value
+        [name]: type === 'checkbox' ? checked : (name === 'creditLimit' ? parseFloat(value) || 0 : value)
       }));
     }
 
@@ -304,19 +304,18 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Type
+                Credit Limit (PKR)
               </label>
-              <select
-                name="customerType"
-                value={formData.customerType}
+              <input
+                type="number"
+                name="creditLimit"
+                value={formData.creditLimit}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="New">New</option>
-                <option value="Regular">Regular</option>
-                <option value="Premium">Premium</option>
-                <option value="VIP">VIP</option>
-              </select>
+                placeholder="Enter credit limit amount"
+                min="0"
+                step="0.01"
+              />
             </div>
 
             <div>

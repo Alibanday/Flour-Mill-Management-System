@@ -1,4 +1,4 @@
-import Customer from '../model/Customer.js';
+import Customer from '../model/CustomerNew.js';
 import Employee from '../model/Employee.js';
 import Warehouse from '../model/wareHouse.js';
 import { createNotification } from '../services/notificationService.js';
@@ -378,7 +378,7 @@ export const searchCustomersForSales = async (req, res) => {
         { customerId: { $regex: search, $options: 'i' } }
       ]
     })
-    .select('customerId firstName lastName businessName phone email customerType creditLimit creditUsed paymentTerms')
+    .select('customerId firstName lastName businessName phone email customerType creditLimit creditUsed paymentTerms address customerNumber')
     .limit(parseInt(limit));
 
     res.json({

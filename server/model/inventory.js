@@ -18,7 +18,7 @@ const inventorySchema = new mongoose.Schema({
   category: {
     type: String,
     required: [true, "Category is required"],
-    enum: ["Raw Materials", "Finished Products", "Packaging Materials", "Maintenance Supplies"],
+    enum: ["Raw Materials", "Finished Goods"],
     default: "Raw Materials"
   },
   subcategory: {
@@ -26,85 +26,29 @@ const inventorySchema = new mongoose.Schema({
     required: [true, "Subcategory is required"],
     enum: [
       // Raw Materials
-      "Wheat Grain", "Corn", "Rice", "Barley", "Oats", "Rye", "Millet",
-      // Finished Products  
-      "Flour", "Maida", "Suji", "Chokhar", "Fine Flour", "Whole Wheat Flour", "Bread Flour", "Cake Flour",
-      // Packaging Materials
-      "Bags", "Sacks", "Labels", "Tape", "Twine", "Plastic Sheets",
-      // Maintenance Supplies
-      "Machine Parts", "Lubricants", "Cleaning Supplies", "Safety Equipment", "Tools"
+      "Wheat", "Choker",
+      // Finished Goods  
+      "Bags"
     ],
-    default: "Wheat Grain"
+    default: "Wheat"
   },
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [500, "Description cannot exceed 500 characters"]
-  },
-  unit: {
-    type: String,
-    required: [true, "Unit is required"],
-    enum: [
-      "tons", "quintals",
-      "50kg bags", "25kg bags", "10kg bags", "5kg bags",
-      "100kg sacks", "50kg sacks", "25kg sacks",
-      "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles",
-      "units", "sets", "kits", "pairs", "meters", "liters"
-    ],
-    default: "50kg bags"
-  },
-  currentStock: {
+  weight: {
     type: Number,
-    required: [true, "Current stock is required"],
-    min: [0, "Stock cannot be negative"],
+    required: [true, "Weight is required"],
+    min: [0, "Weight cannot be negative"],
     default: 0
   },
-  minimumStock: {
+  price: {
     type: Number,
-    min: [0, "Minimum stock cannot be negative"],
+    required: [true, "Price is required"],
+    min: [0, "Price cannot be negative"],
     default: 0
-  },
-  reorderPoint: {
-    type: Number,
-    min: [0, "Reorder point cannot be negative"]
-  },
-  cost: {
-    purchasePrice: {
-      type: Number,
-      min: [0, "Purchase price cannot be negative"]
-    },
-    currency: {
-      type: String,
-      default: "PKR"
-    }
-  },
-  warehouse: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Warehouse",
-    required: [true, "Warehouse assignment is required"]
-  },
-  location: {
-    aisle: String,
-    shelf: String,
-    bin: String
-  },
-  supplier: {
-    name: String,
-    contact: String,
-    email: String
-  },
-  specifications: {
-    type: Map,
-    of: String
   },
   status: {
     type: String,
     enum: ["Active", "Inactive", "Low Stock", "Out of Stock", "Discontinued"],
     default: "Active"
   },
-  tags: [String],
-  expiryDate: Date,
-  notes: String,
   lastUpdated: {
     type: Date,
     default: Date.now
@@ -115,36 +59,21 @@ const inventorySchema = new mongoose.Schema({
 
 // Virtual for stock status
 inventorySchema.virtual("stockStatus").get(function() {
-  if (this.currentStock === 0) return "Out of Stock";
-  if (this.currentStock <= this.minimumStock) return "Low Stock";
+  if (this.weight === 0) return "Out of Stock";
   return "In Stock";
 });
 
 // Virtual for total value calculation
 inventorySchema.virtual("totalValue").get(function() {
-  if (!this.cost || !this.cost.purchasePrice) return 0;
-  return this.currentStock * this.cost.purchasePrice;
+  if (!this.price) return 0;
+  // Price is always for the complete item
+  return this.price;
 });
 
-// Virtual for stock percentage (based on minimum stock as reference)
-inventorySchema.virtual("stockPercentage").get(function() {
-  if (!this.minimumStock || this.minimumStock === 0) return null;
-  return Math.round((this.currentStock / this.minimumStock) * 100);
-});
-
-// Virtual for full location
-inventorySchema.virtual("fullLocation").get(function() {
-  const parts = [];
-  if (this.location.aisle) parts.push(`Aisle: ${this.location.aisle}`);
-  if (this.location.shelf) parts.push(`Shelf: ${this.location.shelf}`);
-  if (this.location.bin) parts.push(`Bin: ${this.location.bin}`);
-  return parts.length > 0 ? parts.join(", ") : "Not specified";
-});
-
-// Virtual for cost display
-inventorySchema.virtual("costDisplay").get(function() {
-  if (!this.cost.purchasePrice) return "Not specified";
-  return `${this.cost.purchasePrice} ${this.cost.currency}`;
+// Virtual for price display
+inventorySchema.virtual("priceDisplay").get(function() {
+  if (!this.price) return "Not specified";
+  return `${this.price} PKR per item`;
 });
 
 // Pre-save middleware
@@ -157,11 +86,9 @@ inventorySchema.pre("save", function(next) {
   // Update lastUpdated
   this.lastUpdated = new Date();
   
-  // Auto-update status based on stock levels
-  if (this.currentStock === 0) {
+  // Auto-update status based on weight
+  if (this.weight === 0) {
     this.status = "Out of Stock";
-  } else if (this.currentStock <= this.minimumStock) {
-    this.status = "Low Stock";
   } else {
     this.status = "Active";
   }
@@ -209,33 +136,18 @@ inventorySchema.pre('save', async function(next) {
 });
 
 // Methods
-inventorySchema.methods.needsReorder = function() {
-  return this.currentStock <= this.reorderPoint;
-};
-
 inventorySchema.methods.getStockSummary = function() {
   return {
-    current: this.currentStock,
-    minimum: this.minimumStock,
+    weight: this.weight,
     status: this.stockStatus,
-    percentage: this.stockPercentage
+    totalValue: this.totalValue,
+    pricePerKg: this.price
   };
 };
 
 // Statics
-inventorySchema.statics.getLowStockItems = function() {
-  return this.find({
-    $expr: {
-      $and: [
-        { $gt: ["$minimumStock", 0] },
-        { $lte: ["$currentStock", "$minimumStock"] }
-      ]
-    }
-  });
-};
-
 inventorySchema.statics.getOutOfStockItems = function() {
-  return this.find({ currentStock: 0 });
+  return this.find({ weight: 0 });
 };
 
 // Check if model already exists to prevent overwrite errors

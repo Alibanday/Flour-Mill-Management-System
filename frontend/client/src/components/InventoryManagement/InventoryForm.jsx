@@ -8,19 +8,14 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
   const { isAdmin, isManager } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [warehouses, setWarehouses] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
     code: '', // Will be auto-generated
     category: 'Raw Materials',
-    subcategory: 'Wheat Grain',
-    description: '',
-    unit: '50kg bags',
-    currentStock: '',
-    minimumStock: '',
-    warehouse: '',
-    cost: { purchasePrice: '', currency: 'PKR' }
+    subcategory: 'Wheat',
+    weight: '',
+    price: ''
   });
   
   const [existingItem, setExistingItem] = useState(null);
@@ -28,53 +23,35 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
   const [addStockMode, setAddStockMode] = useState(false);
 
   useEffect(() => {
-    fetchWarehouses();
     if (inventory && mode === 'edit') {
       setFormData({
         name: inventory.name || '',
         code: inventory.code || '',
         category: inventory.category || 'Raw Materials',
-        subcategory: inventory.subcategory || 'Wheat Grain',
-        description: inventory.description || '',
-        unit: inventory.unit || '50kg bags',
-        currentStock: inventory.currentStock || '',
-        minimumStock: inventory.minimumStock || '',
-        warehouse: inventory.warehouse?._id || inventory.warehouse || '',
-        cost: { 
-          purchasePrice: inventory.cost?.purchasePrice || '', 
-          currency: inventory.cost?.currency || 'PKR' 
-        }
+        subcategory: inventory.subcategory || 'Wheat',
+        weight: inventory.weight || '',
+        price: inventory.price || ''
       });
     }
   }, [inventory, mode]);
 
-  const fetchWarehouses = async () => {
-    try {
-      const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_ALL);
-      setWarehouses(response.data.data || []);
-    } catch (error) {
-      toast.error('Failed to fetch warehouses');
-    }
-  };
-
   const checkExistingItem = async () => {
-    if (!formData.name || !formData.warehouse) {
-      toast.warning('Please enter item name and select warehouse first');
+    if (!formData.name) {
+      toast.warning('Please enter item name first');
       return;
     }
 
     try {
       const response = await api.get(API_ENDPOINTS.INVENTORY.FIND_EXISTING, {
         params: {
-          name: formData.name,
-          warehouse: formData.warehouse
+          name: formData.name
         }
       });
       
       if (response.data.success && response.data.exists) {
         setExistingItem(response.data.data);
         setShowExistingItem(true);
-        toast.info('Similar item found! You can add stock to existing item or create new one.');
+        toast.info('Similar item found! You can add quantity to existing item or create new one.');
       } else {
         setExistingItem(null);
         setShowExistingItem(false);
@@ -87,22 +64,21 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
   };
 
   const handleAddStockToExisting = async () => {
-    if (!existingItem || !formData.currentStock) {
-      toast.error('Please enter quantity to add');
+    if (!existingItem || !formData.weight) {
+      toast.error('Please enter weight to add');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await api.post(API_ENDPOINTS.INVENTORY.ADD_STOCK(existingItem._id), {
-        quantity: parseFloat(formData.currentStock),
-        reason: 'Stock Addition',
-        referenceNumber: `ADD-${Date.now()}`
+      // Update the existing item's weight
+      const response = await api.put(API_ENDPOINTS.INVENTORY.UPDATE(existingItem._id), {
+        weight: existingItem.weight + parseFloat(formData.weight)
       });
 
       if (response.data.success) {
-        toast.success(`Stock added successfully! New stock: ${response.data.data.newStock}`);
-        if (onSave) onSave(response.data.data.item);
+        toast.success(`Weight added successfully! New weight: ${response.data.data.weight} kg`);
+        if (onSave) onSave(response.data.data);
         
         // Trigger stock list refresh by dispatching a custom event
         window.dispatchEvent(new CustomEvent('stockUpdated'));
@@ -110,10 +86,10 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
         
         onCancel();
       } else {
-        toast.error(response.data.message || 'Error adding stock');
+        toast.error(response.data.message || 'Error adding weight');
       }
     } catch (error) {
-      const message = error.response?.data?.message || 'Error adding stock';
+      const message = error.response?.data?.message || 'Error adding weight';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -123,8 +99,8 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.warehouse || !formData.cost.purchasePrice) {
-      toast.error('Please fill all required fields including purchase price');
+    if (!formData.name || !formData.weight || !formData.price) {
+      toast.error('Please fill all required fields');
       return;
     }
 
@@ -138,115 +114,17 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      // Clean up form data - remove empty fields that cause validation errors
+      // Clean up form data - convert string numbers to actual numbers
       const cleanedFormData = { ...formData };
-      if (!cleanedFormData.description || cleanedFormData.description === '') {
-        delete cleanedFormData.description;
+      if (cleanedFormData.weight) {
+        cleanedFormData.weight = parseFloat(cleanedFormData.weight);
       }
-      if (!cleanedFormData.subcategory || cleanedFormData.subcategory === '') {
-        delete cleanedFormData.subcategory;
-      }
-      if (!cleanedFormData.minimumStock || cleanedFormData.minimumStock === '') {
-        delete cleanedFormData.minimumStock;
-      }
-
-      // Convert string numbers to actual numbers
-      if (cleanedFormData.currentStock) {
-        cleanedFormData.currentStock = parseFloat(cleanedFormData.currentStock);
-      }
-      if (cleanedFormData.cost.purchasePrice) {
-        cleanedFormData.cost.purchasePrice = parseFloat(cleanedFormData.cost.purchasePrice);
+      if (cleanedFormData.price) {
+        cleanedFormData.price = parseFloat(cleanedFormData.price);
       }
 
       console.log('Submitting inventory with cleaned data:', cleanedFormData);
 
-      // Check warehouse capacity before creating inventory
-      if (mode === 'create' && cleanedFormData.currentStock > 0) {
-        const warehouseResponse = await api.get(API_ENDPOINTS.WAREHOUSES.GET_BY_ID(cleanedFormData.warehouse));
-        const warehouse = warehouseResponse.data.data;
-        
-        if (warehouse && warehouse.capacity) {
-          const currentUsage = warehouse.capacity.currentUsage || 0;
-          const totalCapacity = warehouse.capacity.totalCapacity || 0;
-          const newStock = cleanedFormData.currentStock || 0;
-          
-          // Convert units to a common base for comparison (assuming kg as base)
-          let stockInKg = newStock;
-          let capacityInKg = totalCapacity;
-          
-          // Convert warehouse capacity to kg based on unit
-          switch (warehouse.capacity.unit) {
-            case 'tons':
-              capacityInKg = totalCapacity * 1000;
-              break;
-            case 'quintals':
-              capacityInKg = totalCapacity * 100;
-              break;
-            case '50kg bags':
-              capacityInKg = totalCapacity * 50;
-              break;
-            case '25kg bags':
-              capacityInKg = totalCapacity * 25;
-              break;
-            case '10kg bags':
-              capacityInKg = totalCapacity * 10;
-              break;
-            case '5kg bags':
-              capacityInKg = totalCapacity * 5;
-              break;
-            case '100kg sacks':
-              capacityInKg = totalCapacity * 100;
-              break;
-            case '50kg sacks':
-              capacityInKg = totalCapacity * 50;
-              break;
-            case '25kg sacks':
-              capacityInKg = totalCapacity * 25;
-              break;
-            default:
-              capacityInKg = totalCapacity; // Assume kg
-          }
-          
-          // Convert inventory stock to kg based on unit
-          switch (cleanedFormData.unit) {
-            case 'tons':
-              stockInKg = newStock * 1000;
-              break;
-            case 'quintals':
-              stockInKg = newStock * 100;
-              break;
-            case '50kg bags':
-              stockInKg = newStock * 50;
-              break;
-            case '25kg bags':
-              stockInKg = newStock * 25;
-              break;
-            case '10kg bags':
-              stockInKg = newStock * 10;
-              break;
-            case '5kg bags':
-              stockInKg = newStock * 5;
-              break;
-            case '100kg sacks':
-              stockInKg = newStock * 100;
-              break;
-            case '50kg sacks':
-              stockInKg = newStock * 50;
-              break;
-            case '25kg sacks':
-              stockInKg = newStock * 25;
-              break;
-            default:
-              stockInKg = newStock; // Assume kg
-          }
-          
-          if (currentUsage + stockInKg > capacityInKg) {
-            toast.error(`Cannot add inventory: Would exceed warehouse capacity. Current usage: ${currentUsage}kg, Adding: ${stockInKg}kg, Capacity: ${capacityInKg}kg`);
-            setLoading(false);
-            return;
-          }
-        }
-      }
 
       let response;
       if (mode === 'create') {
@@ -272,31 +150,13 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
 
   const categories = [
     { value: 'Raw Materials', label: 'Raw Materials' },
-    { value: 'Finished Products', label: 'Finished Products' },
-    { value: 'Packaging Materials', label: 'Packaging Materials' },
-    { value: 'Maintenance Supplies', label: 'Maintenance Supplies' }
+    { value: 'Finished Goods', label: 'Finished Goods' }
   ];
 
   const subcategories = {
-    'Raw Materials': [
-      'Wheat Grain', 'Corn', 'Rice', 'Barley', 'Oats', 'Rye', 'Millet'
-    ],
-    'Finished Products': [
-      'Flour', 'Maida', 'Suji', 'Chokhar', 'Fine Flour', 'Whole Wheat Flour', 'Bread Flour', 'Cake Flour'
-    ],
-    'Packaging Materials': [
-      'Bags', 'Sacks', 'Labels', 'Tape', 'Twine', 'Plastic Sheets'
-    ],
-    'Maintenance Supplies': [
-      'Machine Parts', 'Lubricants', 'Cleaning Supplies', 'Safety Equipment', 'Tools'
-    ]
+    'Raw Materials': ['Wheat', 'Choker'],
+    'Finished Goods': ['Bags']
   };
-
-  const units = [
-    'tons', 'quintals',
-    '50kg bags', '25kg bags', '10kg bags', '5kg bags',
-    '100kg sacks', '50kg sacks', '25kg sacks'
-  ];
 
   const handleCategoryChange = (category) => {
     const availableSubcategories = subcategories[category] || [];
@@ -358,6 +218,7 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
                 value={formData.category}
                 onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                required
               >
                 {categories.map(category => (
                   <option key={category.value} value={category.value}>{category.label}</option>
@@ -371,6 +232,7 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
                 value={formData.subcategory}
                 onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                required
               >
                 {subcategories[formData.category]?.map(subcategory => (
                   <option key={subcategory} value={subcategory}>{subcategory}</option>
@@ -379,89 +241,55 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Unit *</label>
-              <select
-                value={formData.unit}
-                onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                {units.map(unit => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Weight (kg) *
+              </label>
               <input
                 type="number"
-                value={formData.currentStock}
-                onChange={(e) => setFormData({...formData, currentStock: e.target.value})}
+                value={formData.weight}
+                onChange={(e) => setFormData({...formData, weight: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                 placeholder="0"
                 min="0"
+                step="0.01"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter the weight of the item in kilograms
+              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Stock</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price (PKR per item) *
+              </label>
               <input
                 type="number"
-                value={formData.minimumStock}
-                onChange={(e) => setFormData({...formData, minimumStock: e.target.value})}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                placeholder="0"
-                min="0"
-              />
-            </div>
-
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Purchase Price *</label>
-              <input
-                type="number"
-                value={formData.cost.purchasePrice}
-                onChange={(e) => setFormData({
-                  ...formData, 
-                  cost: {...formData.cost, purchasePrice: e.target.value}
-                })}
+                value={formData.price}
+                onChange={(e) => setFormData({...formData, price: e.target.value})}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
                 placeholder="0.00"
                 min="0"
                 step="0.01"
                 required
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter the price for the complete item
+              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Warehouse *</label>
-              <div className="flex gap-2">
-                <select
-                  value={formData.warehouse}
-                  onChange={(e) => setFormData({...formData, warehouse: e.target.value})}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  required
-                >
-                  <option value="">Select Warehouse</option>
-                  {warehouses.map(warehouse => (
-                    <option key={warehouse._id} value={warehouse._id}>
-                      {warehouse.name} ({warehouse.code})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={checkExistingItem}
-                  disabled={!formData.name || !formData.warehouse}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  Check Existing
-                </button>
-              </div>
+            <div className="md:col-span-2">
+              <button
+                type="button"
+                onClick={checkExistingItem}
+                disabled={!formData.name}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Check Existing Item
+              </button>
             </div>
           </div>
 
@@ -480,12 +308,12 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
                     <p className="text-gray-900">{existingItem.code}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Current Stock</label>
-                    <p className="text-gray-900">{existingItem.currentStock} {existingItem.unit}</p>
+                    <label className="block text-sm font-medium text-gray-700">Current Weight</label>
+                    <p className="text-gray-900">{existingItem.weight} kg</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">Category</label>
-                    <p className="text-gray-900">{existingItem.category}</p>
+                    <p className="text-gray-900">{existingItem.category} - {existingItem.subcategory}</p>
                   </div>
                 </div>
                 
@@ -495,7 +323,7 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
                     onClick={() => setAddStockMode(true)}
                     className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
-                    Add Stock to Existing Item
+                    Add Quantity to Existing Item
                   </button>
                   <button
                     type="button"
@@ -512,27 +340,27 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
             </div>
           )}
 
-          {/* Add Stock to Existing Item */}
+          {/* Add Quantity to Existing Item */}
           {addStockMode && existingItem && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-green-800 mb-3">Add Stock to Existing Item</h3>
+              <h3 className="text-lg font-medium text-green-800 mb-3">Add Quantity to Existing Item</h3>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Quantity to Add *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Weight to Add (kg) *</label>
                   <input
                     type="number"
-                    value={formData.currentStock}
-                    onChange={(e) => setFormData({...formData, currentStock: e.target.value})}
+                    value={formData.weight}
+                    onChange={(e) => setFormData({...formData, weight: e.target.value})}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                    placeholder="Enter quantity to add"
+                    placeholder="Enter weight to add"
                     min="0"
                     step="0.01"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock</label>
-                  <p className="text-gray-900 py-3">{existingItem.currentStock} {existingItem.unit}</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Weight</label>
+                  <p className="text-gray-900 py-3">{existingItem.weight} kg</p>
                 </div>
               </div>
               
@@ -540,16 +368,16 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
                 <button
                   type="button"
                   onClick={handleAddStockToExisting}
-                  disabled={loading || !formData.currentStock}
+                  disabled={loading || !formData.weight}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
-                  {loading ? 'Adding Stock...' : 'Add Stock'}
+                  {loading ? 'Adding Weight...' : 'Add Weight'}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setAddStockMode(false);
-                    setFormData({...formData, currentStock: ''});
+                    setFormData({...formData, weight: ''});
                   }}
                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
                 >
@@ -558,17 +386,6 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
               </div>
             </div>
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              rows="3"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              placeholder="Enter item description"
-            />
-          </div>
 
           <div className="flex justify-end space-x-4 pt-6 border-t">
             <button
@@ -594,3 +411,4 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
 };
 
 export default InventoryForm;
+

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaWarehouse, FaBoxes, FaExclamationTriangle, FaChartLine, FaPlus,
-  FaSearch, FaFilter, FaEye, FaEdit, FaTrash, FaDownload, FaRefresh,
+  FaSearch, FaFilter, FaEye, FaEdit, FaTrash, FaDownload, FaRedo,
   FaBuilding, FaClipboardList, FaHistory, FaUser, FaSignOutAlt
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
@@ -399,7 +399,7 @@ export default function WarehouseManagerDashboard() {
                   onClick={fetchStockData}
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  <FaRefresh className="mr-2" />
+                  <FaRedo className="mr-2" />
                   Refresh
                 </button>
               </div>

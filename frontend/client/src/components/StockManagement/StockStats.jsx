@@ -7,7 +7,7 @@ export default function StockStats({ stocks, alerts, onDataRefresh, refreshTrigg
   const [inventoryStats, setInventoryStats] = useState({
     totalItems: 0,
     totalValue: 0,
-    lowStockItems: 0,
+    outOfStockItems: 0,
     availableItems: 0
   });
   const [inventoryData, setInventoryData] = useState([]);
@@ -80,7 +80,7 @@ export default function StockStats({ stocks, alerts, onDataRefresh, refreshTrigg
         setInventoryStats({
           totalItems: summaryData.totalItems || 0,
           totalValue: summaryData.totalValue || 0,
-          lowStockItems: summaryData.lowStockItems || 0,
+          outOfStockItems: summaryData.outOfStockItems || 0,
           availableItems: summaryData.activeItems || 0
         });
         console.log("StockStats: Inventory summary loaded:", summaryData);
@@ -190,16 +190,16 @@ export default function StockStats({ stocks, alerts, onDataRefresh, refreshTrigg
       </div>
 
       {/* Alert Banner */}
-      {inventoryStats.lowStockItems > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+      {inventoryStats.outOfStockItems > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
-            <FaExclamationTriangle className="text-yellow-600 mr-3" />
+            <FaExclamationTriangle className="text-red-600 mr-3" />
             <div>
-              <h3 className="text-sm font-medium text-yellow-800">
-                {inventoryStats.lowStockItems} Alert{inventoryStats.lowStockItems > 1 ? 's' : ''} Require Attention
+              <h3 className="text-sm font-medium text-red-800">
+                {inventoryStats.outOfStockItems} Alert{inventoryStats.outOfStockItems > 1 ? 's' : ''} Require Attention
               </h3>
-              <p className="text-sm text-yellow-700">
-                {inventoryStats.lowStockItems} low stock items need attention
+              <p className="text-sm text-red-700">
+                {inventoryStats.outOfStockItems} out of stock items need attention
               </p>
             </div>
           </div>
@@ -223,10 +223,10 @@ export default function StockStats({ stocks, alerts, onDataRefresh, refreshTrigg
           subtitle="Inventory value"
         />
         <StatCard
-          title="Low Stock Items"
-          value={inventoryStats.lowStockItems}
+          title="Out of Stock Items"
+          value={inventoryStats.outOfStockItems}
           icon={<FaExclamationTriangle className="text-white" />}
-          color="bg-yellow-500"
+          color="bg-red-500"
           subtitle="Need attention"
         />
         <StatCard
@@ -297,26 +297,26 @@ export default function StockStats({ stocks, alerts, onDataRefresh, refreshTrigg
       </div>
 
       {/* Recent Alerts */}
-      {inventoryStats.lowStockItems > 0 && (
+      {inventoryStats.outOfStockItems > 0 && (
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Alerts</h3>
           <div className="space-y-3">
             {inventoryData
-              .filter(item => item.currentStock <= item.minimumStock)
+              .filter(item => item.weight === 0)
               .slice(0, 5)
               .map((item) => (
                 <div key={item._id} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                  <div className="w-2 h-2 rounded-full mr-3 bg-yellow-500"></div>
+                  <div className="w-2 h-2 rounded-full mr-3 bg-red-500"></div>
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">
-                      {item.name} is running low ({item.currentStock} {item.unit} remaining)
+                      {item.name} is out of stock (0 kg remaining)
                     </p>
                     <p className="text-xs text-gray-500">
                       {new Date().toLocaleString()}
                     </p>
                   </div>
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                    warning
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                    out of stock
                   </span>
                 </div>
               ))}

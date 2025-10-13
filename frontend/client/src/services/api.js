@@ -198,7 +198,15 @@ export const API_ENDPOINTS = {
   },
 
   // Customer management
-  CUSTOMERS: 'http://localhost:7000/api/customers',
+  CUSTOMERS: {
+    CREATE: 'http://localhost:7000/api/customers/create',
+    GET_ALL: 'http://localhost:7000/api/customers/all',
+    GET_BY_ID: (id) => `http://localhost:7000/api/customers/${id}`,
+    UPDATE: (id) => `http://localhost:7000/api/customers/${id}`,
+    DELETE: (id) => `http://localhost:7000/api/customers/${id}`,
+    SEARCH: 'http://localhost:7000/api/customers/search',
+    SEARCH_FOR_SALES: 'http://localhost:7000/api/customers/search-for-sales',
+  },
   
   // Stock transfers
   STOCK_TRANSFERS: 'http://localhost:7000/api/stock-transfers',

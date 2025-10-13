@@ -11,8 +11,8 @@ const InventoryPage = () => {
   const { user, isAdmin, isManager, isEmployee } = useAuth();
   const [stats, setStats] = useState({
     totalItems: 0,
-    lowStockItems: 0,
     outOfStockItems: 0,
+    activeItems: 0,
     totalValue: 0
   });
   const [loading, setLoading] = useState(true);
@@ -48,8 +48,8 @@ const InventoryPage = () => {
       const data = response.data.data || {};
       setStats({
         totalItems: data.totalItems || 0,
-        lowStockItems: data.lowStockItems || 0,
         outOfStockItems: data.outOfStockItems || 0,
+        activeItems: data.activeItems || 0,
         totalValue: data.totalValue || 0
       });
       setLastRefresh(new Date());
@@ -58,8 +58,8 @@ const InventoryPage = () => {
       // Set default values on error
       setStats({
         totalItems: 0,
-        lowStockItems: 0,
         outOfStockItems: 0,
+        activeItems: 0,
         totalValue: 0
       });
     } finally {
@@ -201,14 +201,14 @@ const InventoryPage = () => {
                     </div>
                   </div>
 
-                  {/* Low Stock Items */}
-                  <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg p-4 text-white">
+                  {/* Active Items */}
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-4 text-white">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm opacity-90">Low Stock</p>
-                        <p className="text-2xl font-bold">{stats.lowStockItems}</p>
+                        <p className="text-sm opacity-90">Active Items</p>
+                        <p className="text-2xl font-bold">{stats.activeItems}</p>
                       </div>
-                      <FaExclamationTriangle className="text-3xl opacity-80" />
+                      <FaCheckCircle className="text-3xl opacity-80" />
                     </div>
                   </div>
 

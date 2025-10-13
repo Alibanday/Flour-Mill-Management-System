@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FaBoxes, FaSearch, FaFilter, FaEdit, FaTrash, FaEye, 
-  FaPlus, FaSort, FaSortUp, FaSortDown, FaWarehouse,
+  FaPlus, FaSort, FaSortUp, FaSortDown,
   FaExclamationTriangle, FaCheckCircle, FaTimesCircle
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
@@ -19,10 +19,7 @@ const InventoryList = () => {
   const [filters, setFilters] = useState({
     category: 'all',
     subcategory: 'all',
-    status: 'all',
-    warehouse: 'all',
-    lowStock: false,
-    outOfStock: false
+    status: 'all'
   });
   const [sortConfig, setSortConfig] = useState({
     key: 'createdAt',
@@ -34,12 +31,10 @@ const InventoryList = () => {
     total: 0,
     pages: 0
   });
-  const [warehouses, setWarehouses] = useState([]);
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     fetchInventory();
-    fetchWarehouses();
     fetchCategories();
   }, [pagination.current, pagination.limit, searchTerm, filters, sortConfig]);
 
@@ -78,10 +73,7 @@ const InventoryList = () => {
         ...(searchTerm && { search: searchTerm }),
         ...(filters.category !== 'all' && { category: filters.category }),
         ...(filters.subcategory !== 'all' && { subcategory: filters.subcategory }),
-        ...(filters.status !== 'all' && { status: filters.status }),
-        ...(filters.warehouse !== 'all' && { warehouse: filters.warehouse }),
-        ...(filters.lowStock && { lowStock: 'true' }),
-        ...(filters.outOfStock && { outOfStock: 'true' })
+        ...(filters.status !== 'all' && { status: filters.status })
       });
 
       const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?${params}`);
@@ -122,14 +114,6 @@ const InventoryList = () => {
     }
   };
 
-  const fetchWarehouses = async () => {
-    try {
-      const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_ALL);
-      setWarehouses(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching warehouses:', error);
-    }
-  };
 
   const fetchCategories = async () => {
     try {
@@ -227,14 +211,12 @@ const InventoryList = () => {
   };
 
   const getStockStatusColor = (item) => {
-    if (item.currentStock === 0) return 'text-red-600';
-    if (item.currentStock <= item.minimumStock) return 'text-yellow-600';
+    if (item.weight === 0) return 'text-red-600';
     return 'text-green-600';
   };
 
   const getStockStatusIcon = (item) => {
-    if (item.currentStock === 0) return <FaTimesCircle className="text-red-500" />;
-    if (item.currentStock <= item.minimumStock) return <FaExclamationTriangle className="text-yellow-500" />;
+    if (item.weight === 0) return <FaTimesCircle className="text-red-500" />;
     return <FaCheckCircle className="text-green-500" />;
   };
 
@@ -343,48 +325,6 @@ const InventoryList = () => {
                 <option value="Discontinued">Discontinued</option>
               </select>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse</label>
-              <select
-                value={filters.warehouse}
-                onChange={(e) => handleFilterChange('warehouse', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Warehouses</option>
-                {warehouses.map(warehouse => (
-                  <option key={warehouse._id} value={warehouse._id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="lowStock"
-                checked={filters.lowStock}
-                onChange={(e) => handleFilterChange('lowStock', e.target.checked)}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <label htmlFor="lowStock" className="text-sm font-medium text-gray-700">
-                Low Stock
-              </label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="outOfStock"
-                checked={filters.outOfStock}
-                onChange={(e) => handleFilterChange('outOfStock', e.target.checked)}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <label htmlFor="outOfStock" className="text-sm font-medium text-gray-700">
-                Out of Stock
-              </label>
-            </div>
           </div>
         </form>
       </div>
@@ -422,15 +362,14 @@ const InventoryList = () => {
                 </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('currentStock')}>
+                  onClick={() => handleSort('weight')}>
                 <div className="flex items-center space-x-1">
-                  <span>Stock</span>
-                  {sortConfig.key === 'currentStock' && (
+                  <span>Weight</span>
+                  {sortConfig.key === 'weight' && (
                     sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
                   )}
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warehouse</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('status')}>
                 <div className="flex items-center space-x-1">
@@ -471,26 +410,8 @@ const InventoryList = () => {
                   <div className="flex items-center space-x-2">
                     {getStockStatusIcon(item)}
                     <span className={`text-sm font-medium ${getStockStatusColor(item)}`}>
-                      {item.currentStock} {item.unit}
+                      {item.weight} kg
                     </span>
-                  </div>
-                  {item.minimumStock > 0 && (
-                    <div className="text-xs text-gray-500">
-                      Min: {item.minimumStock} | Max: {item.maximumStock || 'N/A'}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    <FaWarehouse className="text-gray-400" />
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {item.warehouse?.name || 'Unknown'}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {item.warehouse?.code || 'N/A'}
-                      </div>
-                    </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

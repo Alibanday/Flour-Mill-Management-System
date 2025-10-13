@@ -1,5 +1,4 @@
 import Inventory from "../model/inventory.js";
-import Warehouse from "../model/wareHouse.js";
 
 // Create new inventory item
 export const createInventory = async (req, res) => {
@@ -7,9 +6,8 @@ export const createInventory = async (req, res) => {
     console.log('📥 Inventory creation request received:', {
       body: req.body,
       name: req.body.name,
-      warehouse: req.body.warehouse,
-      currentStock: req.body.currentStock,
-      unit: req.body.unit
+      weight: req.body.weight,
+      price: req.body.price
     });
 
     const inventoryData = req.body;
@@ -22,12 +20,6 @@ export const createInventory = async (req, res) => {
       });
     }
     
-    if (!inventoryData.warehouse) {
-      return res.status(400).json({
-        success: false,
-        message: "Warehouse is required"
-      });
-    }
 
     if (!inventoryData.category) {
       return res.status(400).json({
@@ -43,109 +35,20 @@ export const createInventory = async (req, res) => {
       });
     }
 
-    if (!inventoryData.unit) {
+    if (!inventoryData.weight && inventoryData.weight !== 0) {
       return res.status(400).json({
         success: false,
-        message: "Unit is required"
+        message: "Weight is required"
+      });
+    }
+
+    if (!inventoryData.price && inventoryData.price !== 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Price is required"
       });
     }
     
-    // Validate warehouse exists
-    console.log('🔍 Looking up warehouse with ID:', inventoryData.warehouse);
-    const warehouse = await Warehouse.findById(inventoryData.warehouse);
-    if (!warehouse) {
-      console.log('❌ Warehouse not found for ID:', inventoryData.warehouse);
-      return res.status(400).json({
-        success: false,
-        message: "Warehouse not found"
-      });
-    }
-    console.log('✅ Warehouse found:', warehouse.name);
-    
-    // Check warehouse capacity if adding stock
-    if (inventoryData.currentStock > 0) {
-      const currentUsage = warehouse.capacity?.currentUsage || 0;
-      const totalCapacity = warehouse.capacity?.totalCapacity || 0;
-      const warehouseUnit = warehouse.capacity?.unit || 'kg';
-      const inventoryUnit = inventoryData.unit || 'kg';
-      
-      // Convert units to a common base for comparison (kg)
-      let stockInKg = inventoryData.currentStock;
-      let capacityInKg = totalCapacity;
-      
-      // Convert warehouse capacity to kg
-      switch (warehouseUnit) {
-        case 'tons':
-          capacityInKg = totalCapacity * 1000;
-          break;
-        case 'quintals':
-          capacityInKg = totalCapacity * 100;
-          break;
-        case '50kg bags':
-          capacityInKg = totalCapacity * 50;
-          break;
-        case '25kg bags':
-          capacityInKg = totalCapacity * 25;
-          break;
-        case '10kg bags':
-          capacityInKg = totalCapacity * 10;
-          break;
-        case '5kg bags':
-          capacityInKg = totalCapacity * 5;
-          break;
-        case '100kg sacks':
-          capacityInKg = totalCapacity * 100;
-          break;
-        case '50kg sacks':
-          capacityInKg = totalCapacity * 50;
-          break;
-        case '25kg sacks':
-          capacityInKg = totalCapacity * 25;
-          break;
-        default:
-          capacityInKg = totalCapacity; // Assume kg
-      }
-      
-      // Convert inventory stock to kg
-      switch (inventoryUnit) {
-        case 'tons':
-          stockInKg = inventoryData.currentStock * 1000;
-          break;
-        case 'quintals':
-          stockInKg = inventoryData.currentStock * 100;
-          break;
-        case '50kg bags':
-          stockInKg = inventoryData.currentStock * 50;
-          break;
-        case '25kg bags':
-          stockInKg = inventoryData.currentStock * 25;
-          break;
-        case '10kg bags':
-          stockInKg = inventoryData.currentStock * 10;
-          break;
-        case '5kg bags':
-          stockInKg = inventoryData.currentStock * 5;
-          break;
-        case '100kg sacks':
-          stockInKg = inventoryData.currentStock * 100;
-          break;
-        case '50kg sacks':
-          stockInKg = inventoryData.currentStock * 50;
-          break;
-        case '25kg sacks':
-          stockInKg = inventoryData.currentStock * 25;
-          break;
-        default:
-          stockInKg = inventoryData.currentStock; // Assume kg
-      }
-      
-      if (currentUsage + stockInKg > capacityInKg) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot add inventory: Would exceed warehouse capacity. Current usage: ${currentUsage}kg, Adding: ${stockInKg}kg, Capacity: ${capacityInKg}kg`
-        });
-      }
-    }
     
     // Create inventory object with all provided fields
     console.log('📦 Creating inventory with data:', inventoryData);
@@ -153,8 +56,8 @@ export const createInventory = async (req, res) => {
     // Ensure required fields have default values
     const safeInventoryData = {
       ...inventoryData,
-      currentStock: inventoryData.currentStock || 0,
-      minimumStock: inventoryData.minimumStock || 0,
+      weight: inventoryData.weight || 0,
+      price: inventoryData.price || 0,
       status: inventoryData.status || 'Active'
     };
     
@@ -167,82 +70,9 @@ export const createInventory = async (req, res) => {
     await inventory.save();
     console.log('✅ Inventory saved successfully with ID:', inventory._id);
     
-    // Update warehouse capacity usage
-    if (inventory.currentStock > 0) {
-      const currentUsage = warehouse.capacity?.currentUsage || 0;
-      const warehouseUnit = warehouse.capacity?.unit || 'kg';
-      const inventoryUnit = inventoryData.unit || 'kg';
-      
-      // Convert inventory stock to kg for capacity calculation
-      let stockInKg = inventoryData.currentStock;
-      switch (inventoryUnit) {
-        case 'tons':
-          stockInKg = inventoryData.currentStock * 1000;
-          break;
-        case 'quintals':
-          stockInKg = inventoryData.currentStock * 100;
-          break;
-        case '50kg bags':
-          stockInKg = inventoryData.currentStock * 50;
-          break;
-        case '25kg bags':
-          stockInKg = inventoryData.currentStock * 25;
-          break;
-        case '10kg bags':
-          stockInKg = inventoryData.currentStock * 10;
-          break;
-        case '5kg bags':
-          stockInKg = inventoryData.currentStock * 5;
-          break;
-        case '100kg sacks':
-          stockInKg = inventoryData.currentStock * 100;
-          break;
-        case '50kg sacks':
-          stockInKg = inventoryData.currentStock * 50;
-          break;
-        case '25kg sacks':
-          stockInKg = inventoryData.currentStock * 25;
-          break;
-        default:
-          stockInKg = inventoryData.currentStock; // Assume kg
-      }
-      
-      // Update warehouse capacity usage
-      try {
-        await Warehouse.findByIdAndUpdate(warehouse._id, {
-          $inc: { 'capacity.currentUsage': stockInKg }
-        });
-        
-        console.log(`Updated warehouse capacity usage: +${stockInKg}kg (Total: ${currentUsage + stockInKg}kg)`);
-      } catch (warehouseUpdateError) {
-        console.error('Error updating warehouse capacity:', warehouseUpdateError);
-        // Don't fail the entire operation if warehouse update fails
-        console.log('Continuing without warehouse capacity update...');
-      }
-    }
     
-    // Create a stock movement record for initial stock to track it properly
-    if (inventory.currentStock > 0) {
-      try {
-        const Stock = (await import("../model/stock.js")).default;
-        const stockMovement = new Stock({
-          inventoryItem: inventory._id,
-          movementType: 'in',
-          quantity: inventory.currentStock,
-          reason: 'Initial Stock',
-          referenceNumber: `INIT-${inventory.code || inventory._id.toString().slice(-6)}`,
-          warehouse: inventory.warehouse,
-          createdBy: req.user?.id || null
-        });
-        
-        await stockMovement.save();
-        console.log('Initial stock movement created for inventory:', inventory.name, 'with quantity:', inventory.currentStock);
-      } catch (stockError) {
-        console.error('Error creating stock movement:', stockError);
-        // Don't fail the entire operation if stock movement creation fails
-        console.log('Continuing without stock movement record...');
-      }
-    }
+    // Log the inventory creation
+    console.log('Inventory created successfully:', inventory.name, 'with weight:', inventory.weight, 'kg');
     
     res.status(201).json({
       success: true,
@@ -268,7 +98,7 @@ export const createInventory = async (req, res) => {
 // Get all inventory items
 export const getAllInventory = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, category, subcategory, status, warehouse } = req.query;
+    const { page = 1, limit = 10, search, category, subcategory, status } = req.query;
     
     // Build filter object
     const filter = {};
@@ -276,8 +106,7 @@ export const getAllInventory = async (req, res) => {
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { code: { $regex: search, $options: 'i' } }
       ];
     }
     
@@ -293,16 +122,11 @@ export const getAllInventory = async (req, res) => {
       filter.status = status;
     }
     
-    if (warehouse && warehouse !== 'all') {
-      filter.warehouse = warehouse;
-    }
-    
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Get inventory with pagination and populate warehouse
+    // Get inventory with pagination
     const inventory = await Inventory.find(filter)
-      .populate('warehouse', 'name code address.city')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -312,7 +136,7 @@ export const getAllInventory = async (req, res) => {
       const itemObj = item.toObject();
       itemObj.totalValue = item.totalValue; // Include the virtual field
       itemObj.stockStatus = item.stockStatus; // Include the virtual field
-      itemObj.stockPercentage = item.stockPercentage; // Include the virtual field
+      itemObj.priceDisplay = item.priceDisplay; // Include the virtual field
       return itemObj;
     });
     
@@ -341,8 +165,7 @@ export const getAllInventory = async (req, res) => {
 // Get single inventory item by ID
 export const getInventoryById = async (req, res) => {
   try {
-    const inventory = await Inventory.findById(req.params.id)
-      .populate('warehouse', 'name code address.city address.state');
+    const inventory = await Inventory.findById(req.params.id);
     
     if (!inventory) {
       return res.status(404).json({
@@ -351,9 +174,15 @@ export const getInventoryById = async (req, res) => {
       });
     }
     
+    // Add virtual fields
+    const itemObj = inventory.toObject();
+    itemObj.totalValue = inventory.totalValue;
+    itemObj.stockStatus = inventory.stockStatus;
+    itemObj.priceDisplay = inventory.priceDisplay;
+    
     res.json({
       success: true,
-      data: inventory
+      data: itemObj
     });
   } catch (error) {
     console.error("Get inventory by ID error:", error);
@@ -371,7 +200,7 @@ export const updateInventory = async (req, res) => {
       req.params.id,
       req.body,
       { new: true, runValidators: true }
-    ).populate('warehouse', 'name code');
+    );
     
     if (!inventory) {
       return res.status(404).json({
@@ -380,10 +209,16 @@ export const updateInventory = async (req, res) => {
       });
     }
     
+    // Add virtual fields
+    const itemObj = inventory.toObject();
+    itemObj.totalValue = inventory.totalValue;
+    itemObj.stockStatus = inventory.stockStatus;
+    itemObj.priceDisplay = inventory.priceDisplay;
+    
     res.json({
       success: true,
       message: "Inventory item updated successfully",
-      data: inventory
+      data: itemObj
     });
   } catch (error) {
     console.error("Update inventory error:", error);
@@ -467,7 +302,6 @@ export const updateInventoryStock = async (req, res) => {
         quantity: Math.abs(stockDifference),
         reason: reason || 'Manual Stock Update',
         referenceNumber: `MANUAL-${Date.now()}`,
-        warehouse: inventory.warehouse,
         createdBy: req.user?.id || null
       });
       
@@ -513,7 +347,7 @@ export const searchInventory = async (req, res) => {
         { description: { $regex: q, $options: 'i' } },
         { category: { $regex: q, $options: 'i' } }
       ]
-    }).populate('warehouse', 'name code');
+    });
     
     res.json({
       success: true,
@@ -532,7 +366,6 @@ export const searchInventory = async (req, res) => {
 export const getInventoryByCategory = async (req, res) => {
   try {
     const inventory = await Inventory.find({ category: req.params.category })
-      .populate('warehouse', 'name code');
     
     res.json({
       success: true,
@@ -557,7 +390,7 @@ export const getLowStockItems = async (req, res) => {
           { $lte: ["$currentStock", "$minimumStock"] }
         ]
       }
-    }).populate('warehouse', 'name code');
+    });
     
     res.json({
       success: true,
@@ -575,8 +408,7 @@ export const getLowStockItems = async (req, res) => {
 // Get out of stock items
 export const getOutOfStockItems = async (req, res) => {
   try {
-    const inventory = await Inventory.find({ currentStock: 0 })
-      .populate('warehouse', 'name code');
+    const inventory = await Inventory.find({ weight: 0 });
     
     res.json({
       success: true,
@@ -591,31 +423,24 @@ export const getOutOfStockItems = async (req, res) => {
   }
 };
 
-// Update stock levels (Warehouse managers can update)
+// Update weight levels
 export const updateStockLevels = async (req, res) => {
   try {
-    const { currentStock, minimumStock, reorderPoint } = req.body;
+    const { weight } = req.body;
     
-    // Validate stock levels
-    if (currentStock < 0) {
+    // Validate weight
+    if (weight < 0) {
       return res.status(400).json({
         success: false,
-        message: "Current stock cannot be negative"
-      });
-    }
-    
-    if (minimumStock < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Minimum stock cannot be negative"
+        message: "Weight cannot be negative"
       });
     }
     
     const inventory = await Inventory.findByIdAndUpdate(
       req.params.id,
-      { currentStock, minimumStock, reorderPoint },
+      { weight },
       { new: true, runValidators: true }
-    ).populate('warehouse', 'name code');
+    );
     
     if (!inventory) {
       return res.status(404).json({
@@ -624,12 +449,10 @@ export const updateStockLevels = async (req, res) => {
       });
     }
     
-    // Update status based on stock levels
+    // Update status based on weight
     let newStatus = inventory.status;
-    if (currentStock === 0) {
+    if (weight === 0) {
       newStatus = "Out of Stock";
-    } else if (currentStock <= minimumStock) {
-      newStatus = "Low Stock";
     } else {
       newStatus = "Active";
     }
@@ -642,14 +465,14 @@ export const updateStockLevels = async (req, res) => {
     
     res.json({
       success: true,
-      message: "Stock levels updated successfully",
+      message: "Weight updated successfully",
       data: inventory
     });
   } catch (error) {
-    console.error("Update stock levels error:", error);
+    console.error("Update weight error:", error);
     res.status(500).json({
       success: false,
-      message: "Error updating stock levels",
+      message: "Error updating weight",
       error: error.message
     });
   }
@@ -659,21 +482,13 @@ export const updateStockLevels = async (req, res) => {
 export const getInventorySummary = async (req, res) => {
   try {
     const totalItems = await Inventory.countDocuments();
-    const lowStockItems = await Inventory.countDocuments({
-      $expr: {
-        $and: [
-          { $gt: ["$minimumStock", 0] },
-          { $lte: ["$currentStock", "$minimumStock"] }
-        ]
-      }
-    });
-    const outOfStockItems = await Inventory.countDocuments({ currentStock: 0 });
+    const outOfStockItems = await Inventory.countDocuments({ weight: 0 });
     const activeItems = await Inventory.countDocuments({ status: "Active" });
     
     // Calculate total value from all inventory items
-    const inventoryItems = await Inventory.find({}, 'currentStock cost');
+    const inventoryItems = await Inventory.find({}, 'weight price');
     const totalValue = inventoryItems.reduce((sum, item) => {
-      const itemValue = item.currentStock * (item.cost?.purchasePrice || 0);
+      const itemValue = item.price || 0; // Price is per complete item
       return sum + itemValue;
     }, 0);
     
@@ -681,7 +496,6 @@ export const getInventorySummary = async (req, res) => {
       success: true,
       data: {
         totalItems,
-        lowStockItems,
         outOfStockItems,
         activeItems,
         totalValue
@@ -720,7 +534,7 @@ export const updateInventoryStatus = async (req, res) => {
       req.params.id,
       { status },
       { new: true, runValidators: true }
-    ).populate('warehouse', 'name code');
+    );
     
     if (!inventory) {
       return res.status(404).json({
@@ -744,14 +558,13 @@ export const updateInventoryStatus = async (req, res) => {
   }
 };
 
-// Get inventory by warehouse (for warehouse tracking)
+// Get inventory by category and status
 export const getInventoryByWarehouse = async (req, res) => {
   try {
-    const warehouseId = req.params.warehouseId;
     const { category, status, search } = req.query;
     
     // Build filter
-    const filter = { warehouse: warehouseId };
+    const filter = {};
     
     if (category && category !== 'all') {
       filter.category = category;
@@ -764,13 +577,11 @@ export const getInventoryByWarehouse = async (req, res) => {
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { code: { $regex: search, $options: 'i' } }
       ];
     }
     
     const inventory = await Inventory.find(filter)
-      .populate('warehouse', 'name location')
       .sort({ createdAt: -1 });
     
     res.json({
@@ -778,56 +589,40 @@ export const getInventoryByWarehouse = async (req, res) => {
       data: inventory
     });
   } catch (error) {
-    console.error("Get inventory by warehouse error:", error);
+    console.error("Get inventory by category error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching inventory by warehouse",
+      message: "Error fetching inventory by category",
       error: error.message
     });
   }
 };
 
-// Get low stock alerts for warehouse managers
+// Get out of stock alerts
 export const getLowStockAlerts = async (req, res) => {
   try {
-    const { warehouseId } = req.query;
-    
-    let filter = {
-      $expr: {
-        $and: [
-          { $gt: ["$minimumStock", 0] },
-          { $lte: ["$currentStock", "$minimumStock"] }
-        ]
-      }
-    };
-    
-    if (warehouseId) {
-      filter.warehouse = warehouseId;
-    }
-    
-    const lowStockItems = await Inventory.find(filter)
-      .populate('warehouse', 'name location')
-      .sort({ currentStock: 1 });
+    const outOfStockItems = await Inventory.find({ weight: 0 })
+      .sort({ name: 1 });
     
     res.json({
       success: true,
-      data: lowStockItems,
-      count: lowStockItems.length
+      data: outOfStockItems,
+      count: outOfStockItems.length
     });
   } catch (error) {
-    console.error("Get low stock alerts error:", error);
+    console.error("Get out of stock alerts error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching low stock alerts",
+      message: "Error fetching out of stock alerts",
       error: error.message
     });
   }
 };
 
-// Add stock to existing inventory item
+// Add weight to existing inventory item
 export const addStockToExisting = async (req, res) => {
   try {
-    const { quantity, reason, referenceNumber } = req.body;
+    const { quantity } = req.body;
     const itemId = req.params.id; // Get ID from URL parameter
     
     if (!itemId || !quantity || quantity <= 0) {
@@ -846,64 +641,50 @@ export const addStockToExisting = async (req, res) => {
       });
     }
     
-    // Get old stock before adding
-    const oldStock = inventoryItem.currentStock;
+    // Get old weight before adding
+    const oldWeight = inventoryItem.weight;
     
-    // Create stock movement record (this will automatically update inventory stock via pre-save middleware)
-    const Stock = (await import("../model/stock.js")).default;
-    const stockMovement = new Stock({
-      inventoryItem: itemId,
-      movementType: 'in',
-      quantity: quantity,
-      reason: reason || 'Stock Addition',
-      referenceNumber: referenceNumber,
-      warehouse: inventoryItem.warehouse,
-      createdBy: req.user?.id || null // Handle case where user is not authenticated
-    });
-    
-    await stockMovement.save();
-    
-    // Refresh the inventory item to get updated stock
-    const updatedInventoryItem = await Inventory.findById(itemId);
+    // Update the weight
+    inventoryItem.weight += quantity;
+    await inventoryItem.save();
     
     res.json({
       success: true,
-      message: "Stock added successfully",
+      message: "Weight added successfully",
       data: {
-        item: updatedInventoryItem,
-        oldStock,
-        newStock: updatedInventoryItem.currentStock,
+        item: inventoryItem,
+        oldWeight,
+        newWeight: inventoryItem.weight,
         addedQuantity: quantity
       }
     });
   } catch (error) {
-    console.error("Add stock to existing error:", error);
+    console.error("Add weight to existing error:", error);
     res.status(500).json({
       success: false,
-      message: "Error adding stock to existing item",
+      message: "Error adding weight to existing item",
       error: error.message
     });
   }
 };
 
-// Find existing inventory item by name and warehouse
+// Find existing inventory item by name
 export const findExistingItem = async (req, res) => {
   try {
-    const { name, warehouse } = req.query;
+    const { name } = req.query;
     
-    console.log('Find existing item request:', { name, warehouse });
+    console.log('Find existing item request:', { name });
     
-    if (!name || !warehouse) {
+    if (!name) {
       return res.status(400).json({
         success: false,
-        message: "Item name and warehouse are required"
+        message: "Item name is required"
       });
     }
     
     const existingItem = await Inventory.findOne({
-      name: { $regex: name, $options: 'i' },
-      warehouse: warehouse
-    }).populate('warehouse', 'name location');
+      name: { $regex: name, $options: 'i' }
+    });
     
     console.log('Found existing item:', existingItem);
     

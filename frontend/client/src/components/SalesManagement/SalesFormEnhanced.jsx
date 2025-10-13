@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes, FaShoppingCart, FaCalculator, FaUser, FaBoxes, FaUndo, FaPercent, FaRupeeSign, FaPlus, FaSearch, FaUserPlus } from 'react-icons/fa';
+import CustomerSearch from './CustomerSearch';
 
 export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null, warehouses = [], inventory = [] }) {
   const [formData, setFormData] = useState({
@@ -36,11 +37,8 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
   const [showReturns, setShowReturns] = useState(false);
   const [returns, setReturns] = useState([]);
   
-  // Customer search states
-  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  // Customer search states (keeping for backward compatibility)
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
-  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
-  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
 
   useEffect(() => {
     if (editData) {
@@ -84,14 +82,6 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     }
   }, [formData.discount?.type, formData.discount?.value, formData.items]);
 
-  // Customer search functionality
-  useEffect(() => {
-    if (customerSearchQuery.length >= 2) {
-      searchCustomers();
-    } else {
-      setCustomerSearchResults([]);
-    }
-  }, [customerSearchQuery]);
 
   const searchCustomers = async () => {
     if (customerSearchQuery.length < 2) return;
@@ -117,7 +107,26 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     }
   };
 
-  const selectCustomer = (customer) => {
+  const handleCustomerSelect = (customer) => {
+    if (!customer) {
+      // Clear customer data when no customer is selected
+      setFormData(prev => ({
+        ...prev,
+        customerId: '',
+        customer: {
+          name: '',
+          contact: {
+            phone: '',
+            email: '',
+            address: ''
+          },
+          creditLimit: 0,
+          outstandingBalance: 0
+        }
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       customerId: customer._id,
@@ -126,14 +135,13 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
         contact: {
           phone: customer.phone || '',
           email: customer.email || '',
-          address: customer.address?.street || ''
+          address: customer.address ? 
+            `${customer.address.street || ''} ${customer.address.city || ''} ${customer.address.state || ''}`.trim() : ''
         },
         creditLimit: customer.creditLimit || 0,
         outstandingBalance: customer.creditUsed || 0
       }
     }));
-    setCustomerSearchQuery(`${customer.firstName} ${customer.lastName}`);
-    setShowCustomerSearch(false);
   };
 
   const clearCustomer = () => {
@@ -151,16 +159,11 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
         outstandingBalance: 0
       }
     }));
-    setCustomerSearchQuery('');
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === 'customer.name') {
-      setCustomerSearchQuery(value);
-      setShowCustomerSearch(value.length >= 2);
-    }
 
     if (name.includes('.')) {
       const parts = name.split('.');
@@ -268,9 +271,6 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     if (!formData.customer.name.trim()) {
       newErrors.customerName = 'Customer name is required';
     }
-    if (!formData.warehouse) {
-      newErrors.warehouse = 'Warehouse selection is required';
-    }
     if (formData.items.length === 0) {
       newErrors.items = 'At least one item is required';
     }
@@ -355,50 +355,17 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
                 Customer Information
               </h3>
               
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Customer Name *
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Customer *
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="customer.name"
-                    value={customerSearchQuery}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Search or enter customer name"
-                    required
-                  />
-                  <FaSearch className="absolute right-3 top-3 text-gray-400" />
-                </div>
-                
-                {/* Customer Search Results */}
-                {showCustomerSearch && (
-                  <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {isSearchingCustomers ? (
-                      <div className="p-3 text-center text-gray-500">
-                        <FaSearch className="animate-spin mx-auto mb-2" />
-                        Searching customers...
-                      </div>
-                    ) : customerSearchResults.length > 0 ? (
-                      customerSearchResults.map((customer) => (
-                        <div
-                          key={customer._id}
-                          onClick={() => selectCustomer(customer)}
-                          className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
-                        >
-                          <div className="font-medium">{customer.firstName} {customer.lastName}</div>
-                          <div className="text-sm text-gray-600">{customer.email}</div>
-                          <div className="text-sm text-gray-600">{customer.phone}</div>
-                          {customer.businessName && (
-                            <div className="text-sm text-gray-500">{customer.businessName}</div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-3 text-gray-500">No customers found</div>
-                    )}
-                  </div>
+                <CustomerSearch
+                  onCustomerSelect={handleCustomerSelect}
+                  selectedCustomer={formData.customerId ? formData.customer : null}
+                  placeholder="Search customer by name, email, phone, or ID..."
+                />
+                {errors.customer?.name && (
+                  <p className="text-red-500 text-sm mt-1">{errors.customer.name}</p>
                 )}
               </div>
 
@@ -435,14 +402,43 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Address
                 </label>
-                <input
-                  type="text"
-                  name="customer.contact.address"
-                  value={formData.customer.contact.address}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Customer address"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="customer.contact.address"
+                    value={formData.customer.contact.address}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Customer address (can be edited)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (formData.customerId) {
+                        // Reset to customer's saved address
+                        const customer = customerSearchResults.find(c => c._id === formData.customerId);
+                        if (customer?.address) {
+                          const address = `${customer.address.street || ''} ${customer.address.city || ''} ${customer.address.state || ''}`.trim();
+                          setFormData(prev => ({
+                            ...prev,
+                            customer: {
+                              ...prev.customer,
+                              contact: {
+                                ...prev.customer.contact,
+                                address: address
+                              }
+                            }
+                          }));
+                        }
+                      }
+                    }}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 text-xs"
+                    title="Reset to customer's saved address"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Address can be manually edited or reset to customer's saved address</p>
               </div>
 
               {/* Customer Credit Information */}
@@ -506,16 +502,6 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
                     value={selectedProduct}
                     onChange={(e) => {
                       setSelectedProduct(e.target.value);
-                      // Auto-set warehouse when product is selected
-                      if (e.target.value) {
-                        const product = inventory.find(p => p._id === e.target.value);
-                        if (product && product.warehouse) {
-                          setFormData(prev => ({
-                            ...prev,
-                            warehouse: product.warehouse._id || product.warehouse
-                          }));
-                        }
-                      }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
