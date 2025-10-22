@@ -20,6 +20,7 @@ export default function SupplierManagementPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [businessTypeFilter, setBusinessTypeFilter] = useState('all');
+  const [supplierTypeFilter, setSupplierTypeFilter] = useState('all');
   const [warehouses, setWarehouses] = useState([]);
   const [formData, setFormData] = useState({
     supplierCode: '',
@@ -34,14 +35,11 @@ export default function SupplierManagementPage() {
       postalCode: '',
       country: 'Pakistan',
     },
-    businessType: 'Raw Materials',
+    supplierType: 'Private',
     taxNumber: '',
-    creditLimit: 0,
-    paymentTerms: '30 Days',
     status: 'Active',
     rating: 3,
     notes: '',
-    warehouse: '',
   });
 
   const canManageSuppliers = user?.role === 'Admin' || user?.role === 'Manager';
@@ -112,14 +110,11 @@ export default function SupplierManagementPage() {
         postalCode: '',
         country: 'Pakistan',
       },
-      businessType: 'Raw Materials',
+      supplierType: 'Private',
       taxNumber: '',
-      creditLimit: 0,
-      paymentTerms: '30 Days',
       status: 'Active',
       rating: 3,
       notes: '',
-      warehouse: '',
     });
     setShowForm(true);
   };
@@ -139,14 +134,11 @@ export default function SupplierManagementPage() {
         postalCode: supplier.address?.postalCode || '',
         country: supplier.address?.country || 'Pakistan',
       },
-      businessType: supplier.businessType || 'Raw Materials',
+      supplierType: supplier.supplierType || 'Private',
       taxNumber: supplier.taxNumber || '',
-      creditLimit: supplier.creditLimit || 0,
-      paymentTerms: supplier.paymentTerms || '30 Days',
       status: supplier.status || 'Active',
       rating: supplier.rating || 3,
       notes: supplier.notes || '',
-      warehouse: supplier.warehouse?._id || supplier.warehouse || '',
     });
     setShowForm(true);
   };
@@ -219,14 +211,11 @@ export default function SupplierManagementPage() {
           postalCode: '',
           country: 'Pakistan',
         },
-        businessType: 'Raw Materials',
+        supplierType: 'Private',
         taxNumber: '',
-        creditLimit: 0,
-        paymentTerms: '30 Days',
         status: 'Active',
         rating: 3,
         notes: '',
-        warehouse: '',
       });
     } catch (err) {
       alert('Error saving supplier: ' + err.message);
@@ -289,9 +278,9 @@ export default function SupplierManagementPage() {
       supplier.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || supplier.status === statusFilter;
-    const matchesBusinessType = businessTypeFilter === 'all' || supplier.businessType === businessTypeFilter;
+    const matchesSupplierType = supplierTypeFilter === 'all' || supplier.supplierType === supplierTypeFilter;
     
-    return matchesSearch && matchesStatus && matchesBusinessType;
+    return matchesSearch && matchesStatus && matchesSupplierType;
   });
 
   const getStatusColor = (status) => {
@@ -299,6 +288,14 @@ export default function SupplierManagementPage() {
       case 'Active': return 'bg-green-100 text-green-800';
       case 'Inactive': return 'bg-gray-100 text-gray-800';
       case 'Suspended': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getSupplierTypeColor = (type) => {
+    switch (type) {
+      case 'Government': return 'bg-blue-100 text-blue-800';
+      case 'Private': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -325,6 +322,8 @@ export default function SupplierManagementPage() {
   const totalOutstanding = suppliers.reduce((sum, supplier) => sum + (supplier.outstandingBalance || 0), 0);
   const activeSuppliers = suppliers.filter(s => s.status === 'Active').length;
   const suppliersWithOutstanding = suppliers.filter(s => (s.outstandingBalance || 0) > 0).length;
+  const governmentSuppliers = suppliers.filter(s => s.supplierType === 'Government').length;
+  const privateSuppliers = suppliers.filter(s => s.supplierType === 'Private').length;
 
   return (
     <div 
@@ -371,13 +370,24 @@ export default function SupplierManagementPage() {
             <ul className="space-y-1">
               <li>
                 <button
-                  onClick={() => setActiveTab('list')}
+                  onClick={() => setActiveTab('government')}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
-                    activeTab === 'list' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                    activeTab === 'government' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                  }`}
+                >
+                  <FaBuilding className="mr-3" />
+                  Government Suppliers
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setActiveTab('private')}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
+                    activeTab === 'private' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
                 >
                   <FaUsers className="mr-3" />
-                  Suppliers List
+                  Private Suppliers
                 </button>
               </li>
               <li>
@@ -429,19 +439,19 @@ export default function SupplierManagementPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <div className="flex items-center">
-                  <FaUsers className="text-blue-600 text-2xl mr-3" />
+                  <FaBuilding className="text-blue-600 text-2xl mr-3" />
                   <div>
-                    <div className="text-2xl font-bold text-blue-900">{suppliers.length}</div>
-                    <div className="text-sm text-blue-600">Total Suppliers</div>
+                    <div className="text-2xl font-bold text-blue-900">{governmentSuppliers}</div>
+                    <div className="text-sm text-blue-600">Government Suppliers</div>
                   </div>
                 </div>
               </div>
-              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
                 <div className="flex items-center">
-                  <FaUsers className="text-green-600 text-2xl mr-3" />
+                  <FaUsers className="text-purple-600 text-2xl mr-3" />
                   <div>
-                    <div className="text-2xl font-bold text-green-900">{activeSuppliers}</div>
-                    <div className="text-sm text-green-600">Active Suppliers</div>
+                    <div className="text-2xl font-bold text-purple-900">{privateSuppliers}</div>
+                    <div className="text-sm text-purple-600">Private Suppliers</div>
                   </div>
                 </div>
               </div>
@@ -466,7 +476,7 @@ export default function SupplierManagementPage() {
             </div>
 
             {/* Content Tabs */}
-            {activeTab === 'list' && (
+            {(activeTab === 'government' || activeTab === 'private') && (
               <div>
                 {/* Filters and Search */}
                 <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -494,16 +504,13 @@ export default function SupplierManagementPage() {
                       <option value="Suspended">Suspended</option>
                     </select>
                     <select
-                      value={businessTypeFilter}
-                      onChange={(e) => setBusinessTypeFilter(e.target.value)}
+                      value={supplierTypeFilter}
+                      onChange={(e) => setSupplierTypeFilter(e.target.value)}
                       className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="all">All Business Types</option>
-                      <option value="Raw Materials">Raw Materials</option>
-                      <option value="Packaging">Packaging</option>
-                      <option value="Equipment">Equipment</option>
-                      <option value="Services">Services</option>
-                      <option value="Other">Other</option>
+                      <option value="all">All Types</option>
+                      <option value="Government">Government</option>
+                      <option value="Private">Private</option>
                     </select>
                   </div>
                 </div>
@@ -526,7 +533,6 @@ export default function SupplierManagementPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier Details</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Information</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Financial</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -538,8 +544,9 @@ export default function SupplierManagementPage() {
                               <div>
                                 <div className="text-sm font-medium text-gray-900">{supplier.name}</div>
                                 <div className="text-sm text-gray-500">Code: {supplier.supplierCode}</div>
-                                <div className="text-sm text-gray-500">{supplier.businessType}</div>
-                                <div className="text-sm text-gray-500">{supplier.warehouse?.name}</div>
+                                {supplier.taxNumber && (
+                                  <div className="text-sm text-gray-500">Tax: {supplier.taxNumber}</div>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -557,24 +564,18 @@ export default function SupplierManagementPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm">
-                                <div className="font-medium text-gray-900">
-                                  Credit Limit: Rs. {supplier.creditLimit?.toLocaleString()}
-                                </div>
-                                <div className={`font-medium ${getOutstandingColor(supplier.outstandingBalance, supplier.creditLimit)}`}>
-                                  Outstanding: Rs. {(supplier.outstandingBalance || 0).toLocaleString()}
-                                </div>
-                                <div className="text-gray-500">{supplier.paymentTerms}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
                               <div className="flex flex-col space-y-2">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getSupplierTypeColor(supplier.supplierType)}`}>
+                                  {supplier.supplierType}
+                                </span>
                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(supplier.status)}`}>
                                   {supplier.status}
                                 </span>
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getBusinessTypeColor(supplier.businessType)}`}>
-                                  {supplier.businessType}
-                                </span>
+                                {supplier.rating && (
+                                  <div className="text-xs text-gray-500">
+                                    Rating: {supplier.rating}/5
+                                  </div>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -619,11 +620,13 @@ export default function SupplierManagementPage() {
                 {!loading && !error && filteredSuppliers.length === 0 && (
                   <div className="text-center py-12">
                     <FaUsers className="mx-auto text-6xl text-gray-300 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No suppliers found</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No {activeTab === 'government' ? 'Government' : 'Private'} suppliers found
+                    </h3>
                     <p className="text-gray-500">
-                      {searchTerm || statusFilter !== 'all' || businessTypeFilter !== 'all'
+                      {searchTerm || statusFilter !== 'all' || supplierTypeFilter !== 'all'
                         ? "Try adjusting your search or filters"
-                        : "Get started by adding your first supplier"
+                        : `Get started by adding your first ${activeTab === 'government' ? 'Government' : 'Private'} supplier`
                       }
                     </p>
                   </div>
@@ -656,7 +659,6 @@ export default function SupplierManagementPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credit Limit</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -676,19 +678,9 @@ export default function SupplierManagementPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="text-sm text-gray-900">
-                                Rs. {(supplier.creditLimit || 0).toLocaleString()}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className={`text-sm font-medium ${getOutstandingColor(supplier.outstandingBalance, supplier.creditLimit)}`}>
+                              <div className={`text-sm font-medium ${getOutstandingColor(supplier.outstandingBalance, 0)}`}>
                                 Rs. {(supplier.outstandingBalance || 0).toLocaleString()}
                               </div>
-                              {supplier.creditLimit > 0 && (
-                                <div className="text-xs text-gray-500">
-                                  {((supplier.outstandingBalance / supplier.creditLimit) * 100).toFixed(1)}% of limit
-                                </div>
-                              )}
                             </td>
                             <td className="px-6 py-4">
                               <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(supplier.status)}`}>
@@ -726,10 +718,10 @@ export default function SupplierManagementPage() {
                 <h2 className="text-xl font-semibold mb-4">Supplier Analytics</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white rounded-lg p-6 border border-gray-200">
-                    <h3 className="text-lg font-medium mb-4">Business Type Distribution</h3>
+                    <h3 className="text-lg font-medium mb-4">Supplier Type Distribution</h3>
                     <div className="space-y-3">
-                      {['Raw Materials', 'Packaging', 'Equipment', 'Services', 'Other'].map(type => {
-                        const count = suppliers.filter(s => s.businessType === type).length;
+                      {['Government', 'Private'].map(type => {
+                        const count = suppliers.filter(s => s.supplierType === type).length;
                         const percentage = suppliers.length > 0 ? ((count / suppliers.length) * 100).toFixed(1) : 0;
                         return (
                           <div key={type} className="flex justify-between items-center">
@@ -737,7 +729,7 @@ export default function SupplierManagementPage() {
                             <div className="flex items-center space-x-2">
                               <div className="w-32 bg-gray-200 rounded-full h-2">
                                 <div 
-                                  className="bg-blue-600 h-2 rounded-full" 
+                                  className={`h-2 rounded-full ${type === 'Government' ? 'bg-blue-600' : 'bg-purple-600'}`}
                                   style={{ width: `${percentage}%` }}
                                 ></div>
                               </div>
@@ -797,16 +789,16 @@ export default function SupplierManagementPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Code *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Code</label>
                   <input
                     type="text"
                     name="supplierCode"
                     value={formData.supplierCode}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter supplier code"
-                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                    placeholder="Auto-generated"
+                    readOnly
                   />
+                  <p className="text-xs text-gray-500 mt-1">Code will be generated automatically</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
@@ -851,6 +843,19 @@ export default function SupplierManagementPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Type *</label>
+                  <select 
+                    name="supplierType"
+                    value={formData.supplierType}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="Government">Government</option>
+                    <option value="Private">Private</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
                   <input
                     type="tel"
@@ -862,22 +867,18 @@ export default function SupplierManagementPage() {
                     required
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Type *</label>
-                  <select 
-                    name="businessType"
-                    value={formData.businessType}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="Raw Materials">Raw Materials</option>
-                    <option value="Packaging">Packaging</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Services">Services</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tax Number</label>
+                <input
+                  type="text"
+                  name="taxNumber"
+                  value={formData.taxNumber}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter tax number"
+                />
               </div>
 
               <div>
@@ -932,54 +933,6 @@ export default function SupplierManagementPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit</label>
-                  <input
-                    type="number"
-                    name="creditLimit"
-                    value={formData.creditLimit}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter credit limit"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
-                  <select 
-                    name="paymentTerms"
-                    value={formData.paymentTerms}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Immediate">Immediate</option>
-                    <option value="7 Days">7 Days</option>
-                    <option value="15 Days">15 Days</option>
-                    <option value="30 Days">30 Days</option>
-                    <option value="45 Days">45 Days</option>
-                    <option value="60 Days">60 Days</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Warehouse *</label>
-                <select
-                  name="warehouse"
-                  value={formData.warehouse}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Select a warehouse</option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse._id} value={warehouse._id}>
-                      {warehouse.name} - {warehouse.location}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>

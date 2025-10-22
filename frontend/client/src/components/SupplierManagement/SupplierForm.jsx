@@ -16,14 +16,11 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
       postalCode: '',
       country: 'Pakistan',
     },
-    businessType: 'Raw Materials',
+    supplierType: 'Private',
     taxNumber: '',
-    creditLimit: 0,
-    paymentTerms: '30 Days',
     status: 'Active',
     rating: 3,
     notes: '',
-    warehouse: '',
   });
 
   const [warehouses, setWarehouses] = useState([]);
@@ -50,14 +47,11 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
           postalCode: editingSupplier.address?.postalCode || '',
           country: editingSupplier.address?.country || 'Pakistan',
         },
-        businessType: editingSupplier.businessType || 'Raw Materials',
+        supplierType: editingSupplier.supplierType || 'Private',
         taxNumber: editingSupplier.taxNumber || '',
-        creditLimit: editingSupplier.creditLimit || 0,
-        paymentTerms: editingSupplier.paymentTerms || '30 Days',
         status: editingSupplier.status || 'Active',
         rating: editingSupplier.rating || 3,
         notes: editingSupplier.notes || '',
-        warehouse: editingSupplier.warehouse?._id || editingSupplier.warehouse || '',
       });
     }
   }, [editingSupplier]);
@@ -207,14 +201,11 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
           postalCode: '',
           country: 'Pakistan',
         },
-        businessType: 'Raw Materials',
+        supplierType: 'Private',
         taxNumber: '',
-        creditLimit: 0,
-        paymentTerms: '30 Days',
         status: 'Active',
         rating: 3,
         notes: '',
-        warehouse: '',
       });
 
       setTimeout(() => setSuccess(false), 3000);
@@ -242,14 +233,11 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
           postalCode: '',
           country: 'Pakistan',
         },
-        businessType: 'Raw Materials',
+        supplierType: 'Private',
         taxNumber: '',
-        creditLimit: 0,
-        paymentTerms: '30 Days',
         status: 'Active',
         rating: 3,
         notes: '',
-        warehouse: '',
       });
     }
   };
@@ -290,17 +278,17 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <FaBuilding className="inline h-4 w-4 mr-2" />
-                Supplier Code *
+                Supplier Code
               </label>
               <input
                 type="text"
                 name="supplierCode"
                 value={formData.supplierCode}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter supplier code"
-                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600"
+                placeholder="Auto-generated"
+                readOnly
               />
+              <p className="text-xs text-gray-500 mt-1">Code will be generated automatically</p>
             </div>
 
             <div>
@@ -370,20 +358,17 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <FaBuilding className="inline h-4 w-4 mr-2" />
-                Business Type *
+                Supplier Type *
               </label>
               <select
-                name="businessType"
-                value={formData.businessType}
+                name="supplierType"
+                value={formData.supplierType}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 required
               >
-                <option value="Raw Materials">Raw Materials</option>
-                <option value="Packaging">Packaging</option>
-                <option value="Equipment">Equipment</option>
-                <option value="Services">Services</option>
-                <option value="Other">Other</option>
+                <option value="Government">Government</option>
+                <option value="Private">Private</option>
               </select>
             </div>
 
@@ -486,68 +471,6 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
             </div>
           </div>
 
-          {/* Financial Information */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-              <FaCreditCard className="h-5 w-5 mr-2 text-gray-500" />
-              Financial Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Credit Limit (Rs.)
-                </label>
-                <input
-                  type="number"
-                  name="creditLimit"
-                  value={formData.creditLimit}
-                  onChange={handleNumberInputChange}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Payment Terms
-                </label>
-                <select
-                  name="paymentTerms"
-                  value={formData.paymentTerms}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="Immediate">Immediate</option>
-                  <option value="7 Days">7 Days</option>
-                  <option value="15 Days">15 Days</option>
-                  <option value="30 Days">30 Days</option>
-                  <option value="45 Days">45 Days</option>
-                  <option value="60 Days">60 Days</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rating
-                </label>
-                <select
-                  name="rating"
-                  value={formData.rating}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value={1}>1 - Poor</option>
-                  <option value={2}>2 - Fair</option>
-                  <option value={3}>3 - Good</option>
-                  <option value={4}>4 - Very Good</option>
-                  <option value={5}>5 - Excellent</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           {/* Additional Information */}
           <div className="border-t pt-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Additional Information</h3>
@@ -570,21 +493,19 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Warehouse *
+                  Rating
                 </label>
                 <select
-                  name="warehouse"
-                  value={formData.warehouse}
+                  name="rating"
+                  value={formData.rating}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  required
                 >
-                  <option value="">Select warehouse</option>
-                  {warehouses.map((warehouse) => (
-                    <option key={warehouse._id} value={warehouse._id}>
-                      {warehouse.name} - {warehouse.location}
-                    </option>
-                  ))}
+                  <option value={1}>1 - Poor</option>
+                  <option value={2}>2 - Fair</option>
+                  <option value={3}>3 - Good</option>
+                  <option value={4}>4 - Very Good</option>
+                  <option value={5}>5 - Excellent</option>
                 </select>
               </div>
 

@@ -57,6 +57,12 @@ const supplierSchema = new mongoose.Schema(
         trim: true,
       },
     },
+    supplierType: {
+      type: String,
+      required: true,
+      enum: ["Government", "Private"],
+      default: "Private",
+    },
     businessType: {
       type: String,
       required: true,
@@ -100,7 +106,6 @@ const supplierSchema = new mongoose.Schema(
     warehouse: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Warehouse",
-      required: true,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

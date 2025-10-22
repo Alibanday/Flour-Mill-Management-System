@@ -27,7 +27,7 @@ const validateSupplier = [
 // @access  Admin, Manager, Employee
 router.get("/", async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, status, warehouse } = req.query;
+    const { page = 1, limit = 10, search, status, warehouse, supplierType } = req.query;
     
     let query = {};
     
@@ -46,6 +46,10 @@ router.get("/", async (req, res) => {
     
     if (warehouse) {
       query.warehouse = warehouse;
+    }
+    
+    if (supplierType && supplierType !== 'all') {
+      query.supplierType = supplierType;
     }
     
     const suppliers = await Supplier.find(query)
@@ -78,22 +82,34 @@ router.get("/", async (req, res) => {
 // @desc    Create new supplier (base route)
 // @route   POST /api/suppliers
 // @access  Admin, Manager
-router.post("/", authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
+router.post("/", authorize("Admin", "Manager"), async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    // Generate supplier code automatically
+    const supplierType = req.body.supplierType || 'Private';
+    const prefix = supplierType === 'Government' ? 'GOV' : 'PRV';
+    
+    // Find the last supplier of this type to get the next number
+    const lastSupplier = await Supplier.findOne({ 
+      supplierCode: { $regex: `^${prefix}` } 
+    }).sort({ supplierCode: -1 });
+    
+    let nextNumber = 1;
+    if (lastSupplier) {
+      const lastNumber = parseInt(lastSupplier.supplierCode.replace(prefix, ''));
+      nextNumber = lastNumber + 1;
     }
+    
+    const supplierCode = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 
     const supplierData = {
       ...req.body,
+      supplierCode,
       createdBy: req.user._id,
     };
 
     const supplier = new Supplier(supplierData);
     await supplier.save();
 
-    await supplier.populate('warehouse', 'name location');
     await supplier.populate('createdBy', 'firstName lastName');
 
     res.status(201).json({
@@ -114,20 +130,32 @@ router.post("/", authorize("Admin", "Manager"), validateSupplier, async (req, re
 // @desc    Create new supplier (create route)
 // @route   POST /api/suppliers/create
 // @access  Admin, Manager
-router.post("/create", authorize("Admin", "Manager"), validateSupplier, async (req, res) => {
+router.post("/create", authorize("Admin", "Manager"), async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+    // Generate supplier code automatically
+    const supplierType = req.body.supplierType || 'Private';
+    const prefix = supplierType === 'Government' ? 'GOV' : 'PRV';
+    
+    // Find the last supplier of this type to get the next number
+    const lastSupplier = await Supplier.findOne({ 
+      supplierCode: { $regex: `^${prefix}` } 
+    }).sort({ supplierCode: -1 });
+    
+    let nextNumber = 1;
+    if (lastSupplier) {
+      const lastNumber = parseInt(lastSupplier.supplierCode.replace(prefix, ''));
+      nextNumber = lastNumber + 1;
     }
+    
+    const supplierCode = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 
     const supplier = new Supplier({
       ...req.body,
+      supplierCode,
       createdBy: req.user.id,
     });
 
     await supplier.save();
-    await supplier.populate("warehouse", "name location");
 
     res.status(201).json({
       success: true,
@@ -154,7 +182,7 @@ router.post("/create", authorize("Admin", "Manager"), validateSupplier, async (r
 // @access  Admin, Manager, Employee
 router.get("/all", authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, status, businessType, warehouse } = req.query;
+    const { page = 1, limit = 10, search, status, businessType, warehouse, supplierType } = req.query;
     
     const query = {};
     
@@ -181,6 +209,11 @@ router.get("/all", authorize("Admin", "Manager", "Employee"), async (req, res) =
     // Warehouse filter
     if (warehouse) {
       query.warehouse = warehouse;
+    }
+    
+    // Supplier type filter
+    if (supplierType) {
+      query.supplierType = supplierType;
     }
 
     const suppliers = await Supplier.find(query)
