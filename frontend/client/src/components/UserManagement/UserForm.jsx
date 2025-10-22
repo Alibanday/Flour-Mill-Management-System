@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCamera, FaBuilding } from 'react-icons/fa';
+import { FaSave, FaTimes, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaIdCard, FaCamera } from 'react-icons/fa';
 import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useValidation, validationSchemas } from '../../utils/validation';
@@ -19,7 +19,6 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     state: '',
     zipCode: '',
     role: 'Production Manager',
-    assignedWarehouses: [],
     isActive: true,
     profilePicture: null
   };
@@ -40,19 +39,10 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     },
     role: {
       required: (value) => !value ? 'Role is required' : null
-    },
-    assignedWarehouses: {
-      required: (value) => {
-        if (['General Manager', 'Warehouse Manager'].includes(formData.role) && (!value || value.length === 0)) {
-          return 'This role must be assigned to at least one warehouse';
-        }
-        return null;
-      }
     }
   });
 
   const [loading, setLoading] = useState(false);
-  const [warehouses, setWarehouses] = useState([]);
   const [imagePreview, setImagePreview] = useState('');
 
   const roles = [
@@ -64,8 +54,6 @@ export default function UserForm({ user = null, onCancel, onSave }) {
   ];
 
   useEffect(() => {
-    fetchWarehouses();
-    
     // Add ESC key handler
     const handleEscKey = (e) => {
       if (e.key === 'Escape') {
@@ -89,38 +77,20 @@ export default function UserForm({ user = null, onCancel, onSave }) {
         state: user.state || '',
         zipCode: user.zipCode || '',
         role: user.role || 'Employee',
-        assignedWarehouses: user.assignedWarehouses || [],
         isActive: user.isActive !== undefined ? user.isActive : true,
         profilePicture: null
       });
-              if (user.profilePicture) {
-          setImagePreview(user.profilePicture);
-        }
+      if (user.profilePicture) {
+        setImagePreview(user.profilePicture);
       }
-      
-      // Cleanup function
-      return () => {
-        document.removeEventListener('keydown', handleEscKey);
-      };
-    }, [user, onCancel]);
-
-  const fetchWarehouses = async () => {
-    try {
-      // Mock warehouses for now - replace with API call when backend is ready
-      const mockWarehouses = [
-        { _id: 'w1', name: 'Main Warehouse' },
-        { _id: 'w2', name: 'Secondary Warehouse' },
-        { _id: 'w3', name: 'Production Warehouse' }
-      ];
-      setWarehouses(mockWarehouses);
-      
-      // TODO: Uncomment when backend is ready
-      const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_ALL);
-      setWarehouses(response.data);
-    } catch (error) {
-      console.error('Error fetching warehouses:', error);
     }
-  };
+      
+    // Cleanup function
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [user, onCancel]);
+
 
 
   const handleSubmit = async (e) => {
@@ -134,37 +104,17 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     setLoading(true);
 
     try {
-      // For now, create mock response since backend is not ready
-      const mockUser = {
-        _id: user ? user._id : Date.now().toString(),
-        ...formData,
-        assignedWarehouses: formData.assignedWarehouses || []
-      };
-
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      if (user) {
-        toast.success('User updated successfully! (Mock)');
-      } else {
-        toast.success('User created successfully! (Mock)');
-      }
-
-      // Call onSave with the mock user data
-      onSave(mockUser);
-      onCancel();
-
-      // TODO: Uncomment when backend is ready
-      /*
-      const token = localStorage.getItem('token');
       const formDataToSend = new FormData();
 
       // Append all form fields
       Object.keys(formData).forEach(key => {
-        if (key === 'assignedWarehouses') {
-          formDataToSend.append(key, JSON.stringify(formData[key]));
-        } else if (key === 'profilePicture' && formData[key]) {
-          formDataToSend.append(key, formData[key]);
+        if (key === 'profilePicture' && formData[key]) {
+          // backend expects profileImage
+          formDataToSend.append('profileImage', formData[key]);
+        } else if (key === 'phone') {
+          formDataToSend.append('mobile', formData[key]);
+        } else if (key === 'isActive') {
+          formDataToSend.append('status', formData[key] ? 'Active' : 'Inactive');
         } else if (key !== 'profilePicture' && key !== 'confirmPassword') {
           formDataToSend.append(key, formData[key]);
         }
@@ -185,9 +135,8 @@ export default function UserForm({ user = null, onCancel, onSave }) {
         toast.success('User created successfully!');
       }
 
-      onSave(response.data);
+      onSave(response.data.user || response.data.data || response.data);
       onCancel();
-      */
 
     } catch (error) {
       console.error('Error saving user:', error);
@@ -228,14 +177,6 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     }
   };
 
-  const handleWarehouseToggle = (warehouseId) => {
-    setData(prev => ({
-      ...prev,
-      assignedWarehouses: prev.assignedWarehouses.includes(warehouseId)
-        ? prev.assignedWarehouses.filter(id => id !== warehouseId)
-        : [...prev.assignedWarehouses, warehouseId]
-    }));
-  };
 
   const formatCNIC = (value) => {
     const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
@@ -462,7 +403,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text sm font-medium text-gray-700 mb-2">
                   State
                 </label>
                 <input
@@ -490,40 +431,6 @@ export default function UserForm({ user = null, onCancel, onSave }) {
               </div>
             </div>
           </div>
-
-          {/* Warehouse Assignment for Managers */}
-          {['General Manager', 'Warehouse Manager'].includes(formData.role) && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-                <FaBuilding className="mr-2 text-blue-600" />
-                Warehouse Assignment
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {warehouses.map((warehouse) => (
-                  <label
-                    key={warehouse._id}
-                    className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                      formData.assignedWarehouses.includes(warehouse._id)
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.assignedWarehouses.includes(warehouse._id)}
-                      onChange={() => handleWarehouseToggle(warehouse._id)}
-                      className="mr-2 text-blue-600"
-                    />
-                    <span className="text-sm font-medium">{warehouse.name}</span>
-                  </label>
-                ))}
-              </div>
-              {errors.assignedWarehouses && (
-                <p className="mt-2 text-sm text-red-600">{errors.assignedWarehouses}</p>
-              )}
-            </div>
-          )}
 
           {/* Password Section */}
           {!user && (

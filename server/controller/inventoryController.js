@@ -103,6 +103,23 @@ export const getAllInventory = async (req, res) => {
     // Build filter object
     const filter = {};
     
+    // Apply warehouse scoping ONLY for Warehouse Manager
+    if (req.user?.role === 'Warehouse Manager') {
+      try {
+        const Warehouse = (await import('../model/wareHouse.js')).default;
+        const managedWarehouses = await Warehouse.find({ manager: req.user._id }).select('_id');
+        const warehouseIds = managedWarehouses.map(w => w._id);
+        // If none assigned, return empty result
+        if (warehouseIds.length === 0) {
+          return res.json({ success: true, data: [], pagination: { current: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
+        }
+        filter.warehouse = { $in: warehouseIds };
+      } catch (e) {
+        console.warn('Warehouse scoping failed, proceeding without data:', e.message);
+        return res.json({ success: true, data: [], pagination: { current: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
+      }
+    }
+    
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },

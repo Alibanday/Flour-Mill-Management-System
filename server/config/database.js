@@ -6,12 +6,9 @@ import { enableOfflineMode, isOfflineModeEnabled } from './offline-mode.js';
 // Load environment variables
 dotenv.config();
 
-// MongoDB connection string - use working connection
-const MONGO_URL_SRV = process.env.MONGO_URL || 'mongodb+srv://taibkhan323:taib%40111@cluster0.ytaqnkh.mongodb.net/flour-mill-management?retryWrites=true&w=majority&appName=Cluster0';
-const MONGO_URL_DIRECT = 'mongodb://taibkhan323:taib%40111@ac-rozuxws-shard-00-01.ytaqnkh.mongodb.net:27017,ac-rozuxws-shard-00-00.ytaqnkh.mongodb.net:27017,ac-rozuxws-shard-00-02.ytaqnkh.mongodb.net:27017/flour-mill-management?ssl=true&replicaSet=atlas-14b8qk-shard-0&authSource=admin&retryWrites=true&w=majority';
-
-// Alternative working connection string
-const MONGO_URL_WORKING = 'mongodb+srv://taibkhan323:taib%40111@cluster0.ytaqnkh.mongodb.net/flour-mill-management?retryWrites=true&w=majority';
+// MongoDB connection string from environment
+// Prefer MONGO_URL, then MONGODB_URI, else use a safe local default
+const MONGO_URL = process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/flour-mill-management';
 
 // Database connection options
 const options = {
@@ -26,8 +23,8 @@ const connectWithRetry = async () => {
   try {
     console.log('🔄 Attempting to connect to MongoDB...');
     
-    // Try the working connection string first
-    await mongoose.connect(MONGO_URL_WORKING, options);
+    // Try primary environment-provided connection first
+    await mongoose.connect(MONGO_URL, options);
     
     console.log('✅ Successfully connected to MongoDB Atlas');
     console.log(`📊 Database: ${mongoose.connection.name}`);
@@ -36,29 +33,8 @@ const connectWithRetry = async () => {
     return mongoose.connection;
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error.message);
-    console.log('🔄 Trying alternative connection...');
-    
-    // Try alternative connection
-    try {
-      await mongoose.connect(MONGO_URL_SRV, options);
-      console.log('✅ Successfully connected to MongoDB Atlas with alternative URL');
-      return mongoose.connection;
-    } catch (retryError) {
-      console.error('❌ Alternative connection also failed:', retryError.message);
-      console.log('🔄 Trying direct connection...');
-      
-      // Try direct connection
-      try {
-        await mongoose.connect(MONGO_URL_DIRECT, options);
-        console.log('✅ Successfully connected to MongoDB Atlas with direct connection');
-        return mongoose.connection;
-      } catch (directError) {
-        console.error('❌ All connection attempts failed:', directError.message);
-        console.log('⚠️ Server will continue running - database operations may work later');
-        // Don't throw error - let the app continue
-        return null;
-      }
-    }
+    console.log('⚠️ Ensure MONGO_URL or MONGODB_URI is set in environment (.env)');
+    return null;
   }
 };
 

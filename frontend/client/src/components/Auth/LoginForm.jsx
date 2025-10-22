@@ -94,13 +94,31 @@ export default function LoginForm() {
       }
 
       // Try real API login if not found in mock users
-      const result = await login(formData.email, formData.password);
-      
-      if (result.success) {
-        toast.success(`Welcome ${result.user.firstName}! You're logged in as ${result.user.role}`);
-        navigate('/dashboard');
-      } else {
-        toast.error(result.message || 'Invalid email or password. Please try again.');
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // Use the login function from useAuth to store the user data
+          login(result.user, result.token);
+          toast.success(`Welcome ${result.user.firstName}! You're logged in as ${result.user.role}`);
+          navigate('/dashboard');
+        } else {
+          toast.error(result.message || 'Invalid email or password. Please try again.');
+        }
+      } catch (apiError) {
+        console.error('API login error:', apiError);
+        toast.error('Login failed. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);

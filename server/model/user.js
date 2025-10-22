@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema({
     enum: ['Active', 'Inactive'], 
     default: 'Active' 
   },
-  warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse",  required: true  },
+  warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse",  required: false  },
 
   // Additional fields:
   cnic: { type: String },

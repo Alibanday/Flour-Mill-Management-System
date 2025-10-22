@@ -23,11 +23,10 @@ import { protect, authorize } from "../middleware/auth.js";
 const router = express.Router();
 
 // Apply authentication to all routes
-// router.use(protect); // Temporarily disabled for testing
+router.use(protect);
 
 // Create new inventory item
-// Temporarily disable authorization for debugging
-router.post("/create", createInventory);
+router.post("/create", authorize("Admin", "General Manager"), createInventory);
 
 
 // Get all inventory items - Base route
