@@ -3,6 +3,62 @@ import mongoose from 'mongoose';
 
 // Mock data for offline development
 const mockData = {
+  warehouses: [
+    {
+      _id: 'mock-warehouse-1',
+      warehouseNumber: 'WH001',
+      name: 'Main Warehouse',
+      location: 'Karachi',
+      status: 'Active',
+      description: 'Main storage facility',
+      manager: 'mock-user-1',
+      capacity: {
+        totalCapacity: 10000,
+        unit: '50kg bags',
+        currentUsage: 5000
+      },
+      contact: {
+        phone: '+92-300-1234567',
+        email: 'warehouse@example.com',
+        address: {
+          street: '123 Warehouse Street',
+          city: 'Karachi',
+          state: 'Sindh',
+          zipCode: '75000',
+          country: 'Pakistan'
+        }
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      _id: 'mock-warehouse-2',
+      warehouseNumber: 'WH002',
+      name: 'Secondary Warehouse',
+      location: 'Lahore',
+      status: 'Active',
+      description: 'Secondary storage facility',
+      manager: 'mock-user-2',
+      capacity: {
+        totalCapacity: 5000,
+        unit: '50kg bags',
+        currentUsage: 2000
+      },
+      contact: {
+        phone: '+92-300-7654321',
+        email: 'warehouse2@example.com',
+        address: {
+          street: '456 Storage Avenue',
+          city: 'Lahore',
+          state: 'Punjab',
+          zipCode: '54000',
+          country: 'Pakistan'
+        }
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ],
   customers: [
     {
       _id: 'mock-customer-1',
@@ -131,6 +187,52 @@ export const isOfflineModeEnabled = () => {
 
 // Mock database operations
 export const mockDatabase = {
+  // Warehouse operations
+  warehouses: {
+    find: (query = {}) => {
+      console.log('📊 Mock: Finding warehouses with query:', query);
+      return Promise.resolve(mockData.warehouses);
+    },
+    findById: (id) => {
+      console.log('📊 Mock: Finding warehouse by ID:', id);
+      return Promise.resolve(mockData.warehouses.find(w => w._id === id) || null);
+    },
+    create: (data) => {
+      console.log('📊 Mock: Creating warehouse:', data);
+      const newWarehouse = {
+        _id: `mock-warehouse-${Date.now()}`,
+        warehouseNumber: `WH${Date.now().toString().slice(-6)}`,
+        ...data,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      mockData.warehouses.push(newWarehouse);
+      return Promise.resolve(newWarehouse);
+    },
+    findByIdAndUpdate: (id, data) => {
+      console.log('📊 Mock: Updating warehouse:', id, data);
+      const index = mockData.warehouses.findIndex(w => w._id === id);
+      if (index !== -1) {
+        mockData.warehouses[index] = { ...mockData.warehouses[index], ...data, updatedAt: new Date() };
+        return Promise.resolve(mockData.warehouses[index]);
+      }
+      return Promise.resolve(null);
+    },
+    findByIdAndDelete: (id) => {
+      console.log('📊 Mock: Deleting warehouse:', id);
+      const index = mockData.warehouses.findIndex(w => w._id === id);
+      if (index !== -1) {
+        const deleted = mockData.warehouses.splice(index, 1)[0];
+        return Promise.resolve(deleted);
+      }
+      return Promise.resolve(null);
+    },
+    countDocuments: (query = {}) => {
+      console.log('📊 Mock: Counting warehouses with query:', query);
+      return Promise.resolve(mockData.warehouses.length);
+    }
+  },
+
   // Customer operations
   customers: {
     find: (query = {}) => {

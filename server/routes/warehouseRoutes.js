@@ -13,6 +13,7 @@ import {
   getWarehouseCapacityStatus
 } from "../controller/warehouseController.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { isOfflineModeEnabled } from "../config/offline-mode.js";
 
 const router = express.Router();
 
@@ -39,31 +40,26 @@ router.get("/search", searchWarehouses);
 // Route to get active warehouses
 router.get("/active", getActiveWarehouses);
 
-// Route to get a single warehouse by ID
-router.get("/:id", getWarehouseById);
-
-// Route to update a warehouse by ID
-router.put("/:id", authorize('Admin', 'Manager'), updateWarehouse);
-
-// Route to delete a warehouse by ID
-router.delete("/:id", authorize('Admin'), deleteWarehouse);
-
-// Route to update warehouse status
-router.patch("/:id/status", authorize('Admin', 'Manager'), updateWarehouseStatus);
-
-// Route to assign warehouse manager (Admin only)
-router.patch("/:id/assign-manager", authorize('Admin'), assignWarehouseManager);
-
-// Route to get warehouse inventory summary
-router.get("/:id/inventory-summary", getWarehouseInventorySummary);
-
-// Route to get warehouse capacity status
-router.get("/capacity/status", getWarehouseCapacityStatus);
-
-// Route to get warehouse statistics
+// Route to get warehouse statistics (MUST be before /:id route)
 router.get("/stats", async (req, res) => {
   try {
-    const Warehouse = (await import("../model/warehouse.js")).default;
+    // Check if offline mode is enabled
+    if (isOfflineModeEnabled()) {
+      console.log("🔄 Offline mode: Using mock warehouse stats");
+      return res.json({
+        success: true,
+        data: {
+          totalWarehouses: 2,
+          activeWarehouses: 2,
+          inMaintenance: 0,
+          totalCapacity: 15000,
+          totalCurrentUsage: 7000,
+          availableCapacity: 8000
+        }
+      });
+    }
+
+    const Warehouse = (await import("../model/wareHouse.js")).default;
     
     // Get total warehouses
     const totalWarehouses = await Warehouse.countDocuments();
@@ -108,5 +104,26 @@ router.get("/stats", async (req, res) => {
     });
   }
 });
+
+// Route to get a single warehouse by ID
+router.get("/:id", getWarehouseById);
+
+// Route to update a warehouse by ID
+router.put("/:id", authorize('Admin', 'Manager'), updateWarehouse);
+
+// Route to delete a warehouse by ID
+router.delete("/:id", authorize('Admin'), deleteWarehouse);
+
+// Route to update warehouse status
+router.patch("/:id/status", authorize('Admin', 'Manager'), updateWarehouseStatus);
+
+// Route to assign warehouse manager (Admin only)
+router.patch("/:id/assign-manager", authorize('Admin'), assignWarehouseManager);
+
+// Route to get warehouse inventory summary
+router.get("/:id/inventory-summary", getWarehouseInventorySummary);
+
+// Route to get warehouse capacity status
+router.get("/capacity/status", getWarehouseCapacityStatus);
 
 export default router;

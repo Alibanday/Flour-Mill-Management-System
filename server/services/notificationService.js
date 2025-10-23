@@ -2,6 +2,7 @@ import Notification from "../model/Notification.js";
 import Inventory from "../model/inventory.js";
 import Warehouse from "../model/warehouse.js";
 import User from "../model/user.js";
+import { isOfflineModeEnabled, mockDatabase } from "../config/offline-mode.js";
 
 class NotificationService {
   // Create notification for low stock
@@ -408,6 +409,12 @@ class NotificationService {
   static async runAllChecks() {
     try {
       console.log("Running notification checks...");
+      
+      // Check if offline mode is enabled
+      if (isOfflineModeEnabled()) {
+        console.log("🔄 Offline mode: Skipping notification checks");
+        return { success: true, message: "Notification checks skipped (offline mode)" };
+      }
       
       // Check for low stock items - simplified query
       const allItems = await Inventory.find({}).lean();

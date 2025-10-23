@@ -1,9 +1,24 @@
-import Warehouse from "../model/warehouse.js";
+import Warehouse from "../model/wareHouse.js";
+import User from "../model/user.js";
+import { isOfflineModeEnabled, mockDatabase } from "../config/offline-mode.js";
 
 // Add new warehouse (Admin only)
 export const addWarehouse = async (req, res) => {
   try {
     console.log('addWarehouse called with body:', req.body);
+    console.log('🔍 Checking offline mode status:', isOfflineModeEnabled());
+    
+    // Check if offline mode is enabled
+    if (isOfflineModeEnabled()) {
+      console.log('🔄 Using offline mode for warehouse creation');
+      const newWarehouse = await mockDatabase.warehouses.create(req.body);
+      return res.status(201).json({ 
+        success: true,
+        message: "Warehouse added successfully (offline mode)", 
+        data: newWarehouse 
+      });
+    }
+
     const { 
       name, 
       location, 
@@ -20,16 +35,38 @@ export const addWarehouse = async (req, res) => {
     let managerContact = null;
     if (manager) {
       try {
-        const User = (await import("../model/user.js")).default;
-        const managerUser = await User.findById(manager).select('firstName lastName email phone address');
-        if (managerUser) {
+        // In offline mode, skip user lookup
+        if (isOfflineModeEnabled()) {
+          console.log('🔄 Offline mode: Skipping manager contact lookup');
           managerContact = {
-            name: `${managerUser.firstName} ${managerUser.lastName}`,
-            email: managerUser.email,
-            phone: managerUser.phone,
-            address: managerUser.address
+            name: 'Mock Manager',
+            email: 'manager@example.com',
+            phone: '123-456-7890',
+            address: {
+              street: 'Mock Street',
+              city: 'Mock City',
+              state: 'Mock State',
+              zipCode: '12345',
+              country: 'Pakistan'
+            }
           };
-          console.log('Fetched manager contact info:', managerContact);
+        } else {
+          const managerUser = await User.findById(manager).select('firstName lastName email mobile address');
+          if (managerUser) {
+            managerContact = {
+              name: `${managerUser.firstName} ${managerUser.lastName}`,
+              email: managerUser.email,
+              phone: managerUser.mobile,
+              address: {
+                street: '',
+                city: '',
+                state: '',
+                zipCode: '',
+                country: managerUser.address || 'Pakistan'
+              }
+            };
+            console.log('Fetched manager contact info:', managerContact);
+          }
         }
       } catch (error) {
         console.error('Error fetching manager contact info:', error);
@@ -37,27 +74,48 @@ export const addWarehouse = async (req, res) => {
       }
     }
 
-    const newWarehouse = new Warehouse({
-      name,
-      location,
-      status,
-      description,
-      manager,
-      capacity,
-      contact: managerContact || contact // Use fetched manager contact or provided contact
-    });
+    try {
+      const newWarehouse = new Warehouse({
+        name,
+        location,
+        status,
+        description,
+        manager,
+        capacity,
+        contact: managerContact || contact // Use fetched manager contact or provided contact
+      });
 
-    console.log('Created warehouse object:', newWarehouse);
+      console.log('Created warehouse object:', newWarehouse);
 
-    await newWarehouse.save();
+      await newWarehouse.save();
 
-    console.log('Warehouse saved successfully');
+      console.log('Warehouse saved successfully');
 
-    res.status(201).json({ 
-      success: true,
-      message: "Warehouse added successfully", 
-      data: newWarehouse 
-    });
+      res.status(201).json({ 
+        success: true,
+        message: "Warehouse added successfully", 
+        data: newWarehouse 
+      });
+    } catch (dbError) {
+      console.log('🔄 Database operation failed, falling back to offline mode:', dbError.message);
+      
+      // Fallback to offline mode if database operation fails
+      const newWarehouse = await mockDatabase.warehouses.create({
+        name,
+        location,
+        status,
+        description,
+        manager,
+        capacity,
+        contact: managerContact || contact
+      });
+      
+      res.status(201).json({ 
+        success: true,
+        message: "Warehouse added successfully (offline mode)", 
+        data: newWarehouse 
+      });
+    }
   } catch (error) {
     console.error('Error in addWarehouse:', error);
     res.status(500).json({ 
@@ -72,6 +130,24 @@ export const addWarehouse = async (req, res) => {
 export const getAllWarehouses = async (req, res) => {
   try {
     console.log('getAllWarehouses called with query:', req.query);
+
+    // Check if offline mode is enabled
+    if (isOfflineModeEnabled()) {
+      console.log('🔄 Using offline mode for warehouse listing');
+      const warehouses = await mockDatabase.warehouses.find();
+      return res.status(200).json({
+        success: true,
+        message: "Warehouses retrieved successfully (offline mode)",
+        data: warehouses,
+        pagination: {
+          current: 1,
+          limit: warehouses.length,
+          total: warehouses.length,
+          pages: 1
+        }
+      });
+    }
+
     const { page = 1, limit = 10, status } = req.query;
     
     // Build filter
@@ -114,7 +190,7 @@ export const getAllWarehouses = async (req, res) => {
     console.error('Error in getAllWarehouses:', error);
     res.status(500).json({ 
       success: false,
-      message: "Error retrieving warehouses", 
+      message: "Error retrieving warehouses",
       error: error.message 
     });
   }

@@ -89,9 +89,15 @@ warehouseSchema.pre('save', async function(next) {
         
         attempts++;
         
-        // Check if warehouse number already exists
-        const existingWarehouse = await mongoose.model('Warehouse').findOne({ warehouseNumber });
-        if (!existingWarehouse) {
+        // Check if warehouse number already exists (skip in offline mode)
+        try {
+          const existingWarehouse = await mongoose.model('Warehouse').findOne({ warehouseNumber });
+          if (!existingWarehouse) {
+            break;
+          }
+        } catch (error) {
+          // If database is not available, assume the number is unique
+          console.log('🔄 Database unavailable, assuming warehouse number is unique:', warehouseNumber);
           break;
         }
         

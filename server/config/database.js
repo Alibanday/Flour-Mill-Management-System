@@ -8,32 +8,39 @@ dotenv.config();
 
 // MongoDB connection string from environment
 // Prefer MONGO_URL, then MONGODB_URI, else use a safe local default
-const MONGO_URL = process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/flour-mill-management';
+const MONGO_URL = process.env.MONGO_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/flourmill';
 
 // Database connection options
 const options = {
   maxPoolSize: 10, // Maintain up to 10 socket connections
   serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
   socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
-  bufferCommands: true, // Enable mongoose buffering to handle operations before connection
+  bufferCommands: false, // Disable mongoose buffering to fail fast if no connection
 };
 
 // Connection function with retry logic and fallback
 const connectWithRetry = async () => {
   try {
     console.log('🔄 Attempting to connect to MongoDB...');
+    console.log(`🔗 Connection string: ${MONGO_URL}`);
     
     // Try primary environment-provided connection first
     await mongoose.connect(MONGO_URL, options);
     
-    console.log('✅ Successfully connected to MongoDB Atlas');
+    console.log('✅ Successfully connected to MongoDB');
     console.log(`📊 Database: ${mongoose.connection.name}`);
     console.log(`🌐 Host: ${mongoose.connection.host}`);
     
     return mongoose.connection;
   } catch (error) {
     console.error('❌ MongoDB connection failed:', error.message);
-    console.log('⚠️ Ensure MONGO_URL or MONGODB_URI is set in environment (.env)');
+    console.log('⚠️ MongoDB is not running or connection string is invalid');
+    console.log('💡 Please start MongoDB locally or set MONGO_URL in .env file');
+    
+    // Enable offline mode for development
+    console.log('🔄 Enabling offline mode for development...');
+    enableOfflineMode();
+    
     return null;
   }
 };
