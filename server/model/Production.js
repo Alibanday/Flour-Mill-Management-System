@@ -4,24 +4,59 @@ const productionSchema = new mongoose.Schema({
   // Production Batch Information
   batchNumber: {
     type: String,
-    required: [true, "Batch number is required"],
+    required: false, // Auto-generated, not required in input
     unique: true,
     trim: true,
     uppercase: true
   },
   
-  // Product Information
-  productName: {
-    type: String,
-    required: [true, "Product name is required"],
-    trim: true,
-    enum: ["Wheat Flour", "Whole Wheat", "Premium Flour", "Maida", "Suji", "Fine", "Chokhar", "Refraction"]
+  // Source Warehouse (where wheat is taken from)
+  sourceWarehouse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Warehouse",
+    required: [true, "Source warehouse is required"]
   },
   
-  productType: {
-    type: String,
-    required: [true, "Product type is required"],
-    enum: ["Raw Materials", "Finished Goods", "Repacked Product"]
+  // Wheat quantity used in production
+  wheatQuantity: {
+    type: Number,
+    required: [true, "Wheat quantity is required"],
+    min: [0, "Wheat quantity cannot be negative"]
+  },
+  
+  // Output products array
+  outputProducts: [{
+    productName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    weight: {
+      type: Number,
+      required: true,
+      min: 0
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1
+    },
+    unit: {
+      type: String,
+      enum: ["bags", "pcs", "kg"],
+      default: "bags"
+    },
+    totalWeight: {
+      type: Number,
+      default: 0
+    }
+  }],
+  
+  // Destination warehouse (where output products are stored)
+  destinationWarehouse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Warehouse",
+    required: [true, "Destination warehouse is required"]
   },
   
   // Production Details
@@ -31,41 +66,58 @@ const productionSchema = new mongoose.Schema({
     default: Date.now
   },
   
+  // Legacy fields for backward compatibility (will be removed later)
+  productName: {
+    type: String,
+    required: false,
+    trim: true
+  },
+  
+  productType: {
+    type: String,
+    required: false,
+    enum: ["Raw Materials", "Finished Goods", "Repacked Product"]
+  },
+  
   quantity: {
     value: {
       type: Number,
-      required: [true, "Quantity value is required"],
+      required: false,
       min: [0, "Quantity cannot be negative"]
     },
     unit: {
       type: String,
-      required: [true, "Unit is required"],
+      required: false,
       enum: ["kg", "tons", "bags", "pcs"],
       default: "kg"
     }
   },
   
-  // Cost Calculation (FR 16)
+  // Cost Calculation (Optional)
   productionCost: {
     rawMaterialCost: {
       type: Number,
-      required: [true, "Raw material cost is required"],
-      min: [0, "Cost cannot be negative"]
+      required: false,
+      min: [0, "Cost cannot be negative"],
+      default: 0
     },
     laborCost: {
       type: Number,
-      required: [true, "Labor cost is required"],
-      min: [0, "Cost cannot be negative"]
+      required: false,
+      min: [0, "Cost cannot be negative"],
+      default: 0
     },
     overheadCost: {
       type: Number,
-      required: [true, "Overhead cost is required"],
-      min: [0, "Cost cannot be negative"]
+      required: false,
+      min: [0, "Cost cannot be negative"],
+      default: 0
     },
     totalCost: {
       type: Number,
-      required: [true, "Total cost is required"],
-      min: [0, "Cost cannot be negative"]
+      required: false,
+      min: [0, "Cost cannot be negative"],
+      default: 0
     },
     currency: {
       type: String,
@@ -193,39 +245,74 @@ const productionSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Pre-save middleware to calculate total cost
-productionSchema.pre("save", function(next) {
-  // Calculate total production cost
-  this.productionCost.totalCost = 
-    this.productionCost.rawMaterialCost + 
-    this.productionCost.laborCost + 
-    this.productionCost.overheadCost;
-  
-  // Calculate production duration if both times are set
-  if (this.process.startTime && this.process.endTime) {
-    this.process.duration = Math.round(
-      (this.process.endTime - this.process.startTime) / (1000 * 60)
-    );
+// Pre-save middleware to auto-generate batch number and calculate values
+productionSchema.pre("save", async function(next) {
+  try {
+    // Auto-generate batch number if not provided
+    if (!this.batchNumber && this.isNew) {
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const day = String(new Date().getDate()).padStart(2, '0');
+      this.batchNumber = `BATCH-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
+      console.log('Generated production batch number:', this.batchNumber);
+    }
+    
+    // Calculate total weight for each output product
+    this.outputProducts = this.outputProducts.map(product => ({
+      ...product,
+      totalWeight: (product.weight || 0) * (product.quantity || 0)
+    }));
+    
+    // Calculate wastage if not provided
+    if (this.wastage.quantity === undefined || this.wastage.quantity === null) {
+      const totalOutputWeight = this.outputProducts.reduce((sum, product) => 
+        sum + ((product.weight || 0) * (product.quantity || 0)), 0);
+      this.wastage.quantity = Math.max(0, (this.wheatQuantity || 0) - totalOutputWeight);
+      this.wastage.unit = 'kg';
+      this.wastage.reason = this.wastage.reason || 'Processing Loss';
+      this.wastage.cost = 0;
+    }
+    
+    // Calculate total production cost if provided
+    if (this.productionCost.rawMaterialCost || this.productionCost.laborCost || this.productionCost.overheadCost) {
+      this.productionCost.totalCost = 
+        (this.productionCost.rawMaterialCost || 0) + 
+        (this.productionCost.laborCost || 0) + 
+        (this.productionCost.overheadCost || 0);
+    }
+    
+    // Calculate production duration if both times are set
+    if (this.process.startTime && this.process.endTime) {
+      this.process.duration = Math.round(
+        (this.process.endTime - this.process.startTime) / (1000 * 60)
+      );
+    }
+    
+    // Update timestamp
+    this.updatedAt = new Date();
+    
+    next();
+  } catch (error) {
+    console.error('Error in production pre-save middleware:', error);
+    next(error);
   }
-  
-  // Update timestamp
-  this.updatedAt = new Date();
-  
-  next();
 });
 
 // Virtual for cost per unit
 productionSchema.virtual("costPerUnit").get(function() {
-  if (this.quantity.value > 0) {
-    return this.productionCost.totalCost / this.quantity.value;
+  const wheatQty = this.wheatQuantity || 0;
+  if (wheatQty > 0 && this.productionCost.totalCost > 0) {
+    return this.productionCost.totalCost / wheatQty;
   }
   return 0;
 });
 
 // Virtual for wastage percentage
 productionSchema.virtual("wastagePercentage").get(function() {
-  if (this.quantity.value > 0) {
-    return (this.wastage.quantity / this.quantity.value) * 100;
+  const wheatQty = this.wheatQuantity || 0;
+  if (wheatQty > 0 && this.wastage.quantity) {
+    return (this.wastage.quantity / wheatQty) * 100;
   }
   return 0;
 });
@@ -234,13 +321,13 @@ productionSchema.virtual("wastagePercentage").get(function() {
 productionSchema.methods.getProductionSummary = function() {
   return {
     batchNumber: this.batchNumber,
-    productName: this.productName,
-    quantity: `${this.quantity.value} ${this.quantity.unit}`,
+    wheatQuantity: `${this.wheatQuantity} kg`,
+    outputProducts: this.outputProducts.length,
     totalCost: `${this.productionCost.totalCost} ${this.productionCost.currency}`,
     costPerUnit: `${this.costPerUnit.toFixed(2)} ${this.productionCost.currency}`,
-    wastage: `${this.wastage.quantity} ${this.wastage.unit} (${this.wastagePercentage.toFixed(2)}%)`,
+    wastage: `${this.wastage.quantity.toFixed(2)} ${this.wastage.unit} (${this.wastagePercentage.toFixed(2)}%)`,
     status: this.status,
-    quality: this.quality.grade
+    quality: this.quality?.grade || 'Standard'
   };
 };
 

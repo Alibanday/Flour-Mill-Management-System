@@ -113,7 +113,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
     // Update unit when product type changes
     if (name === 'productType') {
-      const selectedItem = inventoryItems.find(item => item._id === value);
+      const selectedItem = inventoryItems.find(item => item.name === value);
       if (selectedItem) {
         // Set unit based on inventory item weight
         const weight = selectedItem.weight;
@@ -272,7 +272,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
               >
                 <option value="">Select product from inventory</option>
                 {inventoryItems.map((item) => (
-                  <option key={item._id} value={item._id}>
+                  <option key={item._id} value={item.name}>
                     {item.name} ({item.weight}kg)
                   </option>
                 ))}

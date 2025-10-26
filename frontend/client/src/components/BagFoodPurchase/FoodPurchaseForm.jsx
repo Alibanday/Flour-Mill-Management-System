@@ -4,36 +4,72 @@ import { FaSave, FaTimes, FaPlus, FaTrash, FaPrint } from 'react-icons/fa';
 export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave }) {
   const [formData, setFormData] = useState({
     purchaseNumber: 'Auto-generated',
+    purchaseType: 'Private', // New field: Private or Government
     supplier: '',
-    productType: 'Wheat Grain',
+    productType: 'Wheat',
     quantity: 0,
-    unit: 'tons',
-    unitPrice: 0,
+    unit: 'kg', // Fixed to kg
+    unitPrice: 0, // Price per kg
     totalPrice: 0,
     purchaseDate: new Date().toISOString().split('T')[0],
-    status: 'Completed',
+    status: 'Pending', // Delivery status
     paymentStatus: 'Pending',
+    paidAmount: 0, // Partial payment amount
+    remainingAmount: 0, // Remaining amount to pay
+    expectedDeliveryDate: '', // Expected delivery date
+    warehouse: '', // Warehouse selection
     notes: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
 
   const isEditing = !!purchase;
+
+  // Fetch warehouses
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      setWarehousesLoading(true);
+      try {
+        const response = await fetch('/api/warehouses', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setWarehouses(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching warehouses:', error);
+      } finally {
+        setWarehousesLoading(false);
+      }
+    };
+
+    fetchWarehouses();
+  }, []);
 
   useEffect(() => {
     if (purchase) {
       setFormData({
         purchaseNumber: purchase.purchaseNumber || '',
+        purchaseType: purchase.purchaseType || 'Private',
         supplier: purchase.supplier || '',
-        productType: purchase.productType || 'Wheat Grain',
+        productType: purchase.productType || 'Wheat',
         quantity: purchase.quantity || 0,
-        unit: purchase.unit || 'tons',
+        unit: purchase.unit || 'kg',
         unitPrice: purchase.unitPrice || 0,
         totalPrice: purchase.totalPrice || 0,
         purchaseDate: new Date(purchase.purchaseDate).toISOString().split('T')[0],
-        status: purchase.status || 'Completed',
+        status: purchase.status || 'Pending',
         paymentStatus: purchase.paymentStatus || 'Pending',
+        paidAmount: purchase.paidAmount || 0,
+        remainingAmount: purchase.remainingAmount || 0,
+        expectedDeliveryDate: purchase.expectedDeliveryDate ? new Date(purchase.expectedDeliveryDate).toISOString().split('T')[0] : '',
+        warehouse: purchase.warehouse || '',
         notes: purchase.notes || ''
       });
     } else {
@@ -46,17 +82,32 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
   }, [purchase]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     const newFormData = {
       ...formData,
-      [name]: value
+      [name]: type === 'checkbox' ? value === 'true' : value
     };
+    
+    // If purchase type changes, reset supplier to show correct suppliers
+    if (name === 'purchaseType') {
+      newFormData.supplier = ''; // Reset supplier when switching types
+    }
     
     // Calculate total price when quantity or unit price changes
     if (name === 'quantity' || name === 'unitPrice') {
       const quantity = name === 'quantity' ? parseFloat(value) || 0 : formData.quantity;
       const unitPrice = name === 'unitPrice' ? parseFloat(value) || 0 : formData.unitPrice;
       newFormData.totalPrice = quantity * unitPrice;
+      // Recalculate remaining amount
+      const paidAmount = parseFloat(newFormData.paidAmount) || 0;
+      newFormData.remainingAmount = newFormData.totalPrice - paidAmount;
+    }
+    
+    // Calculate remaining amount when paid amount changes
+    if (name === 'paidAmount') {
+      const paidAmount = parseFloat(value) || 0;
+      const totalPrice = parseFloat(newFormData.totalPrice) || 0;
+      newFormData.remainingAmount = totalPrice - paidAmount;
     }
     
     setFormData(newFormData);
@@ -79,6 +130,15 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // Filter suppliers based on purchase type
+  const privateSuppliers = suppliers.filter(s => s.supplierType === 'Private');
+  const governmentSuppliers = suppliers.filter(s => s.supplierType === 'Government');
+  
+  // Get the appropriate supplier list based on purchase type
+  const getCurrentSuppliers = () => {
+    return formData.purchaseType === 'Government' ? governmentSuppliers : privateSuppliers;
   };
 
   return (
@@ -134,7 +194,24 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Supplier *
+                Purchase Type *
+              </label>
+              <select
+                name="purchaseType"
+                value={formData.purchaseType}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Private">🛒 Private Purchase</option>
+                <option value="Government">🏛️ Government Purchase</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Select whether this is a private or government purchase</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Supplier * ({formData.purchaseType})
               </label>
               <select
                 name="supplier"
@@ -143,42 +220,37 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Select supplier</option>
-                {(Array.isArray(suppliers) ? suppliers : []).map((s) => (
+                <option value="">Select {formData.purchaseType.toLowerCase()} supplier</option>
+                {getCurrentSuppliers().map((s) => (
                   <option key={s._id} value={s._id}>
-                    {s.name}
+                    {s.name} ({s.supplierCode})
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Only {formData.purchaseType.toLowerCase()} suppliers are shown
+              </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Product Type *
               </label>
-              <select
+              <input
+                type="text"
                 name="productType"
                 value={formData.productType}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Wheat Grain">🌾 Wheat Grain</option>
-                <option value="Corn">🌽 Corn</option>
-                <option value="Rice">🍚 Rice</option>
-                <option value="Barley">🌾 Barley</option>
-                <option value="Oats">🌾 Oats</option>
-                <option value="Rye">🌾 Rye</option>
-                <option value="Millet">🌾 Millet</option>
-                <option value="Other">📦 Other</option>
-              </select>
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed"
+              />
+              <p className="mt-1 text-xs text-gray-500">Fixed to Wheat</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity *
+                Quantity (kg) *
               </label>
               <input
                 type="number"
@@ -187,33 +259,14 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 onChange={handleInputChange}
                 required
                 min="0"
+                step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Unit *
-              </label>
-              <select
-                name="unit"
-                value={formData.unit}
-                onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="tons">Tons</option>
-                <option value="quintals">Quintals</option>
-                <option value="50kg bags">50kg Bags</option>
-                <option value="25kg bags">25kg Bags</option>
-                <option value="100kg sacks">100kg Sacks</option>
-                <option value="50kg sacks">50kg Sacks</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Unit Price *
+                Price per kg (Rs.) *
               </label>
               <input
                 type="number"
@@ -226,12 +279,10 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Total Price
+                Total Price (Rs.)
               </label>
               <input
                 type="number"
@@ -240,7 +291,9 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-semibold"
               />
             </div>
+          </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Purchase Date *
@@ -257,21 +310,130 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Status
+                Payment Status *
               </label>
               <select
                 name="paymentStatus"
                 value={formData.paymentStatus}
                 onChange={handleInputChange}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Pending">Pending</option>
                 <option value="Partial">Partial</option>
+                <option value="Paid">Paid</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Delivery Status *
+              </label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Pending">Pending</option>
                 <option value="Completed">Completed</option>
               </select>
             </div>
           </div>
 
+          {/* Partial Payment Section */}
+          {formData.paymentStatus === 'Partial' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-yellow-800 mb-4">Payment Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Paid Amount (Rs.) *
+                  </label>
+                  <input
+                    type="number"
+                    name="paidAmount"
+                    value={formData.paidAmount}
+                    onChange={handleInputChange}
+                    required
+                    min="0"
+                    step="0.01"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter paid amount"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Total Amount (Rs.)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.totalPrice.toFixed(2)}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Remaining Amount (Rs.)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.remainingAmount.toFixed(2)}
+                    readOnly
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md font-semibold ${
+                      formData.remainingAmount > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                    }`}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Expected Delivery Date */}
+          {formData.status === 'Pending' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Expected Delivery Date *
+              </label>
+              <input
+                type="date"
+                name="expectedDeliveryDate"
+                value={formData.expectedDeliveryDate}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">When is this order expected to be delivered?</p>
+            </div>
+          )}
+
+          {/* Warehouse Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Warehouse (Where to store wheat) *
+            </label>
+            <select
+              name="warehouse"
+              value={formData.warehouse}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={warehousesLoading}
+            >
+              <option value="">Select warehouse</option>
+              {warehouses.map((warehouse) => (
+                <option key={warehouse._id} value={warehouse._id}>
+                  {warehouse.name} - {warehouse.location}
+                </option>
+              ))}
+            </select>
+            {warehousesLoading && (
+              <p className="mt-1 text-xs text-gray-500">Loading warehouses...</p>
+            )}
+            <p className="mt-1 text-xs text-gray-500">Select the warehouse where the wheat will be stored</p>
+          </div>
 
           {/* Notes */}
           <div>

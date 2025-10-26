@@ -39,7 +39,7 @@ const foodPurchaseSchema = new mongoose.Schema(
       unit: {
         type: String,
         required: true,
-        enum: ["tons", "quintals", "50kg bags", "25kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+        enum: ["tons", "kg", "quintals", "50kg bags", "25kg bags", "20kg bags", "15kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
         default: "tons",
       },
       unitPrice: {

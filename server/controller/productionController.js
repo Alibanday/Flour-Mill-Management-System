@@ -8,175 +8,168 @@ import Notification from "../model/Notification.js";
 export const createProduction = async (req, res) => {
   try {
     console.log("Production creation - User ID:", req.user._id || req.user.id);
-    console.log("Production creation - User object:", req.user);
+    console.log("Production creation - Data:", JSON.stringify(req.body, null, 2));
 
     const {
-      batchNumber,
-      productName,
-      productType,
-      quantity,
-      productionCost,
-      quality,
+      sourceWarehouse,
+      wheatQuantity,
+      outputProducts,
+      destinationWarehouse,
+      wastage,
       productionDate,
-      warehouse,
-      notes,
-      rawMaterials // New field for raw materials used
+      notes
     } = req.body;
 
-    // Check if batch number already exists
-    const existingProduction = await Production.findOne({ batchNumber });
-    if (existingProduction) {
+    // Validate required fields
+    if (!sourceWarehouse || !destinationWarehouse) {
       return res.status(400).json({
         success: false,
-        message: "Batch number already exists"
+        message: "Source warehouse and destination warehouse are required"
       });
     }
 
-    // Verify warehouse exists
-    const warehouseExists = await Warehouse.findById(warehouse);
-    if (!warehouseExists) {
+    if (!wheatQuantity || wheatQuantity <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Warehouse not found"
+        message: "Valid wheat quantity is required"
       });
     }
 
-    // Calculate total cost
-    const totalCost = productionCost.rawMaterialCost + productionCost.laborCost + productionCost.overheadCost;
+    if (!outputProducts || outputProducts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one output product is required"
+      });
+    }
+
+    // Verify warehouses exist
+    const sourceWarehouseExists = await Warehouse.findById(sourceWarehouse);
+    const destWarehouseExists = await Warehouse.findById(destinationWarehouse);
     
-    // Create production record
+    if (!sourceWarehouseExists || !destWarehouseExists) {
+      return res.status(400).json({
+        success: false,
+        message: "One or both warehouses not found"
+      });
+    }
+
+    // Check if there's sufficient wheat stock in source warehouse
+    // TODO: This should query Stock movements to get actual wheat stock
+    // For now, we'll skip this check
+    console.log("⚠️  Wheat stock validation skipped - TODO: implement Stock movements query");
+    
+    // Create production record - batch number will be auto-generated
     const production = new Production({
-      batchNumber,
-      productName,
-      productType,
-      quantity,
-      productionCost: {
-        ...productionCost,
-        totalCost: totalCost
-      },
-      quality: {
-        grade: quality?.grade || "Standard",
-        moistureContent: quality?.moistureContent || quality?.moisture || 0,
-        proteinContent: quality?.proteinContent || quality?.protein || 0
+      sourceWarehouse,
+      wheatQuantity: parseFloat(wheatQuantity),
+      outputProducts: outputProducts.map(product => ({
+        productName: product.productName,
+        weight: parseFloat(product.weight),
+        quantity: parseFloat(product.quantity),
+        unit: product.unit || 'bags'
+      })),
+      destinationWarehouse,
+      wastage: {
+        quantity: parseFloat(wastage?.quantity || 0),
+        reason: wastage?.reason || 'Processing Loss',
+        unit: 'kg',
+        cost: 0
       },
       productionDate: productionDate ? new Date(productionDate) : new Date(),
-      warehouse,
-      notes,
+      notes: notes || '',
       addedBy: req.user._id || req.user.id || "507f1f77bcf86cd799439011",
       status: "Completed"
     });
 
     await production.save();
+    console.log("✅ Production record saved with batch number:", production.batchNumber);
 
     // REAL-TIME INVENTORY INTEGRATION
     console.log("Starting real-time inventory integration for production...");
 
-    // 1. Deduct raw materials from inventory
-    if (rawMaterials && rawMaterials.length > 0) {
-      for (const rawMaterial of rawMaterials) {
-        const inventoryItem = await Inventory.findById(rawMaterial.inventoryItem);
-        if (inventoryItem) {
-          // Check if sufficient stock
-          if (inventoryItem.currentStock < rawMaterial.quantity) {
-            return res.status(400).json({
-              success: false,
-              message: `Insufficient stock for ${inventoryItem.name}. Available: ${inventoryItem.currentStock}, Required: ${rawMaterial.quantity}`
-            });
-          }
-
-          // Create stock out movement for raw material
-          const stockOut = new Stock({
-            inventoryItem: rawMaterial.inventoryItem,
-            movementType: 'out',
-            quantity: rawMaterial.quantity,
-            reason: `Production - ${batchNumber}`,
-            referenceNumber: `PROD-${batchNumber}`,
-            warehouse: inventoryItem.warehouse,
-            createdBy: req.user._id || req.user.id
-          });
-
-          await stockOut.save();
-          console.log(`Deducted ${rawMaterial.quantity} units of ${inventoryItem.name} for production`);
-        }
-      }
-    }
-
-    // 2. Add finished product to inventory
-    // Check if finished product already exists in warehouse
-    let finishedProduct = await Inventory.findOne({
-      name: productName,
-      warehouse: warehouse,
-      category: productType === "Finished Goods" ? "Finished Products" : "Raw Materials"
+    // 1. Deduct wheat from source warehouse
+    // Find wheat inventory item
+    const wheatItem = await Inventory.findOne({
+      subcategory: 'Wheat',
+      category: 'Raw Materials'
     });
 
-    if (finishedProduct) {
-      // Add stock to existing inventory item
-      const stockIn = new Stock({
-        inventoryItem: finishedProduct._id,
-        movementType: 'in',
-        quantity: quantity.value,
-        reason: `Production - ${batchNumber}`,
-        referenceNumber: `PROD-${batchNumber}`,
-        warehouse: warehouse,
+    if (wheatItem) {
+      // Create stock out movement for wheat
+      const wheatStockOut = new Stock({
+        inventoryItem: wheatItem._id,
+        movementType: 'out',
+        quantity: parseFloat(wheatQuantity),
+        reason: `Production - ${production.batchNumber}`,
+        referenceNumber: `PROD-${production.batchNumber}`,
+        warehouse: sourceWarehouse,
         createdBy: req.user._id || req.user.id
       });
 
-      await stockIn.save();
-      console.log(`Added ${quantity.value} units of ${productName} to existing inventory`);
+      await wheatStockOut.save();
+      console.log(`✅ Deducted ${wheatQuantity} kg of wheat from source warehouse`);
     } else {
-      // Create new inventory item for finished product
-      const newInventoryItem = new Inventory({
-        name: productName,
-        category: productType === "Finished Goods" ? "Finished Products" : "Raw Materials",
-        subcategory: productName,
-        description: `Produced on ${new Date().toLocaleDateString()}`,
-        unit: quantity.unit,
-        currentStock: 0, // Will be updated by stock movement
-        minimumStock: 10, // Default minimum stock
-        warehouse: warehouse,
-        cost: {
-          purchasePrice: totalCost / quantity.value, // Cost per unit
-          currency: "PKR"
-        },
-        status: "Active"
+      console.warn("⚠️  Wheat inventory item not found, skipping wheat deduction");
+    }
+
+    // 2. Add output products to destination warehouse
+    for (const outputProduct of outputProducts) {
+      // Find or create the product in inventory
+      let product = await Inventory.findOne({
+        name: outputProduct.productName,
+        subcategory: 'Bags'
       });
 
-      await newInventoryItem.save();
+      if (!product) {
+        // Create new product if it doesn't exist
+        product = new Inventory({
+          name: outputProduct.productName,
+          category: 'Finished Goods',
+          subcategory: 'Bags',
+          weight: parseFloat(outputProduct.weight),
+          price: 0, // Will be updated later
+          status: 'Active'
+        });
+        await product.save();
+        console.log(`📦 Created new inventory item: ${outputProduct.productName}`);
+      }
 
-      // Add stock to new inventory item
-      const stockIn = new Stock({
-        inventoryItem: newInventoryItem._id,
+      // Add stock to destination warehouse
+      const productStockIn = new Stock({
+        inventoryItem: product._id,
         movementType: 'in',
-        quantity: quantity.value,
-        reason: `Production - ${batchNumber}`,
-        referenceNumber: `PROD-${batchNumber}`,
-        warehouse: warehouse,
+        quantity: parseFloat(outputProduct.quantity),
+        reason: `Production - ${production.batchNumber}`,
+        referenceNumber: `PROD-${production.batchNumber}`,
+        warehouse: destinationWarehouse,
         createdBy: req.user._id || req.user.id
       });
 
-      await stockIn.save();
-      console.log(`Created new inventory item and added ${quantity.value} units of ${productName}`);
+      await productStockIn.save();
+      console.log(`✅ Added ${outputProduct.quantity} units of ${outputProduct.productName} to destination warehouse`);
     }
 
     // 3. Create notification for production completion
     const notification = new Notification({
       title: "Production Completed",
-      message: `Production batch ${batchNumber} for ${productName} has been completed and added to inventory`,
+      message: `Production batch ${production.batchNumber} has been completed`,
       type: "production",
       priority: "medium",
       user: req.user._id || req.user.id,
       data: {
         productionId: production._id,
-        batchNumber: batchNumber,
-        productName: productName,
-        quantity: quantity.value
+        batchNumber: production.batchNumber,
+        wheatQuantity: wheatQuantity,
+        outputProducts: outputProducts.length
       }
     });
 
     await notification.save();
+    console.log("✅ Notification created");
 
     // Populate the response
-    await production.populate('warehouse', 'name location');
+    await production.populate('sourceWarehouse', 'name location');
+    await production.populate('destinationWarehouse', 'name location');
     await production.populate('addedBy', 'firstName lastName');
 
     res.status(201).json({

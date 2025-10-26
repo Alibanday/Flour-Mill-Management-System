@@ -38,12 +38,19 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
   };
 
   const filteredPurchases = purchases.filter(purchase => {
-    const matchesSearch = purchase.purchaseNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         purchase.supplier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         purchase.productType?.toLowerCase().includes(searchTerm.toLowerCase());
+    const supplierName = typeof purchase.supplier === 'object' ? purchase.supplier.name : purchase.supplier;
+    const searchStr = searchTerm.toLowerCase();
+    
+    const matchesSearch = purchase.purchaseNumber?.toLowerCase().includes(searchStr) ||
+                         supplierName?.toLowerCase().includes(searchStr) ||
+                         purchase.productType?.toLowerCase().includes(searchStr);
     
     const matchesStatus = statusFilter === 'all' || purchase.status === statusFilter;
-    const matchesSupplier = supplierFilter === 'all' || purchase.supplier === supplierFilter;
+    
+    // Fix supplier filter comparison
+    const purchaseSupplierId = typeof purchase.supplier === 'object' ? purchase.supplier._id : purchase.supplier;
+    const matchesSupplier = supplierFilter === 'all' || purchaseSupplierId === supplierFilter;
+    
     const matchesCategory = categoryFilter === 'all' || purchase.productType === categoryFilter;
     
     let matchesDate = true;
@@ -126,11 +133,14 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Suppliers</option>
-          {uniqueSuppliers.map(supplier => (
-            <option key={supplier} value={supplier}>
-              {supplier || 'Unknown Supplier'}
-            </option>
-          ))}
+          {uniqueSuppliers.map(supplier => {
+            const supplierName = typeof supplier === 'object' ? supplier.name : supplier;
+            return (
+              <option key={typeof supplier === 'object' ? supplier._id : supplier} value={typeof supplier === 'object' ? supplier._id : supplier}>
+                {supplierName || 'Unknown Supplier'}
+              </option>
+            );
+          })}
         </select>
 
         <select
@@ -202,7 +212,7 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
                 
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">
-                    {purchase.supplier || 'Unknown Supplier'}
+                    {typeof purchase.supplier === 'object' ? purchase.supplier.name : purchase.supplier || 'Unknown Supplier'}
                   </div>
                   <div className="text-sm text-gray-500">
                     {purchase.productType || 'N/A'}
