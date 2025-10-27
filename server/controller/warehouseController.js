@@ -465,3 +465,324 @@ export const getWarehouseCapacityStatus = async (req, res) => {
     });
   }
 };
+
+// Get warehouse details with complete inventory
+export const getWarehouseInventoryDetails = async (req, res) => {
+  try {
+    const warehouseId = req.params.id;
+    
+    // Import required models
+    const Purchase = (await import("../model/Purchase.js")).default;
+    const BagPurchase = (await import("../model/BagPurchase.js")).default;
+    const FoodPurchase = (await import("../model/FoodPurchase.js")).default;
+    const Production = (await import("../model/Production.js")).default;
+    
+    // Get warehouse
+    const warehouse = await Warehouse.findById(warehouseId);
+    if (!warehouse) {
+      return res.status(404).json({
+        success: false,
+        message: "Warehouse not found"
+      });
+    }
+    
+    // Get all purchases for this warehouse (include all statuses except Cancelled)
+    const purchases = await Purchase.find({ 
+      warehouse: warehouseId,
+      status: { $in: ['Draft', 'Pending', 'Ordered', 'Received'] }
+    }).sort({ purchaseDate: -1 });
+    
+    // Get all bag purchases for this warehouse
+    const bagPurchases = await BagPurchase.find({ 
+      warehouse: warehouseId,
+      status: { $in: ['Pending', 'Received', 'Completed'] }
+    }).sort({ purchaseDate: -1 });
+    
+    // Get all food purchases for this warehouse
+    const foodPurchases = await FoodPurchase.find({ 
+      warehouse: warehouseId,
+      status: { $in: ['Pending', 'Approved', 'Completed'] }
+    }).sort({ purchaseDate: -1 });
+    
+    // Get all production records for this warehouse (destination warehouse)
+    const productionRecords = await Production.find({ 
+      destinationWarehouse: warehouseId,
+      status: { $in: ['In Progress', 'Completed', 'Quality Check', 'Approved'] }
+    }).sort({ productionDate: -1 });
+    
+    // Calculate bags inventory from purchases
+    const bagsInventory = {
+      ata: { totalBags: 0, bags: [] },
+      maida: { totalBags: 0, bags: [] },
+      suji: { totalBags: 0, bags: [] },
+      fine: { totalBags: 0, bags: [] }
+    };
+    
+    // Process regular purchases (with ata, maida, suji, fine structure)
+    purchases.forEach(purchase => {
+      if (purchase.purchaseType === 'Bags' || purchase.purchaseType === 'Other') {
+        if (purchase.bags?.ata?.quantity > 0) {
+          bagsInventory.ata.totalBags += purchase.bags.ata.quantity;
+          bagsInventory.ata.bags.push({
+            purchaseNumber: purchase.purchaseNumber,
+            quantity: purchase.bags.ata.quantity,
+            unit: purchase.bags.ata.unit,
+            date: purchase.purchaseDate
+          });
+        }
+        if (purchase.bags?.maida?.quantity > 0) {
+          bagsInventory.maida.totalBags += purchase.bags.maida.quantity;
+          bagsInventory.maida.bags.push({
+            purchaseNumber: purchase.purchaseNumber,
+            quantity: purchase.bags.maida.quantity,
+            unit: purchase.bags.maida.unit,
+            date: purchase.purchaseDate
+          });
+        }
+        if (purchase.bags?.suji?.quantity > 0) {
+          bagsInventory.suji.totalBags += purchase.bags.suji.quantity;
+          bagsInventory.suji.bags.push({
+            purchaseNumber: purchase.purchaseNumber,
+            quantity: purchase.bags.suji.quantity,
+            unit: purchase.bags.suji.unit,
+            date: purchase.purchaseDate
+          });
+        }
+        if (purchase.bags?.fine?.quantity > 0) {
+          bagsInventory.fine.totalBags += purchase.bags.fine.quantity;
+          bagsInventory.fine.bags.push({
+            purchaseNumber: purchase.purchaseNumber,
+            quantity: purchase.bags.fine.quantity,
+            unit: purchase.bags.fine.unit,
+            date: purchase.purchaseDate
+          });
+        }
+      }
+    });
+    
+    // Process bag purchases (with Map structure)
+    bagPurchases.forEach(purchase => {
+      if (purchase.bags) {
+        // Handle Map structure
+        if (purchase.bags instanceof Map) {
+          purchase.bags.forEach((bagData, productType) => {
+            const typeLower = productType.toLowerCase();
+            let inventoryType = 'ata'; // default
+            
+            if (typeLower.includes('ata')) inventoryType = 'ata';
+            else if (typeLower.includes('maida')) inventoryType = 'maida';
+            else if (typeLower.includes('suji')) inventoryType = 'suji';
+            else if (typeLower.includes('fine')) inventoryType = 'fine';
+            
+            if (bagData && bagData.quantity > 0) {
+              bagsInventory[inventoryType].totalBags += bagData.quantity;
+              bagsInventory[inventoryType].bags.push({
+                purchaseNumber: purchase.purchaseNumber,
+                quantity: bagData.quantity,
+                unit: bagData.unit,
+                date: purchase.purchaseDate
+              });
+            }
+          });
+        } 
+        // Handle object structure
+        else if (typeof purchase.bags === 'object') {
+          Object.keys(purchase.bags).forEach(productType => {
+            const bagData = purchase.bags[productType];
+            const typeLower = productType.toLowerCase();
+            let inventoryType = 'ata'; // default
+            
+            if (typeLower.includes('ata')) inventoryType = 'ata';
+            else if (typeLower.includes('maida')) inventoryType = 'maida';
+            else if (typeLower.includes('suji')) inventoryType = 'suji';
+            else if (typeLower.includes('fine')) inventoryType = 'fine';
+            
+            if (bagData && bagData.quantity > 0) {
+              bagsInventory[inventoryType].totalBags += bagData.quantity;
+              bagsInventory[inventoryType].bags.push({
+                purchaseNumber: purchase.purchaseNumber,
+                quantity: bagData.quantity,
+                unit: bagData.unit,
+                date: purchase.purchaseDate
+              });
+            }
+          });
+        }
+      }
+    });
+    
+    // Calculate wheat inventory from purchases
+    const wheatInventory = {
+      totalWheat: 0,
+      wheat: []
+    };
+    
+    // Process regular purchases for wheat
+    purchases.forEach(purchase => {
+      if ((purchase.purchaseType === 'Food' || purchase.purchaseType === 'Other') && purchase.food?.wheat?.quantity > 0) {
+        wheatInventory.totalWheat += purchase.food.wheat.quantity;
+        wheatInventory.wheat.push({
+          purchaseNumber: purchase.purchaseNumber,
+          quantity: purchase.food.wheat.quantity,
+          unit: purchase.food.wheat.unit,
+          date: purchase.purchaseDate,
+          source: purchase.food.wheat.source,
+          quality: purchase.food.wheat.quality
+        });
+      }
+    });
+    
+    // Process food purchases
+    foodPurchases.forEach(purchase => {
+      if (purchase.foodItems && purchase.foodItems.length > 0) {
+        purchase.foodItems.forEach(foodItem => {
+          wheatInventory.totalWheat += foodItem.quantity;
+          wheatInventory.wheat.push({
+            purchaseNumber: purchase.purchaseNumber,
+            quantity: foodItem.quantity,
+            unit: foodItem.unit,
+            date: purchase.purchaseDate,
+            source: 'Private',
+            quality: foodItem.quality || 'Standard'
+          });
+        });
+      }
+    });
+    
+    // Calculate production output inventory
+    const productionInventory = {
+      products: []
+    };
+    
+    productionRecords.forEach(production => {
+      production.outputProducts.forEach(product => {
+        const existingProduct = productionInventory.products.find(p => 
+          p.productName === product.productName && p.unit === product.unit
+        );
+        
+        if (existingProduct) {
+          existingProduct.totalQuantity += product.quantity;
+          existingProduct.totalWeight += product.totalWeight || 0;
+        } else {
+          productionInventory.products.push({
+            productName: product.productName,
+            quantity: product.quantity,
+            weight: product.weight,
+            unit: product.unit,
+            totalQuantity: product.quantity,
+            totalWeight: product.totalWeight || 0,
+            batchNumber: production.batchNumber,
+            productionDate: production.productionDate
+          });
+        }
+      });
+    });
+    
+    // Get actual stock levels from Stock movements
+    const Stock = (await import("../model/stock.js")).default;
+    const Inventory = (await import("../model/inventory.js")).default;
+    
+    // Get all stock movements for this warehouse
+    const stockMovements = await Stock.find({ warehouse: warehouseId })
+      .populate('inventoryItem')
+      .sort({ createdAt: -1 });
+    
+    // Calculate actual inventory by aggregating stock movements
+    const actualInventory = {};
+    
+    stockMovements.forEach(movement => {
+      if (!movement.inventoryItem) return;
+      
+      const productId = movement.inventoryItem._id.toString();
+      const productName = movement.inventoryItem.name || 'Unknown';
+      
+      if (!actualInventory[productId]) {
+        actualInventory[productId] = {
+          productId,
+          productName,
+          unit: movement.inventoryItem.unit || 'kg',
+          category: movement.inventoryItem.category || 'Unknown',
+          currentStock: 0,
+          movements: []
+        };
+      }
+      
+      // Aggregate stock movements
+      if (movement.movementType === 'in') {
+        actualInventory[productId].currentStock += movement.quantity;
+      } else if (movement.movementType === 'out') {
+        actualInventory[productId].currentStock -= movement.quantity;
+      }
+      
+      // Store movement details
+      actualInventory[productId].movements.push({
+        type: movement.movementType,
+        quantity: movement.quantity,
+        reason: movement.reason,
+        referenceNumber: movement.referenceNumber,
+        date: movement.createdAt
+      });
+    });
+    
+    // Convert to array and filter out products with 0 stock
+    const actualInventoryArray = Object.values(actualInventory)
+      .filter(item => item.currentStock > 0)
+      .sort((a, b) => b.currentStock - a.currentStock);
+    
+    // Calculate totals
+    const totalBags = bagsInventory.ata.totalBags + bagsInventory.maida.totalBags + 
+                      bagsInventory.suji.totalBags + bagsInventory.fine.totalBags;
+    
+    const totalWheat = wheatInventory.totalWheat;
+    const totalProductionProducts = productionInventory.products.length;
+    
+    // Calculate actual stock totals
+    const actualStockTotals = {
+      totalItems: actualInventoryArray.length,
+      totalQuantity: actualInventoryArray.reduce((sum, item) => sum + item.currentStock, 0),
+      totalValue: actualInventoryArray.reduce((sum, item) => {
+        const inventoryItem = stockMovements.find(m => m.inventoryItem?._id?.toString() === item.productId)?.inventoryItem;
+        const price = inventoryItem?.cost?.purchasePrice || 0;
+        return sum + (item.currentStock * price);
+      }, 0)
+    };
+    
+    const response = {
+      success: true,
+      data: {
+        warehouse: {
+          _id: warehouse._id,
+          warehouseNumber: warehouse.warehouseNumber,
+          name: warehouse.name,
+          location: warehouse.location,
+          status: warehouse.status,
+          capacity: warehouse.capacity,
+          createdAt: warehouse.createdAt
+        },
+        inventory: {
+          // Historical data from purchases
+          bags: bagsInventory,
+          wheat: wheatInventory,
+          production: productionInventory,
+          // Actual current stock
+          actualStock: actualInventoryArray,
+          actualStockTotals,
+          summary: {
+            totalBags,
+            totalWheat,
+            totalProductionProducts
+          }
+        }
+      }
+    };
+    
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Error in getWarehouseInventoryDetails:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving warehouse inventory details",
+      error: error.message
+    });
+  }
+};

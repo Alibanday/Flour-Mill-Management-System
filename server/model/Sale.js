@@ -66,7 +66,7 @@ const saleSchema = new mongoose.Schema({
     unit: {
       type: String,
       required: [true, "Unit is required"],
-      enum: ["kg", "tons", "bags", "pcs", "25kg bags", "50kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks"]
+      enum: ["kg", "tons", "bags", "pcs", "units", "25kg bags", "50kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks"]
     },
     unitPrice: {
       type: Number,

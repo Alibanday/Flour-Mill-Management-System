@@ -44,19 +44,12 @@ export const createSale = async (req, res) => {
         });
       }
 
-      // Check if product belongs to the selected warehouse
-      if (product.warehouse.toString() !== warehouse) {
+      // Check stock availability using 'weight' field (old inventory model doesn't have currentStock)
+      const availableStock = product.weight || 0;
+      if (availableStock < item.quantity) {
         return res.status(400).json({
           success: false,
-          message: `Product ${product.name} is not available in the selected warehouse`
-        });
-      }
-
-      // Check stock availability
-      if (product.currentStock < item.quantity) {
-        return res.status(400).json({
-          success: false,
-          message: `Insufficient stock for ${product.name}. Available: ${product.currentStock}, Requested: ${item.quantity}`
+          message: `Insufficient stock for ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`
         });
       }
 
@@ -68,7 +61,7 @@ export const createSale = async (req, res) => {
         product: item.product,
         productName: product.name,
         quantity: item.quantity,
-        unit: item.unit || product.unit || 'kg',
+        unit: item.unit || 'units', // Use 'units' as default
         unitPrice: item.unitPrice,
         totalPrice: totalPrice
       });
@@ -126,10 +119,18 @@ export const createSale = async (req, res) => {
       await stockOut.save();
       console.log(`Deducted ${item.quantity} units of ${item.productName} for sale`);
 
+      // Update product weight (old inventory model uses weight instead of currentStock)
+      const updatedProduct = await Inventory.findByIdAndUpdate(
+        item.product,
+        { $inc: { weight: -item.quantity } },
+        { new: true }
+      );
+      
+      console.log(`Updated ${item.productName} weight: ${updatedProduct.weight}`);
+      
       // Check if item is now low stock or out of stock
-      const updatedProduct = await Inventory.findById(item.product);
-      if (updatedProduct.currentStock === 0) {
-        // Create low stock notification
+      if (updatedProduct.weight === 0) {
+        // Create out of stock notification
         const notification = new Notification({
           title: "Product Out of Stock",
           message: `${item.productName} is now out of stock after sale`,
@@ -146,11 +147,11 @@ export const createSale = async (req, res) => {
           }
         });
         await notification.save();
-      } else if (updatedProduct.currentStock <= updatedProduct.minimumStock) {
-        // Create low stock notification
+      } else if (updatedProduct.weight <= 50) {
+        // Create low stock notification (using 50 as threshold)
         const notification = new Notification({
           title: "Low Stock Alert",
-          message: `${item.productName} is running low (${updatedProduct.currentStock} units remaining)`,
+          message: `${item.productName} is running low (${updatedProduct.weight} units remaining)`,
           type: "inventory",
           priority: "medium",
           user: req.user._id || req.user.id,
@@ -159,8 +160,7 @@ export const createSale = async (req, res) => {
           data: {
             productId: item.product,
             productName: item.productName,
-            currentStock: updatedProduct.currentStock,
-            minimumStock: updatedProduct.minimumStock,
+            currentStock: updatedProduct.weight,
             invoiceNumber: sale.invoiceNumber
           }
         });

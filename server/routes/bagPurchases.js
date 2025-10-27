@@ -159,13 +159,31 @@ router.post("/", [
     }
 
     // Map flat structure to nested structure expected by model
-    const { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, notes, unit } = req.body;
+    const { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, notes, unit, warehouse } = req.body;
 
     // Sanitize incoming status fields to match schema enums
     const allowedStatus = ["Pending", "Received", "Cancelled", "Completed"];
     const allowedPaymentStatus = ["Pending", "Partial", "Paid"];
     const safeStatus = allowedStatus.includes(status) ? status : "Pending";
     const safePaymentStatus = allowedPaymentStatus.includes(paymentStatus) ? paymentStatus : "Pending";
+    
+    // Validate warehouse
+    if (!warehouse || !mongoose.Types.ObjectId.isValid(warehouse)) {
+      // Try to get the first available warehouse as fallback
+      const Warehouse = (await import("../model/wareHouse.js")).default;
+      const firstWarehouse = await Warehouse.findOne({ status: 'Active' });
+      if (firstWarehouse) {
+        console.log('⚠️ No valid warehouse provided (bag purchase), using fallback:', firstWarehouse._id);
+        var warehouseId = firstWarehouse._id;
+      } else {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Valid warehouse ID is required" 
+        });
+      }
+    } else {
+      var warehouseId = new mongoose.Types.ObjectId(warehouse);
+    }
     
     // Create the bags object with the specific product type as Map
     const bags = new Map();
@@ -203,12 +221,81 @@ router.post("/", [
       status: safeStatus,
       paymentStatus: safePaymentStatus,
       notes: notes || "",
-      warehouse: new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
+      warehouse: warehouseId,
       createdBy: new mongoose.Types.ObjectId(req.user._id || req.user.id || "507f1f77bcf86cd799439011")
     };
 
     const newPurchase = new BagPurchase(bagPurchaseData);
     await newPurchase.save();
+
+    // Add stock movements for bags purchased
+    try {
+      const Inventory = (await import("../model/inventory.js")).default;
+      const Stock = (await import("../model/stock.js")).default;
+      
+      const warehouseId = newPurchase.warehouse;
+      
+      // Process each bag type in the purchase
+      if (bags && typeof bags === 'object') {
+        let bagEntries = [];
+        
+        // Handle Map structure
+        if (bags instanceof Map) {
+          bagEntries = Array.from(bags.entries());
+        } 
+        // Handle object structure
+        else {
+          bagEntries = Object.entries(bags);
+        }
+        
+        for (const [productType, bagData] of bagEntries) {
+          if (bagData && bagData.quantity > 0) {
+            // Find or create inventory item
+            let inventoryItem = await Inventory.findOne({
+              name: { $regex: productType, $options: 'i' },
+              warehouse: warehouseId
+            });
+            
+            if (!inventoryItem) {
+              // Create new inventory item for this bag type
+              inventoryItem = new Inventory({
+                name: `${productType} Bags`,
+                category: 'Packaging Materials',
+                subcategory: 'Bags',
+                description: `Bags purchased`,
+                unit: bagData.unit || 'bags',
+                currentStock: 0, // Will be updated by stock movement
+                minimumStock: 10,
+                warehouse: warehouseId,
+                cost: {
+                  purchasePrice: bagData.unitPrice || 0,
+                  currency: 'PKR'
+                },
+                status: 'Active'
+              });
+              await inventoryItem.save();
+            }
+            
+            // Create stock in movement
+            const stockIn = new Stock({
+              inventoryItem: inventoryItem._id,
+              movementType: 'in',
+              quantity: bagData.quantity,
+              reason: `Bag Purchase - ${newPurchase.purchaseNumber}`,
+              referenceNumber: newPurchase.purchaseNumber,
+              warehouse: warehouseId,
+              createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
+            });
+            
+            await stockIn.save();
+            console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${productType} to warehouse`);
+          }
+        }
+      }
+    } catch (stockError) {
+      console.error("⚠️ Error adding stock to warehouse:", stockError);
+      // Don't fail the request if stock addition fails
+    }
 
     // Populate the response
     await newPurchase.populate('supplier', 'name contactPerson email phone');

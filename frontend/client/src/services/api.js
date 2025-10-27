@@ -69,6 +69,7 @@ export const API_ENDPOINTS = {
     CREATE: 'http://localhost:7000/api/warehouses/create',
     GET_ALL: 'http://localhost:7000/api/warehouses/all',
     GET_BY_ID: (id) => `http://localhost:7000/api/warehouses/${id}`,
+    GET_INVENTORY: (id) => `http://localhost:7000/api/warehouses/${id}/inventory`,
     UPDATE: (id) => `http://localhost:7000/api/warehouses/${id}`,
     DELETE: (id) => `http://localhost:7000/api/warehouses/${id}`,
     SEARCH: 'http://localhost:7000/api/warehouses/search',

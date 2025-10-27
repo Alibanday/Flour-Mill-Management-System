@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaWarehouse, FaSearch, FaPlus, FaEdit, FaTrash, FaEye, 
   FaMapMarkerAlt, FaFilter, FaRedo 
@@ -10,6 +11,7 @@ import WarehouseForm from './WarehouseForm';
 
 const WarehouseList = () => {
   const { user, isAdmin, isManager } = useAuth();
+  const navigate = useNavigate();
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -269,7 +271,11 @@ const WarehouseList = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredWarehouses.map((warehouse) => (
-                  <tr key={warehouse._id} className="hover:bg-gray-50">
+                  <tr 
+                    key={warehouse._id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => navigate(`/warehouses/${warehouse._id}`)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -312,9 +318,9 @@ const WarehouseList = () => {
                       <div className="flex items-center space-x-2">
                         {/* View Button */}
                         <button
-                          onClick={() => {
-                            // TODO: Implement view functionality
-                            toast.info('View functionality coming soon');
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/warehouses/${warehouse._id}`);
                           }}
                           className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
                           title="View warehouse details"
@@ -325,7 +331,10 @@ const WarehouseList = () => {
                         {/* Edit Button - Only show if user has permission */}
                         {(isAdmin() || isManager()) && (
                           <button
-                            onClick={() => handleEdit(warehouse)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(warehouse);
+                            }}
                             className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
                             title="Edit warehouse"
                           >
@@ -336,7 +345,10 @@ const WarehouseList = () => {
                         {/* Delete Button - Only show if user has permission */}
                         {isAdmin() && (
                           <button
-                            onClick={() => handleDelete(warehouse._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(warehouse._id);
+                            }}
                             className="text-red-600 hover:text-red-900 transition-colors duration-200"
                             title="Delete warehouse"
                           >

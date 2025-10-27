@@ -101,7 +101,7 @@ export default function Dashboard() {
         color: "bg-green-100 text-green-600"
       },
       { 
-        name: "Sales & Purchase", 
+        name: "Sales", 
         shortcut: "F8", 
         icon: <FaReceipt />,
         action: () => navigate("/sales"),
@@ -112,7 +112,7 @@ export default function Dashboard() {
         name: "Warehouse", 
         shortcut: "F9", 
         icon: <FaWarehouse />, 
-        action: () => navigate("/warehouse"),
+        action: () => navigate("/warehouses"),
         roles: ['Admin', 'General Manager', 'Warehouse Manager'],
         color: "bg-indigo-100 text-indigo-600"
       },

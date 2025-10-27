@@ -6,10 +6,11 @@ import Login from './pages/Login';
 import UserManagementPage from './pages/UserManagementPage';
 import AccountsPage from './pages/AccountsPage';
 import EmployeesPage from './pages/EmployeesPage';
-import SalesPurchasePage from './pages/SalesPurchasePage';
+import SalesPage from './pages/SalesPage';
 import ProductionPage from './pages/ProductionPage';
 import ReportsPage from './pages/ReportsPage';
 import WarehousePage from './pages/WarehousePage';
+import WarehouseDetail from './components/WarehouseManagement/WarehouseDetail';
 import InventoryPage from './pages/InventoryPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
 import BagFoodPurchasePage from './pages/BagFoodPurchasePage';
@@ -75,12 +76,12 @@ function App() {
           } 
         />
         
-        {/* Sales & Purchase Management - Admin, General Manager, and Sales Manager */}
+        {/* Sales Management - Admin, General Manager, and Sales Manager */}
         <Route 
           path="/sales" 
           element={
             <SalesManagerRoute>
-              <SalesPurchasePage />
+              <SalesPage />
             </SalesManagerRoute>
           } 
         />
@@ -216,11 +217,19 @@ function App() {
         />
         
         {/* Warehouse - Admin, General Manager, and Warehouse Manager */}
-                <Route
-          path="/warehouse"
+        <Route
+          path="/warehouses"
           element={
             <WarehouseManagerRoute>
               <WarehousePage />
+            </WarehouseManagerRoute>
+          }
+        />
+        <Route
+          path="/warehouses/:id"
+          element={
+            <WarehouseManagerRoute>
+              <WarehouseDetail />
             </WarehouseManagerRoute>
           }
         />

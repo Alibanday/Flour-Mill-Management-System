@@ -44,7 +44,7 @@ router.get("/customers/search", [
         { businessName: { $regex: q, $options: 'i' } }
       ]
     })
-    .select('firstName lastName email phone businessName businessType customerType creditLimit creditUsed status')
+    .select('firstName lastName email phone businessName businessType customerType creditLimit creditUsed outstandingBalance status address customerNumber _id')
     .limit(parseInt(limit))
     .lean();
     

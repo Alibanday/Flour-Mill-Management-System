@@ -160,6 +160,24 @@ router.post("/", [
     // Map flat structure to nested structure expected by model
     const { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, paidAmount, notes, unit, expectedDeliveryDate, purchaseType, warehouse } = req.body;
     
+    // Validate warehouse
+    if (!warehouse || !mongoose.Types.ObjectId.isValid(warehouse)) {
+      // Try to get the first available warehouse as fallback
+      const Warehouse = (await import("../model/wareHouse.js")).default;
+      const firstWarehouse = await Warehouse.findOne({ status: 'Active' });
+      if (firstWarehouse) {
+        console.log('⚠️ No valid warehouse provided (food purchase), using fallback:', firstWarehouse._id);
+        var warehouseId = firstWarehouse._id;
+      } else {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Valid warehouse ID is required" 
+        });
+      }
+    } else {
+      var warehouseId = new mongoose.Types.ObjectId(warehouse);
+    }
+    
     // Create the foodItems array with the single item
     const foodItems = [{
       name: productType || "Wheat",
@@ -207,6 +225,7 @@ router.post("/", [
       status: status || "Pending",
       deliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : undefined,
       notes: notes || "",
+      warehouse: warehouseId,
       createdBy: new mongoose.Types.ObjectId(req.user._id || req.user.id || "507f1f77bcf86cd799439011")
     };
 
@@ -214,40 +233,58 @@ router.post("/", [
       const newPurchase = new FoodPurchase(foodPurchaseData);
       await newPurchase.save();
 
-      // Add wheat stock to selected warehouse
-      if (warehouse && warehouse !== '') {
-        try {
-          // Import models
-          const Inventory = (await import("../model/inventory.js")).default;
-          const Stock = (await import("../model/stock.js")).default;
-          
-          // Find wheat inventory item
-          const wheatItem = await Inventory.findOne({
-            subcategory: 'Wheat',
-            category: 'Raw Materials'
+      // Add food stock to selected warehouse
+      try {
+        // Import models
+        const Inventory = (await import("../model/inventory.js")).default;
+        const Stock = (await import("../model/stock.js")).default;
+        
+        // Process each food item in the purchase
+        for (const foodItem of foodItems) {
+          // Find or create inventory item
+          let inventoryItem = await Inventory.findOne({
+            name: { $regex: foodItem.name, $options: 'i' },
+            warehouse: warehouseId
           });
-
-          if (wheatItem) {
-            // Create stock in movement for wheat
-            const wheatStockIn = new Stock({
-              inventoryItem: wheatItem._id,
-              movementType: 'in',
-              quantity: parseFloat(quantity) || 0,
-              reason: `Food Purchase - ${generatedPurchaseNumber}`,
-              referenceNumber: generatedPurchaseNumber,
-              warehouse: mongoose.isValidObjectId(warehouse) ? new mongoose.Types.ObjectId(warehouse) : warehouse,
-              createdBy: mongoose.isValidObjectId(req.user._id || req.user.id) ? new mongoose.Types.ObjectId(req.user._id || req.user.id) : new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
+          
+          if (!inventoryItem) {
+            // Create new inventory item for this food type
+            inventoryItem = new Inventory({
+              name: foodItem.name,
+              category: foodItem.category || 'Raw Materials',
+              subcategory: productType,
+              description: `Food purchased`,
+              unit: foodItem.unit || 'kg',
+              currentStock: 0, // Will be updated by stock movement
+              minimumStock: 10,
+              warehouse: warehouseId,
+              cost: {
+                purchasePrice: foodItem.unitPrice || 0,
+                currency: 'PKR'
+              },
+              status: 'Active'
             });
-
-            await wheatStockIn.save();
-            console.log(`✅ Added ${quantity} kg of wheat to warehouse ${warehouse}`);
-          } else {
-            console.warn("⚠️  Wheat inventory item not found, skipping stock addition");
+            await inventoryItem.save();
+            console.log(`✅ Created new inventory item: ${foodItem.name}`);
           }
-        } catch (stockError) {
-          console.error("⚠️  Error adding stock to warehouse:", stockError);
-          // Don't fail the request if stock addition fails
+          
+          // Create stock in movement
+          const stockIn = new Stock({
+            inventoryItem: inventoryItem._id,
+            movementType: 'in',
+            quantity: foodItem.quantity,
+            reason: `Food Purchase - ${generatedPurchaseNumber}`,
+            referenceNumber: generatedPurchaseNumber,
+            warehouse: warehouseId,
+            createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
+          });
+          
+          await stockIn.save();
+          console.log(`✅ Added ${foodItem.quantity} ${foodItem.unit} of ${foodItem.name} to warehouse`);
         }
+      } catch (stockError) {
+        console.error("⚠️ Error adding stock to warehouse:", stockError);
+        // Don't fail the request if stock addition fails
       }
 
       // Populate the response

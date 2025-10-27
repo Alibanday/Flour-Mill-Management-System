@@ -10,7 +10,8 @@ import {
   updateWarehouseStatus,
   assignWarehouseManager,
   getWarehouseInventorySummary,
-  getWarehouseCapacityStatus
+  getWarehouseCapacityStatus,
+  getWarehouseInventoryDetails
 } from "../controller/warehouseController.js";
 import { protect, authorize } from "../middleware/auth.js";
 import { isOfflineModeEnabled } from "../config/offline-mode.js";
@@ -39,6 +40,9 @@ router.get("/search", searchWarehouses);
 
 // Route to get active warehouses
 router.get("/active", getActiveWarehouses);
+
+// Route to get warehouse capacity status
+router.get("/capacity/status", getWarehouseCapacityStatus);
 
 // Route to get warehouse statistics (MUST be before /:id route)
 router.get("/stats", async (req, res) => {
@@ -105,6 +109,12 @@ router.get("/stats", async (req, res) => {
   }
 });
 
+// Route to get warehouse inventory summary (MUST be before /:id route)
+router.get("/:id/inventory-summary", getWarehouseInventorySummary);
+
+// Route to get warehouse inventory details with products (MUST be before /:id route)
+router.get("/:id/inventory", getWarehouseInventoryDetails);
+
 // Route to get a single warehouse by ID
 router.get("/:id", getWarehouseById);
 
@@ -119,11 +129,5 @@ router.patch("/:id/status", authorize('Admin', 'Manager'), updateWarehouseStatus
 
 // Route to assign warehouse manager (Admin only)
 router.patch("/:id/assign-manager", authorize('Admin'), assignWarehouseManager);
-
-// Route to get warehouse inventory summary
-router.get("/:id/inventory-summary", getWarehouseInventorySummary);
-
-// Route to get warehouse capacity status
-router.get("/capacity/status", getWarehouseCapacityStatus);
 
 export default router;

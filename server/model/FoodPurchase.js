@@ -120,6 +120,11 @@ const foodPurchaseSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    warehouse: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Warehouse",
+      required: false,
+    },
     attachments: [{
       filename: String,
       path: String,
