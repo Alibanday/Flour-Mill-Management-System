@@ -3,6 +3,7 @@ import { FaSignInAlt, FaEye, FaEyeSlash, FaUser, FaLock, FaShieldAlt } from 'rea
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { API_ENDPOINTS } from '../../services/api';
 
 export default function LoginForm() {
   const [formData, setFormData] = useState({
@@ -95,7 +96,7 @@ export default function LoginForm() {
 
       // Try real API login if not found in mock users
       try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -106,19 +107,24 @@ export default function LoginForm() {
           })
         });
         
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Login failed');
+        }
+        
         const result = await response.json();
         
         if (result.success) {
           // Use the login function from useAuth to store the user data
           login(result.user, result.token);
-          toast.success(`Welcome ${result.user.firstName}! You're logged in as ${result.user.role}`);
+          toast.success(`Welcome ${result.user.firstName || result.user.email}! You're logged in as ${result.user.role}`);
           navigate('/dashboard');
         } else {
           toast.error(result.message || 'Invalid email or password. Please try again.');
         }
       } catch (apiError) {
         console.error('API login error:', apiError);
-        toast.error('Login failed. Please try again.');
+        toast.error(apiError.message || 'Login failed. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);

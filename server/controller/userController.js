@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import bcrypt from "bcrypt";
 import User from "../model/user.js";
 import mongoose from "mongoose";
 
@@ -19,10 +20,21 @@ export const createUser = async (req, res) => {
       profileUrl = result.secure_url;
     }
 
-    const user = new User({ ...req.body, profileImage: profileUrl });
+    // Hash password before saving
+    const userData = { ...req.body, profileImage: profileUrl };
+    if (userData.password) {
+      const salt = await bcrypt.genSalt(10);
+      userData.password = await bcrypt.hash(userData.password, salt);
+    }
+
+    const user = new User(userData);
     await user.save();
 
-    res.status(201).json({ message: "User created successfully", user });
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(201).json({ message: "User created successfully", user: userResponse });
   } catch (err) {
     console.error(err);
 
@@ -91,13 +103,23 @@ export const updateUser = async (req, res) => {
       updatedData.profileImage = result.secure_url;
     }
 
+    // Hash password if provided
+    if (updatedData.password) {
+      const salt = await bcrypt.genSalt(10);
+      updatedData.password = await bcrypt.hash(updatedData.password, salt);
+    }
+
     const user = await User.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json({ message: "User updated successfully", user });
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(200).json({ message: "User updated successfully", user: userResponse });
   } catch (err) {
     console.error(err);
 
