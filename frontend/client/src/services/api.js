@@ -20,10 +20,16 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('✅ API Request:', config.method?.toUpperCase(), config.url);
+      console.log('✅ Authorization header set:', config.headers.Authorization.substring(0, 30) + '...');
+    } else {
+      console.warn('⚠️ API Request without token:', config.method?.toUpperCase(), config.url);
     }
+    console.log('📋 Request headers:', JSON.stringify(config.headers, null, 2));
     return config;
   },
   (error) => {
+    console.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -35,11 +41,24 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('role');
-      window.location.href = '/login';
+      // Only redirect if we're not already on the login page
+      // and if this is not a login request itself
+      // and if we're not on the warehouse-manager-dashboard (which might fail if warehouse not found)
+      const currentPath = window.location.pathname;
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      const isWarehouseManagerPage = currentPath.includes('warehouse-manager');
+      
+      // Don't redirect if:
+      // 1. Already on login page
+      // 2. This is a login request
+      // 3. On warehouse-manager-dashboard (let the component handle the error)
+      if (!isLoginRequest && currentPath !== '/login' && !isWarehouseManagerPage) {
+        // Token expired or invalid
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

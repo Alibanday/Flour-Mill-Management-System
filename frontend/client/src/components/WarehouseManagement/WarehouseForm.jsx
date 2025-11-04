@@ -51,8 +51,32 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
     fetchManagers();
   }, []);
 
+  // When managers are loaded and warehouse has a manager, populate email
+  useEffect(() => {
+    if (managers.length > 0 && formData.manager) {
+      const selectedManager = managers.find(m => m._id === formData.manager);
+      if (selectedManager && selectedManager.email) {
+        // Only update if email doesn't match or is empty
+        if (formData.contact.email !== selectedManager.email) {
+          setFormData(prev => ({
+            ...prev,
+            contact: {
+              ...prev.contact,
+              email: selectedManager.email
+            }
+          }));
+        }
+      }
+    }
+  }, [managers]);
+
   useEffect(() => {
     if (warehouse && mode === 'edit') {
+      // Find manager email if manager is assigned
+      const managerEmail = warehouse.manager?.email || 
+                          (warehouse.manager && managers.find(m => m._id === warehouse.manager)?.email) ||
+                          warehouse.contact?.email || '';
+      
       setFormData({
         name: warehouse.name || '',
         location: warehouse.location || '',
@@ -65,7 +89,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
         },
         contact: {
           phone: warehouse.contact?.phone || '',
-          email: warehouse.contact?.email || '',
+          email: managerEmail || warehouse.contact?.email || '',
           address: {
             street: warehouse.contact?.address?.street || '',
             city: warehouse.contact?.address?.city || '',
@@ -102,7 +126,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
     }
     // Clear any existing errors when form opens
     setErrors({});
-  }, [warehouse, mode]);
+  }, [warehouse, mode, managers]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -294,6 +318,39 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
     }
   };
 
+  // Handle manager selection change - auto-populate email
+  const handleManagerChange = (e) => {
+    const managerId = e.target.value;
+    
+    // Update manager field
+    handleInputChange(e);
+    
+    // Find selected manager and populate email
+    if (managerId) {
+      const selectedManager = managers.find(m => m._id === managerId);
+      if (selectedManager && selectedManager.email) {
+        setFormData(prev => ({
+          ...prev,
+          manager: managerId,
+          contact: {
+            ...prev.contact,
+            email: selectedManager.email
+          }
+        }));
+      }
+    } else {
+      // Clear email if no manager selected
+      setFormData(prev => ({
+        ...prev,
+        manager: '',
+        contact: {
+          ...prev.contact,
+          email: ''
+        }
+      }));
+    }
+  };
+
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
       onCancel();
@@ -412,7 +469,7 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
               <select
                 name="manager"
                 value={formData.manager}
-                onChange={handleInputChange}
+                onChange={handleManagerChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Manager (Optional)</option>
@@ -422,6 +479,11 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
                   </option>
                 ))}
               </select>
+              {formData.manager && (
+                <p className="mt-1 text-sm text-gray-500">
+                  Email will be automatically populated from selected manager
+                </p>
+              )}
             </div>
           </div>
 
@@ -505,19 +567,21 @@ const WarehouseForm = ({ warehouse = null, onSave, onCancel, mode = 'create' }) 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
+                  Email <span className="text-gray-500 text-xs">(Auto-filled from Manager)</span>
                 </label>
                 <input
                   type="email"
                   name="contact.email"
                   value={formData.contact.email}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    contact: { ...prev.contact, email: e.target.value }
-                  }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter email address"
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                  placeholder={formData.manager ? "Select a manager to auto-fill email" : "Select a manager first"}
                 />
+                {!formData.manager && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select a warehouse manager above to populate email automatically
+                  </p>
+                )}
               </div>
             </div>
           </div>

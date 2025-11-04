@@ -37,16 +37,39 @@ export const login = async (req, res) => {
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || "yourSecretKey", { expiresIn: "9d" });
 
+    // If user doesn't have warehouse field but is a warehouse manager, try to find warehouse by manager field
+    let warehouseId = user.warehouse;
+    if (!warehouseId && user.role === 'Warehouse Manager') {
+      try {
+        const Warehouse = (await import("../model/wareHouse.js")).default;
+        const warehouse = await Warehouse.findOne({ manager: user._id });
+        if (warehouse) {
+          warehouseId = warehouse._id;
+          // Update user's warehouse field for future logins
+          await User.findByIdAndUpdate(user._id, { warehouse: warehouse._id });
+          console.log('Found and assigned warehouse to manager:', warehouse._id);
+        } else {
+          console.log('No warehouse found for manager:', user._id);
+        }
+      } catch (err) {
+        console.error('Error finding warehouse for manager:', err);
+      }
+    }
+
+    // Convert warehouseId to string if it exists (MongoDB ObjectId serialization)
+    const warehouseIdString = warehouseId ? warehouseId.toString() : null;
+
     res.json({ 
       success: true,
       token, 
       user: { 
-        id: user._id, 
+        _id: user._id.toString(),
+        id: user._id.toString(), // Keep both for compatibility
         email: user.email, 
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
-        warehouse: user.warehouse
+        warehouse: warehouseIdString
       } 
     });
   } catch (err) {

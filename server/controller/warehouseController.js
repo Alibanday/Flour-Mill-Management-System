@@ -91,6 +91,21 @@ export const addWarehouse = async (req, res) => {
 
       console.log('Warehouse saved successfully');
 
+      // Update User model to set warehouse field when manager is assigned
+      if (manager) {
+        try {
+          await User.findByIdAndUpdate(
+            manager,
+            { warehouse: newWarehouse._id },
+            { new: true }
+          );
+          console.log('Updated user warehouse field for manager:', manager);
+        } catch (userUpdateError) {
+          console.error('Error updating user warehouse field:', userUpdateError);
+          // Don't fail the whole operation if user update fails
+        }
+      }
+
       res.status(201).json({ 
         success: true,
         message: "Warehouse added successfully", 
@@ -220,11 +235,31 @@ export const getWarehouseById = async (req, res) => {
 // Update a warehouse by ID
 export const updateWarehouse = async (req, res) => {
   try {
-    const { warehouseNumber, name, location, status, description } = req.body;
+    const { warehouseNumber, name, location, status, description, manager, capacity, contact } = req.body;
+    
+    // Get the current warehouse to check for manager changes
+    const currentWarehouse = await Warehouse.findById(req.params.id);
+    if (!currentWarehouse) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Warehouse not found" 
+      });
+    }
+
+    // Prepare update data
+    const updateData = {};
+    if (warehouseNumber !== undefined) updateData.warehouseNumber = warehouseNumber;
+    if (name !== undefined) updateData.name = name;
+    if (location !== undefined) updateData.location = location;
+    if (status !== undefined) updateData.status = status;
+    if (description !== undefined) updateData.description = description;
+    if (manager !== undefined) updateData.manager = manager;
+    if (capacity !== undefined) updateData.capacity = capacity;
+    if (contact !== undefined) updateData.contact = contact;
 
     const updatedWarehouse = await Warehouse.findByIdAndUpdate(
       req.params.id,
-      { warehouseNumber, name, location, status, description },
+      updateData,
       { new: true }
     );
 
@@ -233,6 +268,38 @@ export const updateWarehouse = async (req, res) => {
         success: false,
         message: "Warehouse not found" 
       });
+    }
+
+    // Handle manager assignment changes
+    const oldManagerId = currentWarehouse.manager?.toString();
+    const newManagerId = manager ? manager.toString() : null;
+
+    // If manager changed, update User models
+    if (oldManagerId !== newManagerId) {
+      try {
+        // Clear warehouse field from old manager if exists
+        if (oldManagerId) {
+          await User.findByIdAndUpdate(
+            oldManagerId,
+            { $unset: { warehouse: "" } },
+            { new: true }
+          );
+          console.log('Cleared warehouse field from old manager:', oldManagerId);
+        }
+
+        // Set warehouse field for new manager
+        if (newManagerId) {
+          await User.findByIdAndUpdate(
+            newManagerId,
+            { warehouse: updatedWarehouse._id },
+            { new: true }
+          );
+          console.log('Updated warehouse field for new manager:', newManagerId);
+        }
+      } catch (userUpdateError) {
+        console.error('Error updating user warehouse fields:', userUpdateError);
+        // Don't fail the whole operation if user update fails
+      }
     }
 
     res.status(200).json({ 
@@ -373,6 +440,18 @@ export const assignWarehouseManager = async (req, res) => {
       });
     }
 
+    // Get current warehouse to check for manager changes
+    const currentWarehouse = await Warehouse.findById(req.params.id);
+    if (!currentWarehouse) {
+      return res.status(404).json({
+        success: false,
+        message: "Warehouse not found"
+      });
+    }
+
+    const oldManagerId = currentWarehouse.manager?.toString();
+    const newManagerId = managerId.toString();
+
     const updatedWarehouse = await Warehouse.findByIdAndUpdate(
       req.params.id,
       { manager: managerId },
@@ -384,6 +463,32 @@ export const assignWarehouseManager = async (req, res) => {
         success: false,
         message: "Warehouse not found"
       });
+    }
+
+    // Update User models when manager changes
+    if (oldManagerId !== newManagerId) {
+      try {
+        // Clear warehouse field from old manager if exists
+        if (oldManagerId) {
+          await User.findByIdAndUpdate(
+            oldManagerId,
+            { $unset: { warehouse: "" } },
+            { new: true }
+          );
+          console.log('Cleared warehouse field from old manager:', oldManagerId);
+        }
+
+        // Set warehouse field for new manager
+        await User.findByIdAndUpdate(
+          newManagerId,
+          { warehouse: updatedWarehouse._id },
+          { new: true }
+        );
+        console.log('Updated warehouse field for new manager:', newManagerId);
+      } catch (userUpdateError) {
+        console.error('Error updating user warehouse fields:', userUpdateError);
+        // Don't fail the whole operation if user update fails
+      }
     }
 
     res.status(200).json({

@@ -86,11 +86,21 @@ export default function LoginForm() {
         localStorage.setItem('user', JSON.stringify(mockUser));
         localStorage.setItem('role', mockUser.role);
         
-        // Redirect to dashboard
-        navigate('/dashboard');
+        // Update auth state
+        login(mockUser, mockResult.token);
+        
+        // Small delay to ensure state is updated
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Show success message
         toast.success(`Welcome ${mockUser.firstName}! You're logged in as ${mockUser.role}`);
+        
+        // Redirect based on role
+        if (mockUser.role === 'Warehouse Manager') {
+          navigate('/warehouse-manager-dashboard');
+        } else {
+          navigate('/dashboard');
+        }
         return;
       }
 
@@ -116,9 +126,26 @@ export default function LoginForm() {
         
         if (result.success) {
           // Use the login function from useAuth to store the user data
+          console.log('Login successful, user data:', result.user);
+          console.log('Warehouse ID in login response:', result.user.warehouse);
           login(result.user, result.token);
+          
+          // Verify it was stored correctly
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          console.log('Stored user data:', storedUser);
+          console.log('Stored warehouse ID:', storedUser.warehouse);
+          
+          // Small delay to ensure state is updated
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           toast.success(`Welcome ${result.user.firstName || result.user.email}! You're logged in as ${result.user.role}`);
-          navigate('/dashboard');
+          
+          // Redirect based on role
+          if (result.user.role === 'Warehouse Manager') {
+            navigate('/warehouse-manager-dashboard');
+          } else {
+            navigate('/dashboard');
+          }
         } else {
           toast.error(result.message || 'Invalid email or password. Please try again.');
         }

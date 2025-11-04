@@ -48,7 +48,9 @@ app.use(cors({
     "http://localhost:3000"
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  credentials: true
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Authorization"]
 }));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -97,12 +99,16 @@ app.get("/api/health", (_, res) => {
 const PORT = process.env.PORT || 7000;
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Connect to MongoDB
-  connectWithRetry();
+  // Connect to MongoDB (but don't wait - let it connect in background)
+  connectWithRetry().then(() => {
+    console.log('✅ Database connection established');
+  }).catch((err) => {
+    console.error('❌ Database connection failed:', err.message);
+  });
 
   // Lightweight scheduler for notifications (runs every 60s in dev)
   const intervalMs = parseInt(process.env.NOTIFICATION_CHECK_INTERVAL_MS || '60000');

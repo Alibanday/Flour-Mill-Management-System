@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
@@ -19,6 +19,13 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
+
+  // Redirect warehouse managers to their own dashboard
+  useEffect(() => {
+    if (isWarehouseManager()) {
+      navigate('/warehouse-manager-dashboard');
+    }
+  }, [isWarehouseManager, navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -286,7 +293,8 @@ export default function Dashboard() {
       </header>
 
       <div className="flex w-full">
-        {/* Sidebar */}
+        {/* Sidebar - Hidden for Warehouse Managers */}
+        {!isWarehouseManager() && (
         <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
           <div className="p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('navigation.mainMenu')}</h3>
@@ -421,6 +429,7 @@ export default function Dashboard() {
             </ul>
           </div>
         </aside>
+        )}
 
         {/* Main Content */}
         <main className="flex-1 p-6 w-full">

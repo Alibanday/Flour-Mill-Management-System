@@ -25,6 +25,7 @@ import RepackingPage from './pages/RepackingPage';
 import ProductionCostPage from './pages/ProductionCostPage';
 import StockPage from './pages/StockPage';
 import WarehouseManagerDashboard from './pages/WarehouseManagerDashboard';
+import DamageReportPage from './pages/DamageReportPage';
 import ProtectedRoute, { AdminRoute, GeneralManagerRoute, SalesManagerRoute, ProductionManagerRoute, WarehouseManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
 
 function App() {
@@ -258,6 +259,16 @@ function App() {
           element={
             <WarehouseManagerRoute>
               <WarehouseManagerDashboard />
+            </WarehouseManagerRoute>
+          } 
+        />
+        
+        {/* Damage Report Page */}
+        <Route 
+          path="/damage-report" 
+          element={
+            <WarehouseManagerRoute>
+              <DamageReportPage />
             </WarehouseManagerRoute>
           } 
         />
