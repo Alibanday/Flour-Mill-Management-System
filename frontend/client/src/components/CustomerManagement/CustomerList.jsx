@@ -293,9 +293,9 @@ export default function CustomerList({ onEditCustomer, onAddCustomer }) {
                       {customer.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div>Limit: ₹{customer.creditLimit?.toLocaleString() || 0}</div>
-                    <div className="text-gray-500">Used: ₹{customer.creditUsed?.toLocaleString() || 0}</div>
+                  <td className="px-6 py-4 text-sm text-gray-900 min-w-[150px]">
+                    <div className="break-words">Limit: Rs. {customer.creditLimit?.toLocaleString() || 0}</div>
+                    <div className="text-gray-500 break-words">Used: Rs. {customer.creditUsed?.toLocaleString() || 0}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">

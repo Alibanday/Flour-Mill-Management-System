@@ -203,7 +203,7 @@ export default function CustomerSearch({ onCustomerSelect, selectedCustomer, pla
                   </span>
                   {customer.creditLimit > 0 && (
                     <span className="text-xs text-gray-500">
-                      Credit: ₹{customer.creditLimit?.toLocaleString()}
+                      Credit: Rs. {customer.creditLimit?.toLocaleString()}
                     </span>
                   )}
                 </div>

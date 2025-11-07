@@ -163,9 +163,9 @@ export default function CustomerDashboard() {
             <div className="p-3 rounded-full bg-purple-100">
               <FaDollarSign className="text-purple-600 text-xl" />
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">₹{stats.totalRevenue?.toLocaleString() || 0}</p>
+            <div className="ml-4 flex-1 min-w-0 overflow-hidden">
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {stats.totalRevenue?.toLocaleString() || 0}</p>
             </div>
           </div>
         </div>
@@ -214,8 +214,8 @@ export default function CustomerDashboard() {
                     <p className="text-xs text-gray-500">{customer.businessName || 'Individual'}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-gray-900">₹{customer.totalSpent?.toLocaleString() || 0}</p>
+                <div className="text-right min-w-0 overflow-hidden">
+                  <p className="text-sm font-bold text-gray-900 break-words">Rs. {customer.totalSpent?.toLocaleString() || 0}</p>
                   <p className="text-xs text-gray-500">{customer.totalOrders} orders</p>
                 </div>
               </div>

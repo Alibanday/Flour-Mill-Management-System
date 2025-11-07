@@ -58,6 +58,7 @@ const translations = {
       purchaseManagement: 'Purchase Management',
       financialManagement: 'Financial Management',
       supplierManagement: 'Supplier Management',
+      customerManagement: 'Customer Management',
       bagFoodPurchase: 'Bag & Food Purchase',
       gatePassSystem: 'Gate Pass System',
       reports: 'Reports',
@@ -89,7 +90,111 @@ const translations = {
       pendingPayments: 'Pending Payments',
       todaySales: 'Today\'s Sales',
       todayProduction: 'Today\'s Production',
-      todayExpenses: 'Today\'s Expenses'
+      todayExpenses: 'Today\'s Expenses',
+
+      quickActions: {
+        userManagement: 'User Management',
+        accounts: 'Accounts',
+        financialManagement: 'Financial Management',
+        supplierManagement: 'Supplier Management',
+        bagFoodPurchase: 'Bag & Food Purchase',
+        gatePass: 'Gate Pass System',
+        production: 'Production',
+        sales: 'Sales',
+        warehouse: 'Warehouse',
+        warehouseDashboard: 'Warehouse Dashboard',
+        inventory: 'Inventory',
+        stock: 'Stock',
+        employees: 'Employees',
+        customerManagement: 'Customer Management',
+        reports: 'Reports',
+        notifications: 'Notifications & Utilities',
+        systemConfiguration: 'System Configuration'
+      },
+
+      sections: {
+        roleCapabilities: 'Your Role Capabilities',
+        availableActions: 'Available Actions',
+        moreActionsPrefix: '+',
+        moreActionsSuffix: 'more actions available'
+      },
+
+      messages: {
+        welcomeBack: 'Welcome back',
+        userFallback: 'User',
+        accessIntro: 'You have access to',
+        modulesWord: 'modules',
+        basedOn: 'based on your',
+        roleWord: 'role'
+      },
+
+      capabilities: {
+        admin: [
+          'Full system access and control',
+          'Manage all users and roles',
+          'Access to all modules and reports',
+          'System configuration and settings'
+        ],
+        generalManager: [
+          'Manage team members and operations',
+          'Access to most modules and reports',
+          'Limited administrative functions',
+          'User management capabilities'
+        ],
+        salesManager: [
+          'Focus on sales operations and customer relationships',
+          'Access sales, customer, inventory, warehouse, and supplier modules',
+          'Manage customer accounts, orders, and outstanding balances',
+          'Monitor sales performance and payment status'
+        ],
+        productionManager: [
+          'Oversee production planning and execution',
+          'Manage production costs and efficiency',
+          'Coordinate with warehouse for material availability',
+          'Generate production reports and analytics'
+        ],
+        warehouseManager: [
+          'Manage stock levels and storage locations',
+          'Handle gate pass operations and transfers',
+          'Coordinate with production and sales teams',
+          'Monitor inventory health and movements'
+        ],
+        manager: [
+          'Manage team members and operations',
+          'Access to most modules and reports',
+          'Limited administrative functions',
+          'User management capabilities'
+        ],
+        employee: [
+          'Access production and warehouse modules',
+          'Update stock movements and reports',
+          'Assist with daily operational tasks',
+          'Limited administrative functions'
+        ],
+        cashier: [
+          'Manage sales transactions and payments',
+          'Maintain customer payment records',
+          'Generate daily sales summaries',
+          'Limited access to other modules'
+        ],
+        default: 'Capability details will appear here.'
+      },
+
+      masters: {
+        ledger: 'Ledger',
+        bags: 'Bags',
+        foodPurchase: 'Food Purchase',
+        privatePurchase: 'Private Purchase',
+        transactions: 'Transactions',
+        help: 'Help'
+      },
+
+      stats: {
+        cashInHand: 'Cash in Hand',
+        totalDebit: 'Total Debit',
+        totalCredit: 'Total Credit',
+        totalStock: 'Total Stock'
+      }
     },
 
     // User Management
@@ -396,6 +501,18 @@ const translations = {
       auto: 'Auto',
       english: 'English',
       urdu: 'Urdu'
+    },
+
+    roles: {
+      admin: 'Admin',
+      generalManager: 'General Manager',
+      salesManager: 'Sales Manager',
+      productionManager: 'Production Manager',
+      warehouseManager: 'Warehouse Manager',
+      manager: 'Manager',
+      employee: 'Employee',
+      cashier: 'Cashier',
+      sales: 'Sales'
     }
   },
 
@@ -457,6 +574,7 @@ const translations = {
       purchaseManagement: 'خریداری کا انتظام',
       financialManagement: 'مالی انتظام',
       supplierManagement: 'سپلائر کا انتظام',
+      customerManagement: 'گاہکوں کا انتظام',
       bagFoodPurchase: 'بیگ اور خوراک کی خریداری',
       gatePassSystem: 'گیٹ پاس سسٹم',
       reports: 'رپورٹس',
@@ -488,7 +606,111 @@ const translations = {
       pendingPayments: 'زیر التوا ادائیگیاں',
       todaySales: 'آج کی فروخت',
       todayProduction: 'آج کی پیداوار',
-      todayExpenses: 'آج کے اخراجات'
+      todayExpenses: 'آج کے اخراجات',
+
+      quickActions: {
+        userManagement: 'صارفین کا انتظام',
+        accounts: 'اکاؤنٹس',
+        financialManagement: 'مالی انتظام',
+        supplierManagement: 'سپلائر کا انتظام',
+        bagFoodPurchase: 'بیگ اور خوراک کی خریداری',
+        gatePass: 'گیٹ پاس سسٹم',
+        production: 'پیداوار',
+        sales: 'فروخت',
+        warehouse: 'گودام',
+        warehouseDashboard: 'گودام ڈیش بورڈ',
+        inventory: 'انوینٹری',
+        stock: 'اسٹاک',
+        employees: 'ملازمین',
+        customerManagement: 'گاہکوں کا انتظام',
+        reports: 'رپورٹس',
+        notifications: 'نوٹیفیکیشنز اور یوٹیلیٹیز',
+        systemConfiguration: 'سسٹم کنفیگریشن'
+      },
+
+      sections: {
+        roleCapabilities: 'آپ کے کردار کی صلاحیتیں',
+        availableActions: 'دستیاب اقدامات',
+        moreActionsPrefix: '+',
+        moreActionsSuffix: 'مزید اقدامات دستیاب ہیں'
+      },
+
+      messages: {
+        welcomeBack: 'خوش آمدید',
+        userFallback: 'صارف',
+        accessIntro: 'آپ کو رسائی حاصل ہے',
+        modulesWord: 'ماڈیولز',
+        basedOn: 'آپ کے',
+        roleWord: 'کردار کی بنیاد پر'
+      },
+
+      capabilities: {
+        admin: [
+          'مکمل نظام تک رسائی اور کنٹرول',
+          'تمام صارفین اور کرداروں کا انتظام',
+          'تمام ماڈیولز اور رپورٹس تک رسائی',
+          'سسٹم کنفیگریشن اور ترتیبات'
+        ],
+        generalManager: [
+          'ٹیم ممبران اور آپریشنز کا انتظام',
+          'زیادہ تر ماڈیولز اور رپورٹس تک رسائی',
+          'محدود انتظامی افعال',
+          'صارفین کے انتظام کی صلاحیت'
+        ],
+        salesManager: [
+          'فروخت اور گاہکوں کے تعلقات پر توجہ',
+          'فروخت، گاہک، انوینٹری، گودام اور سپلائر ماڈیولز تک رسائی',
+          'گاہک کے اکاؤنٹس، آرڈرز اور بقایا جات کا انتظام',
+          'فروخت کی کارکردگی اور ادائیگی کی صورتحال کی نگرانی'
+        ],
+        productionManager: [
+          'پیداوار کی منصوبہ بندی اور عملدرآمد کی نگرانی',
+          'پیداوار کی لاگت اور کارکردگی کا انتظام',
+          'مواد کی دستیابی کے لیے گودام سے ہم آہنگی',
+          'پیداوار کی رپورٹس اور تجزیات تیار کریں'
+        ],
+        warehouseManager: [
+          'اسٹاک کی سطح اور ذخیرہ مقامات کا انتظام',
+          'گیٹ پاس آپریشنز اور ٹرانسفرز کو سنبھالیں',
+          'پیداوار اور فروخت ٹیموں کے ساتھ ہم آہنگی',
+          'انوینٹری کی حالت اور حرکت کی نگرانی'
+        ],
+        manager: [
+          'ٹیم ممبران اور آپریشنز کا انتظام',
+          'زیادہ تر ماڈیولز اور رپورٹس تک رسائی',
+          'محدود انتظامی افعال',
+          'صارفین کے انتظام کی صلاحیت'
+        ],
+        employee: [
+          'پیداوار اور گودام ماڈیولز تک رسائی',
+          'اسٹاک کی حرکت اور رپورٹوں کو اپ ڈیٹ کریں',
+          'روزمرہ کے آپریشنل کاموں میں مدد کریں',
+          'محدود انتظامی افعال'
+        ],
+        cashier: [
+          'فروخت کی لین دین اور ادائیگیوں کا انتظام',
+          'گاہک کی ادائیگی کے ریکارڈ برقرار رکھیں',
+          'روزانہ کی فروخت کا خلاصہ تیار کریں',
+          'دیگر ماڈیولز تک محدود رسائی'
+        ],
+        default: 'صلاحیتوں کی تفصیلات یہاں ظاہر ہوں گی۔'
+      },
+
+      masters: {
+        ledger: 'لیجر',
+        bags: 'بیگز',
+        foodPurchase: 'خوراک کی خریداری',
+        privatePurchase: 'پرائیویٹ خریداری',
+        transactions: 'لین دین',
+        help: 'مدد'
+      },
+
+      stats: {
+        cashInHand: 'نقد رقم',
+        totalDebit: 'کل ڈیبٹ',
+        totalCredit: 'کل کریڈٹ',
+        totalStock: 'کل اسٹاک'
+      }
     },
 
     // User Management
@@ -795,6 +1017,18 @@ const translations = {
       auto: 'خودکار',
       english: 'انگریزی',
       urdu: 'اردو'
+    },
+
+    roles: {
+      admin: 'ایڈمن',
+      generalManager: 'جنرل منیجر',
+      salesManager: 'سیلز منیجر',
+      productionManager: 'پیداوار منیجر',
+      warehouseManager: 'گودام منیجر',
+      manager: 'منیجر',
+      employee: 'ملازم',
+      cashier: 'کیشیر',
+      sales: 'فروخت'
     }
   }
 };

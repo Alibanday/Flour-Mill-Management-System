@@ -19,6 +19,51 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
+  const isSalesMgr = isSalesManager();
+  const canSeeUserManagement = isAdmin() || (isManager() && !isSalesMgr);
+  const canSeeSupplierManagement = isAdmin() || isGeneralManager() || isSalesMgr || isProductionManager() || isWarehouseManager();
+  const canAccessGatePass = !isSalesMgr;
+  const canAccessBagFoodPurchase = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
+  const canSeeReports = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
+  const canSeeNotifications = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
+
+  const roleTranslationMap = {
+    'Admin': 'admin',
+    'General Manager': 'generalManager',
+    'Sales Manager': 'salesManager',
+    'Production Manager': 'productionManager',
+    'Warehouse Manager': 'warehouseManager',
+    'Manager': 'manager',
+    'Employee': 'employee',
+    'Cashier': 'cashier',
+    'Sales': 'sales'
+  };
+
+  const currentRoleKey = roleTranslationMap[role] || 'employee';
+  const translatedRoleName = t(`roles.${currentRoleKey}`);
+  const capabilitiesList = t(`dashboard.capabilities.${currentRoleKey}`);
+  const roleCapabilities = Array.isArray(capabilitiesList) ? capabilitiesList : [];
+  const capabilityFallback = t('dashboard.capabilities.default');
+
+  const quickActionTranslationMap = {
+    "User Management": "dashboard.quickActions.userManagement",
+    "Accounts": "dashboard.quickActions.accounts",
+    "Financial Management": "dashboard.quickActions.financialManagement",
+    "Supplier Management": "dashboard.quickActions.supplierManagement",
+    "Bag & Food Purchase": "dashboard.quickActions.bagFoodPurchase",
+    "Gate Pass System": "dashboard.quickActions.gatePass",
+    "Production": "dashboard.quickActions.production",
+    "Sales": "dashboard.quickActions.sales",
+    "Warehouse": "dashboard.quickActions.warehouse",
+    "Warehouse Dashboard": "dashboard.quickActions.warehouseDashboard",
+    "Inventory": "dashboard.quickActions.inventory",
+    "Stock": "dashboard.quickActions.stock",
+    "Employees": "dashboard.quickActions.employees",
+    "Customer Management": "dashboard.quickActions.customerManagement",
+    "Reports": "dashboard.quickActions.reports",
+    "Notifications & Utilities": "dashboard.quickActions.notifications",
+    "System Configuration": "dashboard.quickActions.systemConfiguration"
+  };
 
   // Redirect warehouse managers to their own dashboard
   useEffect(() => {
@@ -37,15 +82,57 @@ export default function Dashboard() {
   // Role-based masters menu
   const getMastersMenu = () => {
     const baseMenu = [
-      { name: "Ledger", icon: <FaBook className="mr-3" />, roles: ['Admin', 'General Manager'] },
-      { name: "Bags", icon: <FaShoppingBag className="mr-3" />, roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'] },
-      { name: "Food Purchase", icon: <FaIndustry className="mr-3" />, roles: ['Admin', 'General Manager'] },
-      { name: "Private Purchase", icon: <FaCashRegister className="mr-3" />, roles: ['Admin', 'General Manager'] },
-      { name: "Transactions", icon: <FaBook className="mr-3" />, roles: ['Admin', 'General Manager'] },
-      { name: "Help", icon: <FaCog className="mr-3" />, roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'] },
+      {
+        key: 'ledger',
+        translationKey: 'dashboard.masters.ledger',
+        icon: <FaBook className="mr-3" />,
+        roles: ['Admin', 'General Manager'],
+        action: () => console.log('Ledger clicked')
+      },
+      {
+        key: 'bags',
+        translationKey: 'dashboard.masters.bags',
+        icon: <FaShoppingBag className="mr-3" />,
+        roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
+        action: () => console.log('Bags clicked')
+      },
+      {
+        key: 'foodPurchase',
+        translationKey: 'dashboard.masters.foodPurchase',
+        icon: <FaIndustry className="mr-3" />,
+        roles: ['Admin', 'General Manager'],
+        action: () => console.log('Food Purchase clicked')
+      },
+      {
+        key: 'privatePurchase',
+        translationKey: 'dashboard.masters.privatePurchase',
+        icon: <FaCashRegister className="mr-3" />,
+        roles: ['Admin', 'General Manager'],
+        action: () => console.log('Private Purchase clicked')
+      },
+      {
+        key: 'transactions',
+        translationKey: 'dashboard.masters.transactions',
+        icon: <FaBook className="mr-3" />,
+        roles: ['Admin', 'General Manager'],
+        action: () => console.log('Transactions clicked')
+      },
+      {
+        key: 'help',
+        translationKey: 'dashboard.masters.help',
+        icon: <FaCog className="mr-3" />,
+        roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
+        action: () => console.log('Help clicked')
+      },
     ];
 
-    return baseMenu.filter(item => item.roles.includes(role));
+    const filteredMenu = baseMenu.filter(item => item.roles.includes(role));
+
+    if (isSalesMgr) {
+      return [];
+    }
+
+    return filteredMenu;
   };
 
   // Role-based function buttons
@@ -80,7 +167,7 @@ export default function Dashboard() {
         shortcut: "F4", 
         icon: <FaUsers />, 
         action: () => navigate("/suppliers"),
-        roles: ['Admin', 'General Manager'],
+        roles: ['Admin', 'General Manager', 'Sales Manager'],
         color: "bg-yellow-100 text-yellow-600"
       },
       {
@@ -120,7 +207,7 @@ export default function Dashboard() {
         shortcut: "F9", 
         icon: <FaWarehouse />, 
         action: () => navigate("/warehouses"),
-        roles: ['Admin', 'General Manager', 'Warehouse Manager'],
+        roles: ['Admin', 'General Manager', 'Warehouse Manager', 'Sales Manager'],
         color: "bg-indigo-100 text-indigo-600"
       },
       { 
@@ -189,35 +276,48 @@ export default function Dashboard() {
       },
     ];
 
-    return allButtons.filter(button => button.roles.includes(role));
+    const visibleButtons = allButtons.filter(button => button.roles.includes(role));
+
+    if (isSalesMgr) {
+      const allowedSalesManagerButtons = new Set([
+        "Sales",
+        "Customer Management",
+        "Inventory",
+        "Warehouse",
+        "Supplier Management"
+      ]);
+      return visibleButtons.filter(button => allowedSalesManagerButtons.has(button.name));
+    }
+
+    return visibleButtons;
   };
 
   // Role-based stats
   const getStats = () => {
     const baseStats = [
       { 
-        title: "Cash in Hand", 
+        title: t('dashboard.stats.cashInHand'), 
         value: "Rs. 0", 
         icon: <FaCashRegister />,
         trend: "up",
         roles: ['Admin', 'Manager']
       },
       { 
-        title: "Total Debit", 
+        title: t('dashboard.stats.totalDebit'), 
         value: "Rs. 0", 
         icon: <FaChartBar />,
         trend: "down",
         roles: ['Admin', 'Manager']
       },
       { 
-        title: "Total Credit", 
+        title: t('dashboard.stats.totalCredit'), 
         value: "Rs. 0", 
         icon: <FaChartBar />,
         trend: "up",
         roles: ['Admin', 'Manager']
       },
       { 
-        title: "Total Stock", 
+        title: t('dashboard.stats.totalStock'), 
         value: "0 Units", 
         icon: <FaBoxes />,
         trend: "neutral",
@@ -273,7 +373,7 @@ export default function Dashboard() {
                 'bg-purple-800 border border-purple-200'
               }`}>
                 <FaUserShield className="h-3 w-3 mr-1 inline" />
-                {role}
+                {translatedRoleName}
               </span>
             </div>
             
@@ -300,7 +400,7 @@ export default function Dashboard() {
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('navigation.mainMenu')}</h3>
             <ul className="space-y-1">
               {/* User Management - Admin and Manager only */}
-              {(isAdmin() || isManager()) && (
+              {canSeeUserManagement && (
                 <li>
                   <button
                     onClick={() => navigate("/users")}
@@ -313,7 +413,7 @@ export default function Dashboard() {
               )}
 
               {/* Supplier Management - Admin and Manager only */}
-              {(isAdmin() || isManager()) && (
+              {canSeeSupplierManagement && (
                 <li>
                   <button
                     onClick={() => navigate("/suppliers")}
@@ -326,6 +426,7 @@ export default function Dashboard() {
               )}
 
               {/* Gate Pass System - All roles */}
+              {canAccessGatePass && (
               <li>
                 <button
                   onClick={() => navigate("/gate-pass")}
@@ -335,8 +436,10 @@ export default function Dashboard() {
                   {t('navigation.gatePassSystem')}
                 </button>
               </li>
+              )}
 
               {/* Bag & Food Purchase Management - Admin, Manager */}
+              {canAccessBagFoodPurchase && (
               <li>
                 <button
                   onClick={() => navigate("/bag-food-purchase")}
@@ -346,9 +449,10 @@ export default function Dashboard() {
                   {t('navigation.bagFoodPurchase')}
                 </button>
               </li>
+              )}
 
               {/* Reports Module - Admin and Manager only */}
-              {(isAdmin() || isManager()) && (
+              {canSeeReports && (
                 <li>
                   <button
                     onClick={() => navigate("/reports")}
@@ -361,7 +465,7 @@ export default function Dashboard() {
               )}
 
               {/* Notifications & Utilities - Admin and Manager only */}
-              {(isAdmin() || isManager()) && (
+              {canSeeNotifications && (
                 <li>
                   <button
                     onClick={() => navigate("/notifications")}
@@ -404,7 +508,7 @@ export default function Dashboard() {
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaUserPlus className="mr-3" />
-                    Customer Management
+                    {t('navigation.customerManagement')}
                   </button>
                 </li>
               )}
@@ -413,16 +517,14 @@ export default function Dashboard() {
                 <li key={index}>
                   <button
                     onClick={() => {
-                      if (item.name === "Employees") {
-                        navigate("/employees");
-                      } else {
-                        console.log(`${item.name} clicked`);
+                      if (typeof item.action === 'function') {
+                        item.action();
                       }
                     }}
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     {item.icon}
-                    {item.name}
+                    {t(item.translationKey)}
                   </button>
                 </li>
               ))}
@@ -436,28 +538,33 @@ export default function Dashboard() {
           {/* Welcome Message */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Welcome back, {user?.firstName || 'User'}!
+              {`${t('dashboard.messages.welcomeBack')}, ${user?.firstName || t('dashboard.messages.userFallback')}!`}
             </h1>
             <p className="text-gray-600">
-              You have access to {functionButtons.length} modules based on your {role} role.
+              {`${t('dashboard.messages.accessIntro')} ${functionButtons.length} ${t('dashboard.messages.modulesWord')} ${t('dashboard.messages.basedOn')} ${translatedRoleName} ${t('dashboard.messages.roleWord')}.`}
             </p>
           </div>
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-6 w-full">
-            {functionButtons.map((button, index) => (
-              <button
-                key={index}
-                onClick={button.action}
-                className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
-              >
-                <div className={`p-3 mb-2 rounded-full ${button.color} group-hover:bg-blue-600 group-hover:text-white transition-colors`}>
-                  {button.icon}
-                </div>
-                <span className="text-sm font-medium text-gray-700">{button.name}</span>
-                <span className="text-xs text-gray-500 mt-1">{button.shortcut}</span>
-              </button>
-            ))}
+            {functionButtons.map((button, index) => {
+              const translationKey = quickActionTranslationMap[button.name];
+              const buttonLabel = translationKey ? t(translationKey) : button.name;
+
+              return (
+                <button
+                  key={index}
+                  onClick={button.action}
+                  className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100"
+                >
+                  <div className={`p-3 mb-2 rounded-full ${button.color} group-hover:bg-blue-600 group-hover:text-white transition-colors`}>
+                    {button.icon}
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{buttonLabel}</span>
+                  <span className="text-xs text-gray-500 mt-1">{button.shortcut}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Role-based Stats Overview */}
@@ -481,40 +588,15 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                 <FaUserShield className="h-5 w-5 mr-2 text-blue-600" />
-                Your Role Capabilities
+                {t('dashboard.sections.roleCapabilities')}
               </h3>
               <div className="space-y-2">
-                {role === 'Admin' && (
-                  <>
-                    <p className="text-sm text-gray-600">✓ Full system access and control</p>
-                    <p className="text-sm text-gray-600">✓ Manage all users and roles</p>
-                    <p className="text-sm text-gray-600">✓ Access to all modules and reports</p>
-                    <p className="text-sm text-gray-600">✓ System configuration and settings</p>
-                  </>
-                )}
-                {role === 'Manager' && (
-                  <>
-                    <p className="text-sm text-gray-600">✓ Manage team members and operations</p>
-                    <p className="text-sm text-gray-600">✓ Access to most modules and reports</p>
-                    <p className="text-sm text-gray-600">✓ Limited administrative functions</p>
-                    <p className="text-sm text-gray-600">✓ User management capabilities</p>
-                  </>
-                )}
-                {role === 'Employee' && (
-                  <>
-                    <p className="text-sm text-gray-600">✓ Access to production and warehouse</p>
-                    <p className="text-sm text-gray-600">✓ Stock management and operations</p>
-                    <p className="text-sm text-gray-600">✓ Basic reporting access</p>
-                    <p className="text-sm text-gray-600">✓ Limited administrative functions</p>
-                  </>
-                )}
-                {role === 'Cashier' && (
-                  <>
-                    <p className="text-sm text-gray-600">✓ Sales and transaction management</p>
-                    <p className="text-sm text-gray-600">✓ Customer service functions</p>
-                    <p className="text-sm text-gray-600">✓ Basic reporting access</p>
-                    <p className="text-sm text-gray-600">✓ Limited system access</p>
-                  </>
+                {roleCapabilities.length > 0 ? (
+                  roleCapabilities.map((capability, index) => (
+                    <p key={index} className="text-sm text-gray-600">✓ {capability}</p>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">{capabilityFallback}</p>
                 )}
               </div>
             </div>
@@ -523,18 +605,23 @@ export default function Dashboard() {
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                 <FaCog className="h-5 w-5 mr-2 text-green-600" />
-                Available Actions
+                {t('dashboard.sections.availableActions')}
               </h3>
               <div className="space-y-2">
-                {functionButtons.slice(0, 4).map((button, index) => (
-                  <p key={index} className="text-sm text-gray-600 flex items-center">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                    {button.name} ({button.shortcut})
-                  </p>
-                ))}
+                {functionButtons.slice(0, 4).map((button, index) => {
+                  const translationKey = quickActionTranslationMap[button.name];
+                  const buttonLabel = translationKey ? t(translationKey) : button.name;
+
+                  return (
+                    <p key={index} className="text-sm text-gray-600 flex items-center">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                      {buttonLabel} ({button.shortcut})
+                    </p>
+                  );
+                })}
                 {functionButtons.length > 4 && (
                   <p className="text-sm text-gray-500 italic">
-                    +{functionButtons.length - 4} more actions available
+                    {`${t('dashboard.sections.moreActionsPrefix')}${functionButtons.length - 4} ${t('dashboard.sections.moreActionsSuffix')}`}
                   </p>
                 )}
               </div>

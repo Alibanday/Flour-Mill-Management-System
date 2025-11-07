@@ -331,6 +331,11 @@ router.put("/:id", [
   body("unitPrice").optional().isNumeric().withMessage("Unit price must be a number")
 ], async (req, res) => {
   try {
+    console.log('📥 Bag purchase update request received:', {
+      id: req.params.id,
+      body: req.body
+    });
+
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -341,13 +346,126 @@ router.put("/:id", [
       });
     }
 
-    // Mock update - replace with actual database update
-    const updatedPurchase = {
-      _id: req.params.id,
-      ...req.body,
-      totalPrice: req.body.quantity ? req.body.quantity * (req.body.unitPrice || 0) : 0,
-      updatedAt: new Date()
-    };
+    // Find the existing purchase
+    const existingPurchase = await BagPurchase.findById(req.params.id);
+    
+    if (!existingPurchase) {
+      return res.status(404).json({
+        success: false,
+        message: "Bag purchase not found"
+      });
+    }
+
+    // Map flat structure to nested structure expected by model
+    const { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, paidAmount, notes, unit, warehouse } = req.body;
+
+    // Sanitize incoming status fields to match schema enums
+    const allowedStatus = ["Pending", "Received", "Cancelled", "Completed"];
+    const allowedPaymentStatus = ["Pending", "Partial", "Paid"];
+
+    // Update bags Map if productType, quantity, and unitPrice are provided
+    if (productType && quantity !== undefined && unitPrice !== undefined) {
+      const bags = existingPurchase.bags instanceof Map 
+        ? new Map(existingPurchase.bags) 
+        : new Map();
+      
+      // Normalize product type to uppercase
+      const normalizedProductType = productType.toUpperCase();
+      
+      // Update or set the bag data for this product type
+      const calculatedTotalPrice = parseFloat(totalPrice) || (parseFloat(quantity) * parseFloat(unitPrice));
+      bags.set(normalizedProductType, {
+        quantity: parseFloat(quantity) || 0,
+        unit: unit || "50kg bags",
+        unitPrice: parseFloat(unitPrice) || 0,
+        totalPrice: calculatedTotalPrice
+      });
+      
+      existingPurchase.bags = bags;
+    }
+
+    // Update other fields if provided
+    if (supplier) {
+      existingPurchase.supplier = new mongoose.Types.ObjectId(supplier);
+    }
+
+    if (purchaseDate) {
+      existingPurchase.purchaseDate = new Date(purchaseDate);
+    }
+
+    // Update status if provided and valid
+    if (status !== undefined) {
+      if (allowedStatus.includes(status)) {
+        existingPurchase.status = status;
+        // Set receivedDate if status is "Received" and not already set
+        if (status === "Received" && !existingPurchase.receivedDate) {
+          existingPurchase.receivedDate = new Date();
+        }
+      } else {
+        console.warn(`⚠️ Invalid status provided: ${status}. Allowed values: ${allowedStatus.join(', ')}`);
+      }
+    }
+
+    // Update payment status if provided and valid
+    if (paymentStatus !== undefined) {
+      if (allowedPaymentStatus.includes(paymentStatus)) {
+        existingPurchase.paymentStatus = paymentStatus;
+        console.log(`✅ Payment status updated to: ${paymentStatus}`);
+      } else {
+        console.warn(`⚠️ Invalid payment status provided: ${paymentStatus}. Allowed values: ${allowedPaymentStatus.join(', ')}`);
+      }
+    }
+
+    // Update paid amount if provided
+    if (paidAmount !== undefined) {
+      existingPurchase.paidAmount = parseFloat(paidAmount) || 0;
+      // Recalculate due amount (will be recalculated in pre-save middleware, but set it here for immediate use)
+      // Note: totalAmount will be recalculated in pre-save middleware based on bags
+      const currentTotal = existingPurchase.totalAmount || 0;
+      existingPurchase.dueAmount = Math.max(0, currentTotal - existingPurchase.paidAmount);
+      
+      // Auto-update payment status based on paid amount ONLY if paymentStatus was not explicitly set
+      if (paymentStatus === undefined) {
+        if (existingPurchase.dueAmount <= 0 && existingPurchase.paidAmount > 0) {
+          existingPurchase.paymentStatus = "Paid";
+          console.log('✅ Auto-updated payment status to "Paid" based on paid amount');
+        } else if (existingPurchase.paidAmount > 0 && existingPurchase.dueAmount > 0) {
+          existingPurchase.paymentStatus = "Partial";
+          console.log('✅ Auto-updated payment status to "Partial" based on paid amount');
+        } else if (existingPurchase.paidAmount === 0) {
+          existingPurchase.paymentStatus = "Pending";
+          console.log('✅ Auto-updated payment status to "Pending" based on paid amount');
+        }
+      }
+    }
+
+    if (warehouse) {
+      existingPurchase.warehouse = new mongoose.Types.ObjectId(warehouse);
+    }
+
+    if (notes !== undefined) {
+      existingPurchase.notes = notes;
+    }
+
+    // Update updatedBy field
+    existingPurchase.updatedBy = req.user._id;
+
+    // Save the updated purchase (this will trigger pre-save middleware to recalculate totals)
+    const updatedPurchase = await existingPurchase.save();
+
+    // Populate references
+    await updatedPurchase.populate('supplier', 'name contact supplierCode');
+    await updatedPurchase.populate('warehouse', 'name location');
+    await updatedPurchase.populate('createdBy', 'firstName lastName');
+    await updatedPurchase.populate('updatedBy', 'firstName lastName');
+
+    console.log('✅ Bag purchase updated successfully:', {
+      id: updatedPurchase._id,
+      purchaseNumber: updatedPurchase.purchaseNumber,
+      status: updatedPurchase.status,
+      paymentStatus: updatedPurchase.paymentStatus,
+      paidAmount: updatedPurchase.paidAmount
+    });
 
     res.json({
       success: true,
@@ -355,10 +473,11 @@ router.put("/:id", [
       data: updatedPurchase
     });
   } catch (error) {
-    console.error("Update bag purchase error:", error);
+    console.error("❌ Update bag purchase error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while updating bag purchase"
+      message: "Server error while updating bag purchase",
+      error: error.message
     });
   }
 });

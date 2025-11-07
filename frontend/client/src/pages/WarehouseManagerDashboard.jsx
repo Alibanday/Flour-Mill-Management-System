@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FaWarehouse, FaBoxes, FaExclamationTriangle,
@@ -22,7 +22,263 @@ export default function WarehouseManagerDashboard() {
   const [stockData, setStockData] = useState([]);
   const [gatePasses, setGatePasses] = useState([]);
 
-  // Check if user is warehouse manager
+  // Use ref to track if data has been initialized to prevent infinite loops
+  const hasInitialized = useRef(false);
+  const isInitializing = useRef(false);
+  const warehouseIdRef = useRef(null);
+
+  // Fetch warehouse data function
+  const fetchWarehouseData = useCallback(async () => {
+    try {
+      // Verify token exists before making request
+      const token = localStorage.getItem('token');
+      console.log('🔑 Token check before API call:', token ? 'Token exists (' + token.substring(0, 20) + '...)' : 'NO TOKEN FOUND');
+      
+      if (!token) {
+        console.error('❌ No token found in localStorage');
+        return null;
+      }
+
+      // First try: Get warehouse from warehouse-manager endpoint (warehouse.manager = user._id)
+      try {
+        console.log('📡 Making API call to warehouse-manager/warehouse endpoint');
+        const response = await api.get('http://localhost:7000/api/warehouse-manager/warehouse');
+        if (response.data && !response.data.message) {
+          console.log('✅ Warehouse found via manager endpoint');
+          const warehouse = response.data;
+          setWarehouseData(warehouse);
+          warehouseIdRef.current = warehouse._id;
+          return warehouse;
+        }
+      } catch (err) {
+        console.error('❌ Error details:', {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          message: err.response?.data?.message || err.message,
+          headers: err.config?.headers
+        });
+        
+        // If 401, don't try alternative - authentication issue
+        if (err.response?.status === 401) {
+          console.error('🔒 401 Unauthorized - Check backend logs for details');
+          console.error('Response data:', err.response?.data);
+          throw err; // Re-throw to prevent fallback
+        }
+        // If 404, try alternative method
+        if (err.response?.status === 404) {
+          console.log('Warehouse not found via manager endpoint (404), trying user.warehouse field');
+        } else {
+          console.error('Error fetching warehouse from manager endpoint:', err.response?.data?.message || err.message);
+        }
+      }
+      
+      // Second try: Get warehouse from user.warehouse field
+      const currentUser = user;
+      if (currentUser?.warehouse) {
+        try {
+          const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_BY_ID(currentUser.warehouse));
+          if (response.data.success || response.data) {
+            const warehouse = response.data.data || response.data;
+            setWarehouseData(warehouse);
+            warehouseIdRef.current = warehouse._id || currentUser.warehouse;
+            return warehouse;
+          }
+        } catch (err) {
+          // If 401, re-throw to prevent fallback
+          if (err.response?.status === 401) {
+            console.error('Authentication error fetching warehouse from user field:', err.response?.data?.message || err.message);
+            throw err;
+          }
+          console.error('Error fetching warehouse from user field:', err.response?.data?.message || err.message);
+        }
+      }
+      
+      // No warehouse found
+      return null;
+    } catch (error) {
+      console.error('Error fetching warehouse data:', error.response?.data?.message || error.message);
+      // Don't throw here - let the component handle it gracefully
+      return null;
+    }
+  }, [user]);
+
+  // Fetch stock data function
+  const fetchStockData = useCallback(async (warehouseId = null) => {
+    try {
+      // Check if token exists before making API call
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token available for API call');
+        toast.error('No authentication token found');
+        return;
+      }
+
+      const id = warehouseId || warehouseIdRef.current || user?.warehouse;
+      console.log('🔍 Fetching stock data for warehouse ID:', id);
+      
+      if (!id) {
+        console.error('No warehouse ID available for fetching stock');
+        toast.error('No warehouse ID found. Please ensure a warehouse is assigned.');
+        return;
+      }
+      
+      // Try warehouse-manager/stock endpoint first
+      try {
+        console.log('📡 Attempting to fetch stock from /api/warehouse-manager/stock');
+        const response = await api.get('http://localhost:7000/api/warehouse-manager/stock');
+        console.log('📦 Stock API response:', response.data);
+        
+        // Check if response is an array or has a message property (error)
+        if (response.data && Array.isArray(response.data)) {
+          const inventoryItems = response.data;
+          console.log(`✅ Found ${inventoryItems.length} stock items from warehouse-manager endpoint`);
+          
+          if (inventoryItems.length === 0) {
+            console.warn('⚠️ No stock items found in warehouse');
+            toast.info('No stock items found in your warehouse');
+            setStockData([]);
+            return;
+          }
+          
+          const stockItems = inventoryItems.map(item => {
+            // Handle location field - can be string or object
+            let locationStr = 'N/A';
+            if (typeof item.location === 'string') {
+              locationStr = item.location;
+            } else if (item.location && typeof item.location === 'object') {
+              if (item.location.aisle) {
+                const parts = [item.location.aisle, item.location.shelf, item.location.bin].filter(Boolean);
+                locationStr = parts.join('-') || 'N/A';
+              }
+            }
+            
+            return {
+              _id: item._id,
+              name: item.name || 'Unnamed Item',
+              code: item.code || 'N/A',
+              category: item.category || 'Uncategorized',
+              currentStock: item.currentStock || 0,
+              minimumStock: item.minimumStock || 0,
+              unit: item.unit || 'units',
+              status: item.currentStock === 0 ? 'Out of Stock' : 
+                     item.currentStock <= item.minimumStock ? 'Low Stock' : 'Active',
+              location: locationStr
+            };
+          });
+          
+          console.log('📊 Processed stock items:', stockItems.length);
+          setStockData(stockItems);
+          if (stockItems.length > 0) {
+            console.log('✅ Stock data loaded successfully');
+          }
+          return;
+        } else if (response.data?.message) {
+          // Error message from API
+          console.error('❌ API returned error message:', response.data.message);
+          throw new Error(response.data.message);
+        }
+      } catch (err) {
+        console.error('❌ Error from warehouse-manager/stock endpoint:', err.response?.data || err.message);
+        
+        // If it's a 404, try fallback. Otherwise, show error
+        if (err.response?.status === 404) {
+          console.log('⚠️ Warehouse-manager endpoint returned 404, trying inventory endpoint fallback');
+        } else if (err.response?.status !== 401) {
+          // Don't show error for 401 (auth issues handled elsewhere)
+          toast.error(`Failed to fetch stock: ${err.response?.data?.message || err.message}`);
+        }
+      }
+      
+      // Fallback to inventory endpoint with warehouse filter
+      try {
+        console.log(`📡 Fallback: Fetching stock from inventory endpoint with warehouse=${id}`);
+        const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?warehouse=${id}&limit=1000`);
+        console.log('📦 Inventory API response:', response.data);
+        
+        let inventoryItems = [];
+        if (response.data?.success && response.data?.data) {
+          inventoryItems = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          inventoryItems = response.data;
+        } else if (response.data?.data && Array.isArray(response.data.data)) {
+          inventoryItems = response.data.data;
+        }
+        
+        console.log(`✅ Found ${inventoryItems.length} inventory items from inventory endpoint`);
+        
+        if (inventoryItems.length === 0) {
+          console.warn('⚠️ No inventory items found for this warehouse');
+          toast.info('No inventory items found in your warehouse');
+          setStockData([]);
+          return;
+        }
+        
+        const stockItems = inventoryItems.map(item => {
+          // Handle location field - can be string or object
+          let locationStr = 'N/A';
+          if (typeof item.location === 'string') {
+            locationStr = item.location;
+          } else if (item.location && typeof item.location === 'object') {
+            if (item.location.aisle) {
+              const parts = [item.location.aisle, item.location.shelf, item.location.bin].filter(Boolean);
+              locationStr = parts.join('-') || 'N/A';
+            }
+          }
+          
+          return {
+            _id: item._id,
+            name: item.name || 'Unnamed Item',
+            code: item.code || 'N/A',
+            category: item.category || 'Uncategorized',
+            currentStock: item.currentStock || 0,
+            minimumStock: item.minimumStock || 0,
+            unit: item.unit || 'units',
+            status: item.currentStock === 0 ? 'Out of Stock' : 
+                   item.currentStock <= item.minimumStock ? 'Low Stock' : 'Active',
+            location: locationStr
+          };
+        });
+        
+        console.log('📊 Processed inventory items:', stockItems.length);
+        setStockData(stockItems);
+        if (stockItems.length > 0) {
+          console.log(`✅ Successfully loaded ${stockItems.length} stock item(s) from inventory endpoint`);
+        }
+      } catch (fallbackErr) {
+        console.error('❌ Error from inventory endpoint fallback:', fallbackErr.response?.data || fallbackErr.message);
+        toast.error(`Failed to fetch stock: ${fallbackErr.response?.data?.message || fallbackErr.message}`);
+        setStockData([]);
+      }
+    } catch (error) {
+      console.error('❌ Unexpected error fetching stock data:', error);
+      toast.error('An unexpected error occurred while fetching stock data');
+      setStockData([]);
+    }
+  }, [user]);
+
+  // Fetch gate passes function
+  const fetchGatePasses = useCallback(async (warehouseId = null) => {
+    try {
+      // Check if token exists before making API call
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token available for API call');
+        return;
+      }
+
+      const id = warehouseId || warehouseIdRef.current || user?.warehouse;
+      if (!id) return;
+      
+      const response = await api.get(`${API_ENDPOINTS.GATE_PASS.GET_ALL}?warehouse=${id}`);
+      const data = response.data.data || response.data || [];
+      setGatePasses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching gate passes:', error);
+      // Don't show error toast, just log it
+    }
+  }, [user]);
+
+  // Check if user is warehouse manager - only run once when auth/user changes
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) {
@@ -37,11 +293,21 @@ export default function WarehouseManagerDashboard() {
       return;
     }
 
-    if (!isWarehouseManager()) {
+    // Check role - use user.role directly instead of calling function
+    const userRole = user?.role || '';
+    if (userRole !== 'Warehouse Manager') {
       navigate('/dashboard');
       toast.error('Access denied. This dashboard is for Warehouse Managers only.');
       return;
     }
+
+    // Prevent multiple initializations
+    if (hasInitialized.current || isInitializing.current) {
+      return;
+    }
+
+    // Mark as initializing
+    isInitializing.current = true;
     
     // Fetch warehouse data first, then fetch other data
     const initializeData = async () => {
@@ -71,160 +337,14 @@ export default function WarehouseManagerDashboard() {
         }
       } finally {
         setLoading(false);
+        hasInitialized.current = true;
+        isInitializing.current = false;
       }
     };
 
     initializeData();
-  }, [navigate, isWarehouseManager, user, authLoading]);
-
-  const fetchWarehouseData = async () => {
-    try {
-      // Verify token exists before making request
-      const token = localStorage.getItem('token');
-      console.log('🔑 Token check before API call:', token ? 'Token exists (' + token.substring(0, 20) + '...)' : 'NO TOKEN FOUND');
-      
-      if (!token) {
-        console.error('❌ No token found in localStorage');
-        return null;
-      }
-
-      // First try: Get warehouse from warehouse-manager endpoint (warehouse.manager = user._id)
-      try {
-        console.log('📡 Making API call to warehouse-manager/warehouse endpoint');
-        const response = await api.get('http://localhost:7000/api/warehouse-manager/warehouse');
-        if (response.data && !response.data.message) {
-          console.log('✅ Warehouse found via manager endpoint');
-          setWarehouseData(response.data);
-          return response.data;
-        }
-      } catch (err) {
-        console.error('❌ Error details:', {
-          status: err.response?.status,
-          statusText: err.response?.statusText,
-          message: err.response?.data?.message || err.message,
-          headers: err.config?.headers
-        });
-        
-        // If 401, don't try alternative - authentication issue
-        if (err.response?.status === 401) {
-          console.error('🔒 401 Unauthorized - Check backend logs for details');
-          console.error('Response data:', err.response?.data);
-          throw err; // Re-throw to prevent fallback
-        }
-        // If 404, try alternative method
-        if (err.response?.status === 404) {
-          console.log('Warehouse not found via manager endpoint (404), trying user.warehouse field');
-        } else {
-          console.error('Error fetching warehouse from manager endpoint:', err.response?.data?.message || err.message);
-        }
-      }
-      
-      // Second try: Get warehouse from user.warehouse field
-      if (user?.warehouse) {
-        try {
-          const response = await api.get(API_ENDPOINTS.WAREHOUSES.GET_BY_ID(user.warehouse));
-          if (response.data.success || response.data) {
-            const warehouse = response.data.data || response.data;
-            setWarehouseData(warehouse);
-            return warehouse;
-          }
-        } catch (err) {
-          // If 401, re-throw to prevent fallback
-          if (err.response?.status === 401) {
-            console.error('Authentication error fetching warehouse from user field:', err.response?.data?.message || err.message);
-            throw err;
-          }
-          console.error('Error fetching warehouse from user field:', err.response?.data?.message || err.message);
-        }
-      }
-      
-      // No warehouse found
-      return null;
-    } catch (error) {
-      console.error('Error fetching warehouse data:', error.response?.data?.message || error.message);
-      // Don't throw here - let the component handle it gracefully
-      return null;
-    }
-  };
-
-  const fetchStockData = async (warehouseId = null) => {
-    try {
-      // Check if token exists before making API call
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No token available for API call');
-        return;
-      }
-
-      const id = warehouseId || warehouseData?._id || user?.warehouse;
-      if (!id) return;
-      
-      try {
-        const response = await api.get('http://localhost:7000/api/warehouse-manager/stock');
-        const inventoryItems = response.data || [];
-        
-        const stockItems = inventoryItems.map(item => ({
-          _id: item._id,
-          name: item.name,
-          code: item.code,
-          category: item.category,
-          currentStock: item.currentStock || 0,
-          minimumStock: item.minimumStock || 0,
-          unit: item.unit || 'units',
-          status: item.currentStock === 0 ? 'Out of Stock' : 
-                 item.currentStock <= item.minimumStock ? 'Low Stock' : 'Active',
-          location: item.location || 'N/A'
-        }));
-        
-        setStockData(stockItems);
-        return;
-      } catch (err) {
-        // Fallback to inventory endpoint
-      }
-      
-      const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?warehouse=${id}`);
-      const inventoryItems = response.data.data || response.data || [];
-      
-      const stockItems = inventoryItems.map(item => ({
-        _id: item._id,
-        name: item.name,
-        code: item.code,
-        category: item.category,
-        currentStock: item.currentStock || 0,
-        minimumStock: item.minimumStock || 0,
-        unit: item.unit || 'units',
-        status: item.currentStock === 0 ? 'Out of Stock' : 
-               item.currentStock <= item.minimumStock ? 'Low Stock' : 'Active',
-        location: item.location || 'N/A'
-      }));
-      
-      setStockData(stockItems);
-    } catch (error) {
-      console.error('Error fetching stock data:', error);
-      // Don't show error toast, just log it
-    }
-  };
-
-  const fetchGatePasses = async (warehouseId = null) => {
-    try {
-      // Check if token exists before making API call
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No token available for API call');
-        return;
-      }
-
-      const id = warehouseId || warehouseData?._id || user?.warehouse;
-      if (!id) return;
-      
-      const response = await api.get(`${API_ENDPOINTS.GATE_PASS.GET_ALL}?warehouse=${id}`);
-      const data = response.data.data || response.data || [];
-      setGatePasses(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Error fetching gate passes:', error);
-      // Don't show error toast, just log it
-    }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.role, user?._id, user?.warehouse]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');

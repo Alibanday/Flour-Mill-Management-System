@@ -174,7 +174,7 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Bags Summary
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
                 Financial
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -229,14 +229,14 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
                   ); })()}
                 </td>
                 
-                <td className="px-6 py-4">
+                <td className="px-6 py-4 min-w-[180px]">
                   {(() => { const b = getPrimaryBagInfo(purchase); return (
                   <div className="text-sm">
-                    <div className="text-gray-900 font-medium">
-                      ₹{(b.totalPrice || 0).toLocaleString()}
+                    <div className="text-gray-900 font-medium break-words">
+                      Rs. {(b.totalPrice || 0).toLocaleString()}
                     </div>
-                    <div className="text-gray-500">
-                      Unit Price: ₹{(b.unitPrice || 0).toLocaleString()}
+                    <div className="text-gray-500 break-words">
+                      Unit Price: Rs. {(b.unitPrice || 0).toLocaleString()}
                     </div>
                     <div className="text-gray-500">
                       Status: {purchase.paymentStatus || 'Unknown'}
@@ -304,7 +304,7 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
           <div className="flex space-x-4 text-sm">
             <span className="text-gray-600">
               Total Value: <span className="font-semibold text-gray-900">
-                ₹{filteredPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0).toLocaleString()}
+                Rs. {filteredPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0).toLocaleString()}
               </span>
             </span>
             <span className="text-gray-600">

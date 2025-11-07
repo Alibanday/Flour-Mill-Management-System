@@ -350,38 +350,38 @@ export default function BagFoodPurchasePage() {
               </div>
             </div>
             
-            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-yellow-100 rounded-lg">
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
+              <div className="flex items-start">
+                <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
                   <FaCalculator className="text-yellow-600 text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Bag Value</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{(stats.totalBagValue || 0).toLocaleString()}</p>
+                <div className="ml-4 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-600 mb-1">Bag Value</p>
+                  <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {(stats.totalBagValue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
+              <div className="flex items-start">
+                <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
                   <FaFileInvoice className="text-purple-600 text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Food Value</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{(stats.totalFoodValue || 0).toLocaleString()}</p>
+                <div className="ml-4 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-600 mb-1">Food Value</p>
+                  <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {(stats.totalFoodValue || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
+              <div className="flex items-start">
+                <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
                   <FaWarehouse className="text-red-600 text-xl" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
-                  <p className="text-2xl font-bold text-gray-900">₹{(stats.pendingPayments || 0).toLocaleString()}</p>
+                <div className="ml-4 flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-600 mb-1">Pending</p>
+                  <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {(stats.pendingPayments || 0).toLocaleString()}</p>
                 </div>
               </div>
             </div>

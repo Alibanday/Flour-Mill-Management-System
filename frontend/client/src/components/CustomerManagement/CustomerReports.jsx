@@ -153,9 +153,9 @@ export default function CustomerReports() {
               <div className="p-3 bg-purple-100 rounded-lg">
                 <FaDollarSign className="text-purple-600 text-xl" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{reports.customerSummary.totalRevenue}</p>
+              <div className="ml-4 flex-1 min-w-0 overflow-hidden">
+                <p className="text-sm font-medium text-gray-600 mb-1">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {reports.customerSummary.totalRevenue}</p>
               </div>
             </div>
           </div>

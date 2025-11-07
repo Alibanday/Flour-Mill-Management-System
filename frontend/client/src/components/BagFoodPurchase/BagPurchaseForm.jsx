@@ -22,32 +22,10 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [inventoryItems, setInventoryItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
   const [warehousesLoading, setWarehousesLoading] = useState(false);
 
   const isEditing = !!purchase;
-
-  // Fetch inventory items
-  useEffect(() => {
-    const fetchInventoryItems = async () => {
-      setInventoryLoading(true);
-      try {
-        const response = await fetch('/api/inventory');
-        if (response.ok) {
-          const data = await response.json();
-          setInventoryItems(data.data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching inventory items:', error);
-      } finally {
-        setInventoryLoading(false);
-      }
-    };
-
-    fetchInventoryItems();
-  }, []);
 
   // Fetch warehouses
   useEffect(() => {
@@ -71,20 +49,149 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
   useEffect(() => {
     if (purchase) {
+      console.log('Loading purchase data for editing:', purchase);
+      
+      // Extract supplier ID (handle both populated and non-populated)
+      let supplierId = '';
+      if (purchase.supplier) {
+        if (typeof purchase.supplier === 'object' && purchase.supplier._id) {
+          supplierId = purchase.supplier._id;
+        } else if (typeof purchase.supplier === 'string') {
+          supplierId = purchase.supplier;
+        }
+      }
+      
+      // Extract warehouse ID
+      let warehouseId = '';
+      if (purchase.warehouse) {
+        if (typeof purchase.warehouse === 'object' && purchase.warehouse._id) {
+          warehouseId = purchase.warehouse._id;
+        } else if (typeof purchase.warehouse === 'string') {
+          warehouseId = purchase.warehouse;
+        }
+      }
+      
+      // Extract bag data from bags structure (Map or object)
+      let productType = '';
+      let quantity = 0;
+      let unit = '';
+      let unitPrice = 0;
+      let totalPrice = 0;
+      
+      if (purchase.bags) {
+        let bagsObj = purchase.bags;
+        
+        // Handle Map structure - convert to object
+        if (purchase.bags instanceof Map) {
+          bagsObj = Object.fromEntries(purchase.bags);
+        }
+        // Handle serialized Map (when data comes from API, Maps are often serialized as objects)
+        else if (purchase.bags.constructor && purchase.bags.constructor.name === 'Map') {
+          // This shouldn't happen after serialization, but handle it anyway
+          bagsObj = Object.fromEntries(Object.entries(purchase.bags));
+        }
+        // Handle object structure
+        else if (typeof purchase.bags === 'object') {
+          bagsObj = purchase.bags;
+        }
+        
+        // Try to find the first bag type with quantity > 0, fallback to any bag type
+        // Check both uppercase (ATA) and lowercase (ata) keys
+        const bagTypes = [
+          { keys: ['ATA', 'ata'], name: 'ATA' },
+          { keys: ['MAIDA', 'maida'], name: 'MAIDA' },
+          { keys: ['SUJI', 'suji'], name: 'SUJI' },
+          { keys: ['FINE', 'fine'], name: 'FINE' }
+        ];
+        
+        let foundBagWithQuantity = false;
+        
+        // First pass: look for bag types with quantity > 0
+        for (const { keys, name } of bagTypes) {
+          let bagData = null;
+          for (const key of keys) {
+            if (bagsObj[key] && bagsObj[key].quantity !== undefined) {
+              bagData = bagsObj[key];
+              break;
+            }
+          }
+          
+          if (bagData && bagData.quantity > 0) {
+            productType = name;
+            quantity = parseFloat(bagData.quantity) || 0;
+            unit = bagData.unit || '50kg bags';
+            unitPrice = parseFloat(bagData.unitPrice) || 0;
+            totalPrice = parseFloat(bagData.totalPrice) || (quantity * unitPrice);
+            console.log(`Found bag data with quantity for ${name}:`, { quantity, unit, unitPrice, totalPrice });
+            foundBagWithQuantity = true;
+            break;
+          }
+        }
+        
+        // Second pass: if no bag with quantity > 0, use the first one found
+        if (!foundBagWithQuantity) {
+          for (const { keys, name } of bagTypes) {
+            let bagData = null;
+            for (const key of keys) {
+              if (bagsObj[key] && bagsObj[key].quantity !== undefined) {
+                bagData = bagsObj[key];
+                break;
+              }
+            }
+            
+            if (bagData) {
+              productType = name;
+              quantity = parseFloat(bagData.quantity) || 0;
+              unit = bagData.unit || '50kg bags';
+              unitPrice = parseFloat(bagData.unitPrice) || 0;
+              totalPrice = parseFloat(bagData.totalPrice) || (quantity * unitPrice);
+              console.log(`Found bag data for ${name} (quantity may be 0):`, { quantity, unit, unitPrice, totalPrice });
+              break;
+            }
+          }
+        }
+      }
+      
+      // Fallback to direct properties if bags structure doesn't have data
+      if (!productType && (purchase.productType || purchase.quantity)) {
+        productType = purchase.productType || '';
+        quantity = purchase.quantity || 0;
+        unit = purchase.unit || '50kg bags';
+        unitPrice = purchase.unitPrice || 0;
+        totalPrice = purchase.totalPrice || purchase.totalAmount || 0;
+      }
+      
+      // Calculate remaining amount
+      const total = totalPrice || purchase.totalAmount || 0;
+      const paid = purchase.paidAmount || 0;
+      const remaining = total - paid;
+      
+      console.log('Extracted form data:', {
+        productType,
+        quantity,
+        unit,
+        unitPrice,
+        totalPrice,
+        supplierId,
+        warehouseId
+      });
+      
       setFormData({
         purchaseNumber: purchase.purchaseNumber || '',
-        supplier: purchase.supplier ? (purchase.supplier._id || purchase.supplier) : '',
-        productType: purchase.productType || '',
-        quantity: purchase.quantity || 0,
-        unit: purchase.unit || '',
-        unitPrice: purchase.unitPrice || 0,
-        totalPrice: purchase.totalPrice || 0,
-        purchaseDate: new Date(purchase.purchaseDate).toISOString().split('T')[0],
+        supplier: supplierId,
+        productType: productType,
+        quantity: quantity,
+        unit: unit,
+        unitPrice: unitPrice,
+        totalPrice: totalPrice,
+        purchaseDate: purchase.purchaseDate 
+          ? new Date(purchase.purchaseDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
         status: purchase.status || 'Pending',
         paymentStatus: purchase.paymentStatus || 'Pending',
-        paidAmount: purchase.paidAmount || 0,
-        remainingAmount: purchase.remainingAmount || 0,
-        warehouse: purchase.warehouse || '',
+        paidAmount: paid,
+        remainingAmount: remaining,
+        warehouse: warehouseId,
         notes: purchase.notes || '',
         receivingGatePass: purchase.receivingGatePass || false
       });
@@ -111,19 +218,11 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       newFormData.totalPrice = quantity * unitPrice;
     }
 
-    // Update unit when product type changes
+    // Update unit when product type changes (default to 50kg bags for bag purchases)
     if (name === 'productType') {
-      const selectedItem = inventoryItems.find(item => item.name === value);
-      if (selectedItem) {
-        // Set unit based on inventory item weight
-        const weight = selectedItem.weight;
-        if (weight >= 1000) {
-          newFormData.unit = `${weight/1000}kg bags`;
-        } else if (weight >= 100) {
-          newFormData.unit = `${weight}kg bags`;
-        } else {
-          newFormData.unit = `${weight}kg bags`;
-        }
+      // Default unit for bag purchases is 50kg bags
+      if (!newFormData.unit || newFormData.unit === '') {
+        newFormData.unit = '50kg bags';
       }
     }
 
@@ -260,7 +359,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Type * (From Inventory)
+                Product Type * 
               </label>
               <select
                 name="productType"
@@ -268,19 +367,14 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                 onChange={handleInputChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={inventoryLoading}
               >
-                <option value="">Select product from inventory</option>
-                {inventoryItems.map((item) => (
-                  <option key={item._id} value={item.name}>
-                    {item.name} ({item.weight}kg)
-                  </option>
-                ))}
+                <option value="">Select bag type</option>
+                <option value="ATA">ATA</option>
+                <option value="MAIDA">MAIDA</option>
+                <option value="SUJI">SUJI</option>
+                <option value="FINE">FINE</option>
               </select>
-              {inventoryLoading && (
-                <p className="mt-1 text-xs text-gray-500">Loading inventory items...</p>
-              )}
-              <p className="mt-1 text-xs text-gray-500">Select from your saved inventory items</p>
+              <p className="mt-1 text-xs text-gray-500">Select the type of bag (ATA, MAIDA, SUJI, or FINE)</p>
             </div>
           </div>
 
@@ -302,17 +396,29 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Unit * (From Inventory)
+                Unit *
               </label>
-              <input
-                type="text"
+              <select
                 name="unit"
                 value={formData.unit}
-                readOnly
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed"
-                placeholder="Unit will be set based on selected product"
-              />
-              <p className="mt-1 text-xs text-gray-500">Unit is automatically set based on inventory item weight</p>
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select unit</option>
+                <option value="50kg bags">50kg bags</option>
+                <option value="25kg bags">25kg bags</option>
+                <option value="20kg bags">20kg bags</option>
+                <option value="15kg bags">15kg bags</option>
+                <option value="10kg bags">10kg bags</option>
+                <option value="5kg bags">5kg bags</option>
+                <option value="100kg sacks">100kg sacks</option>
+                <option value="50kg sacks">50kg sacks</option>
+                <option value="25kg sacks">25kg sacks</option>
+                <option value="bags">bags</option>
+                <option value="pieces">pieces</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Select the unit for the bags</p>
             </div>
 
             <div>
@@ -388,7 +494,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
               >
                 <option value="Pending">Pending</option>
                 <option value="Partial">Partial</option>
-                <option value="Completed">Completed</option>
+                <option value="Paid">Paid</option>
               </select>
             </div>
           </div>

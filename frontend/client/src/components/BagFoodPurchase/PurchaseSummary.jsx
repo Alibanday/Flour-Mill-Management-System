@@ -175,41 +175,41 @@ export default function PurchaseSummary({ bagPurchases, foodPurchases, stats }) 
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
+            <div className="flex items-start">
+              <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
                 <FaCalculator className="text-green-600 text-xl" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Bag Purchases</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(metrics.bagTotal || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Total value</p>
+              <div className="ml-4 flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-600 mb-1">Bag Purchases</p>
+                <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {(metrics.bagTotal || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">Total value</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg">
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
+            <div className="flex items-start">
+              <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
                 <FaTruck className="text-yellow-600 text-xl" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Food Purchases</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(metrics.foodTotal || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Total value</p>
+              <div className="ml-4 flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-600 mb-1">Food Purchases</p>
+                <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {(metrics.foodTotal || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">Total value</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg">
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
+            <div className="flex items-start">
+              <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
                 <FaCalendarAlt className="text-red-600 text-xl" />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Pending Payments</p>
-                <p className="text-2xl font-bold text-gray-900">₹{(metrics.pendingPayments || 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500">Outstanding amount</p>
+              <div className="ml-4 flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-600 mb-1">Pending Payments</p>
+                <p className="text-2xl font-bold text-gray-900 break-words leading-tight">Rs. {(metrics.pendingPayments || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">Outstanding amount</p>
               </div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export default function PurchaseSummary({ bagPurchases, foodPurchases, stats }) 
                   <span className="text-sm font-medium text-gray-900 mr-2">#{index + 1}</span>
                   <span className="text-sm text-gray-700">{supplier}</span>
                 </div>
-                <span className="text-sm font-semibold text-gray-900">₹{(total || 0).toLocaleString()}</span>
+                <span className="text-sm font-semibold text-gray-900 break-words">Rs. {(total || 0).toLocaleString()}</span>
               </div>
             ))}
           </div>
@@ -243,7 +243,7 @@ export default function PurchaseSummary({ bagPurchases, foodPurchases, stats }) 
               {Object.entries(metrics.categoryTotals).map(([category, total]) => (
                 <div key={category} className="flex justify-between items-center">
                   <span className="text-sm text-gray-700">{category}</span>
-                  <span className="text-sm font-semibold text-gray-900">₹{(total || 0).toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-gray-900 break-words">Rs. {(total || 0).toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -300,7 +300,7 @@ export default function PurchaseSummary({ bagPurchases, foodPurchases, stats }) 
                   </div>
                 </div>
                 <div className="text-sm font-semibold text-gray-900">
-                  ₹{(purchase.totalAmount || 0).toLocaleString()}
+                  <span className="break-words">Rs. {(purchase.totalAmount || 0).toLocaleString()}</span>
                 </div>
               </div>
             ))}
