@@ -288,7 +288,7 @@ router.patch("/:id/credit-limit", authorize("Admin", "Manager"), [
 });
 
 // Update credit balance
-router.patch("/:id/credit-balance", authorize("Admin", "Manager", "Cashier"), [
+router.patch("/:id/credit-balance", authorize("Admin", "Manager", "Cashier", "Sales Manager"), [
   body('amount').isNumeric().withMessage('Amount must be a number'),
   body('type').isIn(['debit', 'credit']).withMessage('Type must be debit or credit')
 ], async (req, res) => {

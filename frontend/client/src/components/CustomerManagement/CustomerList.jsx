@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaSpinner, FaEye, FaUser, FaBuilding, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 export default function CustomerList({ onEditCustomer, onAddCustomer }) {
   const [customers, setCustomers] = useState([]);
@@ -11,6 +12,7 @@ export default function CustomerList({ onEditCustomer, onAddCustomer }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCustomers, setTotalCustomers] = useState(0);
+  const navigate = useNavigate();
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -299,6 +301,13 @@ export default function CustomerList({ onEditCustomer, onAddCustomer }) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
+                      <button
+                        onClick={() => navigate(`/customers/${customer._id}`)}
+                        className="text-green-600 hover:text-green-900 p-1 rounded"
+                        title="View Details"
+                      >
+                        <FaEye />
+                      </button>
                       <button
                         onClick={() => onEditCustomer(customer)}
                         className="text-blue-600 hover:text-blue-900 p-1 rounded"

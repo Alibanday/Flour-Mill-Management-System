@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaShoppingCart, FaCalculator, FaUser, FaBoxes, FaUndo, FaPercent, FaRupeeSign, FaPlus, FaSearch, FaUserPlus } from 'react-icons/fa';
+import { FaSave, FaTimes, FaShoppingCart, FaCalculator, FaUser, FaBoxes, FaUndo, FaPercent, FaRupeeSign, FaPlus, FaSearch, FaUserPlus, FaMoneyBillWave } from 'react-icons/fa';
 import CustomerSearch from './CustomerSearch';
 import api, { API_ENDPOINTS } from '../../services/api';
 
@@ -21,6 +21,8 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     items: [],
     warehouse: '',
     paymentMethod: 'Cash',
+    paymentStatus: 'Unpaid',
+    paidAmount: 0,
     discount: {
       type: 'none',
       value: 0,
@@ -84,7 +86,9 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     if (editData) {
       setFormData({
         ...editData,
-        saleDate: new Date(editData.saleDate).toISOString().split('T')[0]
+        saleDate: new Date(editData.saleDate).toISOString().split('T')[0],
+        paymentStatus: editData.paymentStatus || 'Unpaid',
+        paidAmount: editData.paidAmount || 0
       });
       if (editData.returns) {
         setReturns(editData.returns);
@@ -266,6 +270,27 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     }
   };
 
+  const handlePaymentStatusChange = (value) => {
+    const total = calculateTotal();
+    setFormData(prev => {
+      let paidAmount = safeNumber(prev.paidAmount);
+
+      if (value === 'Total Paid') {
+        paidAmount = total;
+      } else if (value === 'Unpaid') {
+        paidAmount = 0;
+      } else if (value === 'Partial') {
+        paidAmount = Math.min(paidAmount > 0 ? paidAmount : 0, total);
+      }
+
+      return {
+        ...prev,
+        paymentStatus: value,
+        paidAmount
+      };
+    });
+  };
+
   const addItem = () => {
     if (!formData.warehouse) {
       setErrors({ items: 'Please select a warehouse first' });
@@ -359,10 +384,26 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     if (!formData.paymentMethod) {
       newErrors.paymentMethod = 'Payment method is required';
     }
-    
+
+    const total = calculateTotal();
+
+    if (formData.paymentStatus === 'Partial') {
+      const partialPaid = safeNumber(formData.paidAmount);
+      if (partialPaid <= 0) {
+        newErrors.paidAmount = 'Enter the amount received from the customer';
+      } else if (partialPaid >= total) {
+        newErrors.paidAmount = 'Partial payment must be less than total amount';
+      }
+    }
+
+    if (formData.paymentStatus === 'Unpaid') {
+      if (safeNumber(formData.paidAmount) !== 0) {
+        newErrors.paidAmount = 'Paid amount must be zero for unpaid status';
+      }
+    }
+
     // Check credit limit for credit payments
     if (formData.paymentMethod === 'Credit' && formData.customerId) {
-      const total = calculateTotal();
       const availableCredit = formData.customer.creditLimit - formData.customer.outstandingBalance;
       if (total > availableCredit) {
         newErrors.items = `Credit limit exceeded! Available credit: Rs. ${availableCredit.toFixed(2)}, Total purchase: Rs. ${total.toFixed(2)}`;
@@ -376,6 +417,16 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     }
 
     try {
+      let paidAmount = 0;
+      if (formData.paymentStatus === 'Total Paid') {
+        paidAmount = total;
+      } else if (formData.paymentStatus === 'Partial') {
+        paidAmount = Math.min(safeNumber(formData.paidAmount), total);
+      } else {
+        paidAmount = 0;
+      }
+      const dueAmount = Math.max(total - paidAmount, 0);
+
       // Prepare sale data with proper structure
       const saleData = {
         customer: {
@@ -389,11 +440,14 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
         items: formData.items,
         warehouse: formData.warehouse,
         paymentMethod: formData.paymentMethod,
+        paymentStatus: formData.paymentStatus,
+        paidAmount,
+        dueAmount,
         discount: formData.discount,
         tax: formData.tax,
         notes: formData.notes,
         subtotal: formData.items.reduce((sum, item) => sum + item.totalPrice, 0),
-        totalAmount: calculateTotal()
+        totalAmount: total
       };
 
       console.log('📤 Sending sale data:', saleData);
@@ -405,6 +459,14 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
       setIsSubmitting(false);
     }
   };
+
+  const totalAmount = calculateTotal();
+  const effectivePaidAmount = formData.paymentStatus === 'Total Paid'
+    ? totalAmount
+    : formData.paymentStatus === 'Partial'
+      ? Math.min(safeNumber(formData.paidAmount), totalAmount)
+      : 0;
+  const computedDueAmount = Math.max(totalAmount - effectivePaidAmount, 0);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -838,6 +900,102 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
               </div>
             )}
 
+            {/* Payment Details */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <FaMoneyBillWave className="mr-2 text-green-500" />
+                Payment Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Method *
+                  </label>
+                  <select
+                    name="paymentMethod"
+                    value={formData.paymentMethod}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Credit">Credit</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Card">Card</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Status *
+                  </label>
+                  <select
+                    name="paymentStatus"
+                    value={formData.paymentStatus}
+                    onChange={(e) => handlePaymentStatusChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Partial">Partial Payment</option>
+                    <option value="Total Paid">Total Paid</option>
+                  </select>
+                </div>
+              </div>
+
+              {formData.paymentStatus === 'Partial' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount Received (Rs.)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={formData.paidAmount}
+                      onChange={(e) => setFormData(prev => ({ ...prev, paidAmount: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                    {errors.paidAmount && (
+                      <p className="text-sm text-red-600 mt-1">{errors.paidAmount}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Remaining Amount (Rs.)
+                    </label>
+                    <input
+                      type="text"
+                      value={computedDueAmount.toFixed(2)}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Automatically calculated as Total - Paid</p>
+                  </div>
+                </div>
+              )}
+
+              {formData.paymentStatus !== 'Partial' && errors.paidAmount && (
+                <p className="text-sm text-red-600 mt-2">{errors.paidAmount}</p>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="bg-white rounded-md p-4 border">
+                  <p className="text-xs uppercase text-gray-500">Total Amount</p>
+                  <p className="text-lg font-semibold text-gray-900">{`Rs. ${totalAmount.toFixed(2)}`}</p>
+                </div>
+                <div className="bg-white rounded-md p-4 border">
+                  <p className="text-xs uppercase text-gray-500">Amount Paid</p>
+                  <p className="text-lg font-semibold text-green-600">{`Rs. ${effectivePaidAmount.toFixed(2)}`}</p>
+                </div>
+                <div className="bg-white rounded-md p-4 border">
+                  <p className="text-xs uppercase text-gray-500">Amount Due</p>
+                  <p className="text-lg font-semibold text-red-600">{`Rs. ${computedDueAmount.toFixed(2)}`}</p>
+                </div>
+              </div>
+            </div>
+
             {/* Discount and Tax Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -891,7 +1049,7 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
             <div className="bg-blue-50 p-4 rounded-lg">
               <div className="flex justify-between items-center text-lg font-semibold">
                 <span>Total Amount:</span>
-                <span className="text-blue-600">Rs. {calculateTotal().toFixed(2)}</span>
+                <span className="text-blue-600">Rs. {totalAmount.toFixed(2)}</span>
               </div>
             </div>
 

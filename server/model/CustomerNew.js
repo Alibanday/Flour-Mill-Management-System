@@ -178,6 +178,24 @@ const customerNewSchema = new mongoose.Schema({
   timestamps: true
 });
 
+customerNewSchema.methods.updateCreditBalance = async function(amount, type = 'credit') {
+  const numericAmount = Number(amount) || 0;
+  if (numericAmount <= 0) {
+    throw new Error('Amount must be greater than zero');
+  }
+
+  if (type === 'debit') {
+    this.creditUsed = Math.max(0, this.creditUsed + numericAmount);
+  } else if (type === 'credit') {
+    this.creditUsed = Math.max(0, this.creditUsed - numericAmount);
+  } else {
+    throw new Error('Invalid transaction type');
+  }
+
+  await this.save();
+  return this;
+};
+
 // Pre-save middleware to auto-generate customerId
 customerNewSchema.pre('save', async function(next) {
   if (!this.customerId) {

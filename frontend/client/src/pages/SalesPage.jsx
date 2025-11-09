@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FaShoppingCart, FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaShoppingCart, FaPlus, FaEdit, FaTrash, FaEye, FaArrowLeft } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import SalesFormEnhanced from '../components/SalesManagement/SalesFormEnhanced';
 
 export default function SalesPage() {
   const { user, rolePermissions } = useAuth();
+  const navigate = useNavigate();
   const [showSalesForm, setShowSalesForm] = useState(false);
   const [editData, setEditData] = useState(null);
   const [sales, setSales] = useState([]);
@@ -107,7 +109,14 @@ export default function SalesPage() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700"
+              >
+                <FaArrowLeft className="mr-2" />
+                Back
+              </button>
               <h1 className="text-2xl font-bold text-gray-900">Sales Management</h1>
             </div>
             <div className="flex items-center space-x-4">
@@ -195,6 +204,13 @@ export default function SalesPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
+                            <button
+                              onClick={() => navigate(`/sales/${sale._id}`)}
+                              className="text-green-600 hover:text-green-900"
+                              title="View Details"
+                            >
+                              <FaEye />
+                            </button>
                             <button
                               onClick={() => handleEdit(sale)}
                               className="text-blue-600 hover:text-blue-900"

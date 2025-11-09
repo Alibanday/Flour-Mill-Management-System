@@ -27,6 +27,8 @@ import StockPage from './pages/StockPage';
 import WarehouseManagerDashboard from './pages/WarehouseManagerDashboard';
 import DamageReportPage from './pages/DamageReportPage';
 import ProtectedRoute, { AdminRoute, GeneralManagerRoute, SalesManagerRoute, ProductionManagerRoute, WarehouseManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
+import SaleDetailPage from './pages/SaleDetailPage';
+import CustomerDetailPage from './pages/CustomerDetailPage';
 
 function App() {
   return (
@@ -85,6 +87,14 @@ function App() {
               <SalesPage />
             </SalesManagerRoute>
           } 
+        />
+        <Route
+          path="/sales/:id"
+          element={
+            <SalesManagerRoute>
+              <SaleDetailPage />
+            </SalesManagerRoute>
+          }
         />
         
         {/* Production - Admin, General Manager, and Production Manager */}
@@ -185,6 +195,14 @@ function App() {
               <CustomerManagementPage />
             </SalesManagerRoute>
           } 
+        />
+        <Route
+          path="/customers/:id"
+          element={
+            <SalesManagerRoute>
+              <CustomerDetailPage />
+            </SalesManagerRoute>
+          }
         />
 
         {/* Stock Transfer - Admin, General Manager, Production Manager, and Warehouse Manager */}
