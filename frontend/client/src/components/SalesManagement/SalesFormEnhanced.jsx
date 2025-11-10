@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaShoppingCart, FaCalculator, FaUser, FaBoxes, FaUndo, FaPercent, FaRupeeSign, FaPlus, FaSearch, FaUserPlus, FaMoneyBillWave } from 'react-icons/fa';
+import { FaSave, FaTimes, FaShoppingCart, FaCalculator, FaUser, FaBoxes, FaUndo, FaPercent, FaRupeeSign, FaPlus, FaSearch, FaUserPlus, FaMoneyBillWave, FaPrint } from 'react-icons/fa';
 import CustomerSearch from './CustomerSearch';
 import api, { API_ENDPOINTS } from '../../services/api';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null, warehouses = [], inventory = [] }) {
   const [formData, setFormData] = useState({
@@ -84,32 +86,170 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
 
   useEffect(() => {
     if (editData) {
+      console.log('📝 Loading edit data:', editData);
+      
+      // Extract customer ID - handle both customerId and customer.customerId
+      const customerId = editData.customerId || editData.customer?.customerId || editData.customer?._id;
+      
+      // Extract warehouse ID - handle both string and object
+      const warehouseId = typeof editData.warehouse === 'object' 
+        ? editData.warehouse._id || editData.warehouse 
+        : editData.warehouse;
+      
+      // Map payment status from backend to frontend
+      let paymentStatus = editData.paymentStatus || 'Unpaid';
+      if (paymentStatus === 'Pending') paymentStatus = 'Unpaid';
+      if (paymentStatus === 'Paid') paymentStatus = 'Total Paid';
+      
+      // Extract paid amount
+      const paidAmount = parseFloat(editData.paidAmount) || 0;
+      
+      // Extract customer data
+      const customerData = editData.customer || {};
+      
+      // Format sale date
+      const saleDate = editData.saleDate 
+        ? new Date(editData.saleDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      
+      // Extract items - ensure product field is an ID string, not an object
+      const items = (editData.items || []).map(item => ({
+        ...item,
+        product: typeof item.product === 'object' && item.product?._id 
+          ? item.product._id 
+          : item.product
+      }));
+      
+      // Extract discount
+      const discount = editData.discount || { type: 'none', value: 0, amount: 0 };
+      
+      // Extract tax
+      const tax = parseFloat(editData.tax) || 0;
+      
+      // Set form data
       setFormData({
-        ...editData,
-        saleDate: new Date(editData.saleDate).toISOString().split('T')[0],
-        paymentStatus: editData.paymentStatus || 'Unpaid',
-        paidAmount: editData.paidAmount || 0
+        invoiceNumber: editData.invoiceNumber || '',
+        customerId: customerId || '',
+        customer: {
+          name: customerData.name || '',
+          contact: {
+            phone: customerData.contact?.phone || '',
+            email: customerData.contact?.email || '',
+            address: customerData.contact?.address || ''
+          },
+          creditLimit: customerData.creditLimit || 0,
+          outstandingBalance: customerData.outstandingBalance || customerData.creditUsed || 0
+        },
+        saleDate: saleDate,
+        items: items,
+        warehouse: warehouseId || '',
+        paymentMethod: editData.paymentMethod || 'Cash',
+        paymentStatus: paymentStatus,
+        paidAmount: paidAmount,
+        discount: discount,
+        tax: tax,
+        notes: editData.notes || ''
       });
+      
+      // Set returns if they exist
       if (editData.returns) {
         setReturns(editData.returns);
       }
       
-      // If editing and customer ID exists, fetch the full customer object
-      if (editData.customerId) {
-        fetchCustomerById(editData.customerId);
+      // If editing and customer ID exists, always fetch the full customer object
+      // This ensures we have firstName/lastName for CustomerSearch component
+      if (customerId) {
+        console.log('👤 Fetching customer by ID for edit:', customerId);
+        fetchCustomerById(customerId);
       }
+      
+      console.log('✅ Form data loaded:', {
+        customerId,
+        warehouseId,
+        paymentStatus,
+        paidAmount,
+        itemsCount: items.length,
+        totalAmount: editData.totalAmount,
+        customerName: customerData.name
+      });
+    } else {
+      // Reset form when not editing
+      setFormData({
+        invoiceNumber: '',
+        customerId: '',
+        customer: {
+          name: '',
+          contact: {
+            phone: '',
+            email: '',
+            address: ''
+          },
+          creditLimit: 0,
+          outstandingBalance: 0
+        },
+        saleDate: new Date().toISOString().split('T')[0],
+        items: [],
+        warehouse: '',
+        paymentMethod: 'Cash',
+        paymentStatus: 'Unpaid',
+        paidAmount: 0,
+        discount: {
+          type: 'none',
+          value: 0,
+          amount: 0
+        },
+        tax: 0,
+        notes: ''
+      });
+      setSelectedCustomerObj(null);
+      setReturns([]);
     }
   }, [editData]);
   
   const fetchCustomerById = async (customerId) => {
     try {
-      const response = await api.get(API_ENDPOINTS.CUSTOMERS.GET_BY_ID(customerId));
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:7000/api/customers/${customerId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      if (response.data?.success) {
-        setSelectedCustomerObj(response.data.data);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const customer = data.data;
+          setSelectedCustomerObj(customer);
+          
+          // Update form data with customer information
+          setFormData(prev => ({
+            ...prev,
+            customerId: customer._id,
+            customer: {
+              name: `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.customerName || '',
+              contact: {
+                phone: customer.phone || '',
+                email: customer.email || '',
+                address: customer.address 
+                  ? [
+                      customer.address.street,
+                      customer.address.city,
+                      customer.address.state,
+                      customer.address.zipCode
+                    ].filter(Boolean).join(', ')
+                  : ''
+              },
+              creditLimit: customer.creditLimit || 0,
+              outstandingBalance: customer.creditUsed || customer.outstandingBalance || 0
+            }
+          }));
+          
+          console.log('✅ Customer loaded:', customer);
+        }
       }
     } catch (error) {
-      console.error('Error fetching customer:', error);
+      console.error('❌ Error fetching customer:', error);
     }
   };
 
@@ -142,31 +282,6 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
       }));
     }
   }, [formData.discount?.type, formData.discount?.value, formData.items]);
-
-
-  const searchCustomers = async () => {
-    if (customerSearchQuery.length < 2) return;
-    
-    setIsSearchingCustomers(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:7000/api/sales/customers/search?q=${encodeURIComponent(customerSearchQuery)}&limit=10`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCustomerSearchResults(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error searching customers:', error);
-    } finally {
-      setIsSearchingCustomers(false);
-    }
-  };
 
   const handleCustomerSelect = (customer) => {
     if (!customer) {
@@ -366,7 +481,235 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     return subtotal - discountAmount + taxAmount;
   };
 
-  const handleSubmit = async (e) => {
+  // Print Invoice
+  const printInvoice = (saleData) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Company Header
+      doc.setFontSize(20);
+      doc.text('FLOUR MILL MANAGEMENT SYSTEM', 105, 20, { align: 'center' });
+      doc.setFontSize(16);
+      doc.text('SALES INVOICE', 105, 30, { align: 'center' });
+      
+      // Invoice Details
+      doc.setFontSize(10);
+      doc.text(`Invoice #: ${saleData.invoiceNumber || 'AUTO-GENERATED'}`, 20, 45);
+      doc.text(`Date: ${saleData.saleDate ? new Date(saleData.saleDate).toLocaleDateString() : new Date().toLocaleDateString()}`, 20, 52);
+      
+      // Customer Details
+      doc.setFontSize(12);
+      doc.text('Bill To:', 20, 65);
+      doc.setFontSize(10);
+      doc.text(saleData.customer?.name || 'N/A', 20, 72);
+      if (saleData.customer?.contact?.phone) {
+        doc.text(`Phone: ${saleData.customer.contact.phone}`, 20, 79);
+      }
+      if (saleData.customer?.contact?.address) {
+        doc.text(`Address: ${saleData.customer.contact.address}`, 20, 86);
+      }
+      
+      // Items Table - Try autoTable first, fallback to manual
+      let finalY = 95;
+      if (saleData.items && Array.isArray(saleData.items) && saleData.items.length > 0) {
+        try {
+          // Try to use autoTable if available
+          if (typeof doc.autoTable === 'function') {
+            const itemsData = saleData.items.map(item => [
+              (item.productName || item.name || 'N/A').toString().substring(0, 30), // Limit length
+              (item.quantity || 0).toString(),
+              (item.unit || 'units').toString(),
+              `Rs. ${(parseFloat(item.unitPrice) || 0).toFixed(2)}`,
+              `Rs. ${(parseFloat(item.totalPrice) || 0).toFixed(2)}`
+            ]);
+            
+            doc.autoTable({
+              startY: 95,
+              head: [['Product', 'Qty', 'Unit', 'Unit Price', 'Total']],
+              body: itemsData,
+              theme: 'grid',
+              styles: { fontSize: 8 },
+              headStyles: { fillColor: [66, 139, 202] }
+            });
+            
+            finalY = doc.lastAutoTable.finalY + 10;
+          } else {
+            throw new Error('autoTable not available');
+          }
+        } catch (autoTableError) {
+          // Fallback: Manual table creation
+          console.warn('autoTable not available, using manual table:', autoTableError);
+          doc.setFontSize(10);
+          doc.text('Items:', 20, finalY);
+          finalY += 10;
+          (saleData.items || []).forEach((item, index) => {
+            if (finalY > 250) {
+              doc.addPage();
+              finalY = 20;
+            }
+            const itemText = `${index + 1}. ${item.productName || item.name || 'N/A'} - Qty: ${item.quantity || 0} ${item.unit || 'units'} - Price: Rs. ${(parseFloat(item.totalPrice) || 0).toFixed(2)}`;
+            doc.text(itemText, 20, finalY);
+            finalY += 7;
+          });
+          finalY += 5;
+        }
+      } else {
+        // No items - just show message
+        doc.setFontSize(10);
+        doc.text('No items in this sale.', 20, finalY);
+        finalY += 10;
+      }
+      
+      // Totals
+      doc.setFontSize(10);
+      doc.text(`Subtotal: Rs. ${(saleData.subtotal || 0).toFixed(2)}`, 150, finalY, { align: 'right' });
+      const discountAmount = saleData.discount?.amount || (typeof saleData.discount === 'number' ? saleData.discount : 0);
+      if (discountAmount > 0) {
+        doc.text(`Discount: Rs. ${discountAmount.toFixed(2)}`, 150, finalY + 7, { align: 'right' });
+      }
+      if (saleData.tax > 0) {
+        doc.text(`Tax: Rs. ${(saleData.tax || 0).toFixed(2)}`, 150, finalY + 14, { align: 'right' });
+      }
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Total: Rs. ${(saleData.totalAmount || 0).toFixed(2)}`, 150, finalY + 21, { align: 'right' });
+      
+      // Payment Info
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.text(`Payment Method: ${saleData.paymentMethod || 'N/A'}`, 20, finalY + 30);
+      doc.text(`Payment Status: ${saleData.paymentStatus || 'N/A'}`, 20, finalY + 37);
+      if (saleData.paidAmount > 0) {
+        doc.text(`Paid Amount: Rs. ${(saleData.paidAmount || 0).toFixed(2)}`, 20, finalY + 44);
+      }
+      if (saleData.dueAmount > 0) {
+        doc.text(`Due Amount: Rs. ${(saleData.dueAmount || 0).toFixed(2)}`, 20, finalY + 51);
+      }
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.text('Thank you for your business!', 105, 280, { align: 'center' });
+      
+      doc.save(`Invoice-${saleData.invoiceNumber || 'AUTO'}.pdf`);
+    } catch (error) {
+      console.error('Error printing invoice:', error);
+      alert('Error generating invoice PDF: ' + error.message);
+    }
+  };
+
+  // Print Gatepass
+  const printGatepass = (saleData, gatePassData) => {
+    try {
+      const doc = new jsPDF();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.text('FLOUR MILL MANAGEMENT SYSTEM', 105, 20, { align: 'center' });
+      doc.setFontSize(16);
+      doc.text('GATE PASS', 105, 30, { align: 'center' });
+      
+      // Gate Pass Details
+      doc.setFontSize(10);
+      doc.text(`Gate Pass #: ${gatePassData?.gatePassNumber || 'AUTO-GENERATED'}`, 20, 45);
+      doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 52);
+      doc.text(`Type: Material`, 20, 59);
+      doc.text(`Purpose: Stock Dispatch for Sale`, 20, 66);
+      
+      // Issued To
+      doc.setFontSize(12);
+      doc.text('Issued To:', 20, 80);
+      doc.setFontSize(10);
+      doc.text(`Name: ${saleData.customer?.name || 'N/A'}`, 20, 87);
+      if (saleData.customer?.contact?.phone) {
+        doc.text(`Contact: ${saleData.customer.contact.phone}`, 20, 94);
+      }
+      
+      // Items
+      doc.setFontSize(12);
+      doc.text('Items to Dispatch:', 20, 105);
+      
+      let finalY = 112;
+      if (saleData.items && Array.isArray(saleData.items) && saleData.items.length > 0) {
+        try {
+          // Try to use autoTable if available
+          if (typeof doc.autoTable === 'function') {
+            const itemsData = saleData.items.map(item => [
+              (item.productName || item.name || item.description || 'N/A').toString().substring(0, 30),
+              (item.quantity || 0).toString(),
+              (item.unit || 'units').toString(),
+              `Rs. ${(parseFloat(item.totalPrice) || parseFloat(item.value) || 0).toFixed(2)}`
+            ]);
+            
+            doc.autoTable({
+              startY: 112,
+              head: [['Product', 'Quantity', 'Unit', 'Value']],
+              body: itemsData,
+              theme: 'grid',
+              styles: { fontSize: 8 },
+              headStyles: { fillColor: [66, 139, 202] }
+            });
+            
+            finalY = doc.lastAutoTable.finalY + 10;
+          } else {
+            throw new Error('autoTable not available');
+          }
+        } catch (autoTableError) {
+          // Fallback: Manual table creation
+          console.warn('autoTable not available, using manual table:', autoTableError);
+          doc.setFontSize(10);
+          (saleData.items || []).forEach((item, index) => {
+            if (finalY > 250) {
+              doc.addPage();
+              finalY = 20;
+            }
+            const itemText = `${index + 1}. ${item.productName || item.name || item.description || 'N/A'} - Qty: ${item.quantity || 0} ${item.unit || 'units'} - Value: Rs. ${(parseFloat(item.totalPrice) || parseFloat(item.value) || 0).toFixed(2)}`;
+            doc.text(itemText, 20, finalY);
+            finalY += 7;
+          });
+          finalY += 5;
+        }
+      } else {
+        // No items
+        doc.setFontSize(10);
+        doc.text('No items to dispatch.', 20, finalY);
+        finalY += 10;
+      }
+      
+      // Warehouse Info
+      doc.setFontSize(10);
+      const warehouseName = warehouses.find(w => w._id === saleData.warehouse)?.name || 'N/A';
+      doc.text(`Warehouse: ${warehouseName}`, 20, finalY);
+      
+      // Authorization
+      doc.setFontSize(10);
+      doc.text('Authorized By:', 20, finalY + 20);
+      doc.text('_________________', 20, finalY + 30);
+      doc.text('Signature', 20, finalY + 37);
+      
+      doc.text('Received By:', 120, finalY + 20);
+      doc.text('_________________', 120, finalY + 30);
+      doc.text('Signature', 120, finalY + 37);
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.text('This gate pass is valid for stock dispatch only.', 105, 280, { align: 'center' });
+      
+      doc.save(`GatePass-${gatePassData?.gatePassNumber || 'AUTO'}.pdf`);
+    } catch (error) {
+      console.error('Error printing gatepass:', error);
+      alert('Error generating gatepass PDF: ' + error.message);
+    }
+  };
+
+  // Print Invoice and Gatepass
+  const printInvoiceAndGatepass = (saleData, gatePassData) => {
+    printInvoice(saleData);
+    setTimeout(() => {
+      printGatepass(saleData, gatePassData);
+    }, 500);
+  };
+
+  const handleSubmit = async (e, printAction = null) => {
     e.preventDefault();
     setIsSubmitting(true);
 
@@ -451,7 +794,19 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
       };
 
       console.log('📤 Sending sale data:', saleData);
-      await onSubmit(saleData);
+      const result = await onSubmit(saleData, printAction);
+      
+      // If print action is specified and sale was created successfully
+      if (printAction && result?.success && result?.data) {
+        const savedSale = result.data;
+        const gatePassData = result.gatePass || null;
+        
+        if (printAction === 'print-invoice-gatepass') {
+          printInvoiceAndGatepass(savedSale, gatePassData);
+        } else if (printAction === 'print-and-save') {
+          printInvoiceAndGatepass(savedSale, gatePassData);
+        }
+      }
     } catch (error) {
       console.error('Error submitting sale:', error);
       setErrors({ submit: 'Failed to create sale' });
@@ -475,7 +830,7 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-800 flex items-center">
               <FaShoppingCart className="mr-2 text-blue-500" />
-              New Sale
+              {editData ? 'Edit Sale' : 'New Sale'}
             </h2>
             <button
               onClick={onCancel}
@@ -1062,6 +1417,67 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
               >
                 Cancel
               </button>
+              {!editData && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      // Print preview without saving - use current form data
+                      const total = calculateTotal();
+                      const paidAmount = formData.paymentStatus === 'Total Paid' 
+                        ? total 
+                        : formData.paymentStatus === 'Partial' 
+                          ? Math.min(safeNumber(formData.paidAmount), total)
+                          : 0;
+                      const dueAmount = Math.max(total - paidAmount, 0);
+                      
+                      const previewSaleData = {
+                        invoiceNumber: 'PREVIEW',
+                        customer: formData.customer,
+                        saleDate: formData.saleDate,
+                        items: formData.items,
+                        warehouse: formData.warehouse,
+                        paymentMethod: formData.paymentMethod,
+                        paymentStatus: formData.paymentStatus,
+                        paidAmount,
+                        dueAmount,
+                        discount: formData.discount,
+                        tax: formData.tax,
+                        subtotal: formData.items.reduce((sum, item) => sum + item.totalPrice, 0),
+                        totalAmount: total
+                      };
+                      
+                      const previewGatePass = {
+                        gatePassNumber: 'PREVIEW',
+                        status: 'Active',
+                        type: 'Material',
+                        purpose: 'Stock Dispatch for Sale'
+                      };
+                      
+                      // Print both previews
+                      printInvoice(previewSaleData);
+                      setTimeout(() => {
+                        printGatepass(previewSaleData, previewGatePass);
+                      }, 500);
+                    }}
+                    disabled={isSubmitting || formData.items.length === 0}
+                    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center"
+                  >
+                    <FaPrint className="mr-2" />
+                    Print Invoice & Gatepass
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmit(e, 'print-and-save')}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center"
+                  >
+                    <FaPrint className="mr-2" />
+                    Print & Save
+                  </button>
+                </>
+              )}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -1075,7 +1491,7 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
                 ) : (
                   <>
                     <FaSave className="mr-2" />
-                    Save Sale
+                    {editData ? 'Update Sale' : 'Save Sale'}
                   </>
                 )}
               </button>

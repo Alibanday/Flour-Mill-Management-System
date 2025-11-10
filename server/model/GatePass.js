@@ -156,6 +156,15 @@ const gatePassSchema = new mongoose.Schema(
         default: Date.now,
       },
     }],
+    // Link to Sale or Purchase
+    relatedSale: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Sale",
+    },
+    relatedPurchase: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "BagPurchase",
+    },
   },
   {
     timestamps: true,

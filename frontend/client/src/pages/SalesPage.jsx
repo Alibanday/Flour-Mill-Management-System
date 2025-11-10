@@ -47,30 +47,51 @@ export default function SalesPage() {
     }
   };
 
-  const handleSalesSubmit = async (formData) => {
+  const handleSalesSubmit = async (formData, printAction = null) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:7000/api/sales', {
-        method: 'POST',
+      const isEditing = !!editData;
+      const url = isEditing 
+        ? `http://localhost:7000/api/sales/${editData._id}`
+        : 'http://localhost:7000/api/sales';
+      const method = isEditing ? 'PUT' : 'POST';
+      
+      // Add printAction to request if provided
+      const requestData = printAction ? { ...formData, printAction } : formData;
+      
+      console.log(`📤 ${isEditing ? 'Updating' : 'Creating'} sale:`, requestData);
+      
+      const response = await fetch(url, {
+        method: method,
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(requestData)
       });
 
       if (response.ok) {
+        const result = await response.json();
         await fetchData();
         setShowSalesForm(false);
         setEditData(null);
-        alert('Sale created successfully!');
+        
+        // Return result for print handling
+        if (printAction) {
+          return result;
+        }
+        
+        alert(isEditing ? 'Sale updated successfully!' : 'Sale created successfully!');
+        return result;
       } else {
         const errorData = await response.json();
-        alert(`Error: ${errorData.message || 'Failed to create sale'}`);
+        alert(`Error: ${errorData.message || `Failed to ${isEditing ? 'update' : 'create'} sale`}`);
+        throw new Error(errorData.message || 'Failed to create sale');
       }
     } catch (error) {
-      console.error('Error creating sale:', error);
-      alert('Error creating sale. Please try again.');
+      console.error(`Error ${editData ? 'updating' : 'creating'} sale:`, error);
+      alert(`Error ${editData ? 'updating' : 'creating'} sale. Please try again.`);
+      throw error;
     }
   };
 

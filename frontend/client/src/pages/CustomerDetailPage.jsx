@@ -10,8 +10,10 @@ import {
   FaClipboardList,
   FaSpinner,
   FaShoppingCart,
-  FaBuilding
+  FaBuilding,
+  FaEdit
 } from 'react-icons/fa';
+import CustomerForm from '../components/CustomerManagement/CustomerForm';
 
 const formatCurrency = (value) => {
   const amount = Number(value) || 0;
@@ -35,6 +37,21 @@ const formatValue = (value, fallback = 'N/A') => {
   return fallback;
 };
 
+const formatAddress = (address) => {
+  if (!address) return 'N/A';
+  if (typeof address === 'string') return address;
+  if (typeof address === 'object') {
+    const parts = [];
+    if (address.street) parts.push(address.street);
+    if (address.city) parts.push(address.city);
+    if (address.state) parts.push(address.state);
+    if (address.zipCode) parts.push(address.zipCode);
+    if (address.country) parts.push(address.country);
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
+  }
+  return 'N/A';
+};
+
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -46,6 +63,7 @@ export default function CustomerDetailPage() {
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(null);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   const loadCustomerData = useCallback(async () => {
     try {
@@ -68,43 +86,78 @@ export default function CustomerDetailPage() {
       }
 
       const customerData = await customerRes.json();
-      setCustomer(customerData.data || customerData.customer || customerData);
+      const customerInfo = customerData.data || customerData.customer || customerData;
+      
+      // Ensure customer data is properly extracted
+      if (customerInfo) {
+        console.log('Customer data loaded:', customerInfo);
+        setCustomer(customerInfo);
+      } else {
+        throw new Error('Customer data not found in response');
+      }
 
       let salesData = [];
       try {
-        const salesRes = await fetch(`http://localhost:7000/api/sales?customerId=${id}`, {
+        // Try fetching sales by customerId with high limit to get all sales
+        const salesRes = await fetch(`http://localhost:7000/api/sales?customerId=${id}&limit=1000`, {
           headers
         });
 
         if (salesRes.ok) {
           const salesJson = await salesRes.json();
           salesData = salesJson.data || salesJson.sales || [];
+          console.log(`📊 Found ${salesData.length} sales for customer ${id}`, salesData);
         } else {
           throw new Error('Sales endpoint without filter unavailable');
         }
       } catch (salesErr) {
         console.warn('⚠️ Customer-specific sales fetch failed, falling back to all sales:', salesErr);
-        const fallbackRes = await fetch('http://localhost:7000/api/sales', {
-          headers
-        });
-        if (fallbackRes.ok) {
-          const fallbackJson = await fallbackRes.json();
-          const allSales = fallbackJson.data || fallbackJson.sales || fallbackJson;
-          salesData = Array.isArray(allSales)
-            ? allSales.filter((sale) => {
-                if (!sale) return false;
-                if (sale.customer?._id) return sale.customer._id === id;
-                if (sale.customer?.customerId && customerData?.data?.customerId) {
-                  return sale.customer.customerId === customerData.data.customerId;
-                }
-                if (sale.customer === id) return true;
-                return false;
-              })
-            : [];
+        try {
+          const fallbackRes = await fetch(`http://localhost:7000/api/sales?limit=1000`, {
+            headers
+          });
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            const allSales = fallbackJson.data || fallbackJson.sales || fallbackJson;
+            salesData = Array.isArray(allSales)
+              ? allSales.filter((sale) => {
+                  if (!sale) return false;
+                  // Check multiple ways the customer ID might be stored
+                  const saleCustomerId = sale.customer?.customerId || sale.customer?._id || sale.customer;
+                  const customerIdStr = id.toString();
+                  const saleCustomerIdStr = saleCustomerId?.toString();
+                  
+                  return saleCustomerIdStr === customerIdStr || 
+                         saleCustomerIdStr === customerData?.data?._id?.toString() ||
+                         saleCustomerIdStr === customerData?.data?.customerId?.toString();
+                })
+              : [];
+            console.log(`📊 Filtered ${salesData.length} sales from all sales`, salesData);
+          }
+        } catch (fallbackErr) {
+          console.error('❌ Fallback sales fetch also failed:', fallbackErr);
         }
       }
 
-      setSales(Array.isArray(salesData) ? salesData : []);
+      // Process sales data to ensure payment fields are calculated
+      const processedSales = Array.isArray(salesData) ? salesData.map(sale => {
+        // Ensure paidAmount, dueAmount, and remainingAmount are properly set
+        const totalAmount = parseFloat(sale.totalAmount) || 0;
+        const paidAmount = parseFloat(sale.paidAmount) || 0;
+        const remainingAmount = parseFloat(sale.remainingAmount) || (totalAmount - paidAmount);
+        const dueAmount = parseFloat(sale.dueAmount) || remainingAmount;
+        
+        return {
+          ...sale,
+          totalAmount,
+          paidAmount,
+          remainingAmount: Math.max(0, remainingAmount),
+          dueAmount: Math.max(0, dueAmount)
+        };
+      }) : [];
+
+      console.log(`✅ Processed ${processedSales.length} sales with payment data:`, processedSales);
+      setSales(processedSales);
     } catch (err) {
       console.error('❌ Error fetching customer detail:', err);
       setError(err.message || 'Unable to load customer details');
@@ -119,11 +172,39 @@ export default function CustomerDetailPage() {
     }
   }, [id, loadCustomerData]);
 
-  const totalPurchases = useMemo(() => sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0), [sales]);
-  const totalPaid = useMemo(() => sales.reduce((sum, sale) => sum + (sale.paidAmount || 0), 0), [sales]);
-  const totalDue = useMemo(() => sales.reduce((sum, sale) => sum + (sale.dueAmount || Math.max(0, (sale.totalAmount || 0) - (sale.paidAmount || 0))), 0), [sales]);
+  const totalPurchases = useMemo(() => {
+    const total = sales.reduce((sum, sale) => sum + (parseFloat(sale.totalAmount) || 0), 0);
+    console.log('💰 Total purchases calculated:', total, 'from', sales.length, 'sales');
+    return total;
+  }, [sales]);
+  
+  const totalPaid = useMemo(() => {
+    const paid = sales.reduce((sum, sale) => {
+      const paidAmt = parseFloat(sale.paidAmount) || 0;
+      return sum + paidAmt;
+    }, 0);
+    console.log('💰 Total paid calculated:', paid, 'from sales:', sales.map(s => ({ invoice: s.invoiceNumber, paid: s.paidAmount })));
+    return paid;
+  }, [sales]);
+  
+  const totalDue = useMemo(() => {
+    const due = sales.reduce((sum, sale) => {
+      // Use dueAmount, remainingAmount, or calculate from totalAmount - paidAmount
+      const dueAmt = parseFloat(sale.dueAmount) || 
+                     parseFloat(sale.remainingAmount) || 
+                     Math.max(0, (parseFloat(sale.totalAmount) || 0) - (parseFloat(sale.paidAmount) || 0));
+      return sum + dueAmt;
+    }, 0);
+    console.log('💰 Total due calculated:', due, 'from sales:', sales.map(s => ({ invoice: s.invoiceNumber, due: s.dueAmount || s.remainingAmount, total: s.totalAmount, paid: s.paidAmount })));
+    return due;
+  }, [sales]);
 
-  const outstandingBalance = Number(customer?.creditUsed ?? totalDue ?? 0);
+  // Outstanding balance should be from customer.creditUsed (which is updated by backend)
+  // But also show calculated from sales for verification
+  const calculatedOutstanding = totalDue;
+  const outstandingBalance = customer?.creditUsed !== undefined && customer.creditUsed !== null 
+    ? Number(customer.creditUsed) 
+    : calculatedOutstanding;
 
   const handleRecordPayment = async (event) => {
     event.preventDefault();
@@ -229,6 +310,13 @@ export default function CustomerDetailPage() {
               Status: {customer.status || 'Active'}
             </span>
             <button
+              onClick={() => setShowEditForm(true)}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md shadow hover:bg-indigo-700"
+            >
+              <FaEdit className="mr-2" />
+              Edit Customer
+            </button>
+            <button
               onClick={() => navigate('/customers')}
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md shadow hover:bg-blue-700"
             >
@@ -289,11 +377,80 @@ export default function CustomerDetailPage() {
               <FaMapMarkerAlt className="text-gray-400 mt-1" />
               <div>
                 <p className="text-sm font-medium text-gray-900">Address</p>
-                <p className="text-sm text-gray-600">{formatValue(customer.address)}</p>
+                <p className="text-sm text-gray-600">{formatAddress(customer.address)}</p>
               </div>
             </div>
+            {customer.alternatePhone && (
+              <div className="flex items-start space-x-3">
+                <FaPhone className="text-gray-400 mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Alternate Phone</p>
+                  <p className="text-sm text-gray-600">{formatValue(customer.alternatePhone)}</p>
+                </div>
+              </div>
+            )}
+            {customer.customerNumber && (
+              <div className="flex items-start space-x-3">
+                <FaUserTie className="text-gray-400 mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Customer Number</p>
+                  <p className="text-sm text-gray-600">{formatValue(customer.customerNumber)}</p>
+                </div>
+              </div>
+            )}
+            {customer.paymentTerms && (
+              <div className="flex items-start space-x-3">
+                <FaMoneyBillWave className="text-gray-400 mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Payment Terms</p>
+                  <p className="text-sm text-gray-600">{formatValue(customer.paymentTerms)}</p>
+                </div>
+              </div>
+            )}
+            {customer.preferredPaymentMethod && (
+              <div className="flex items-start space-x-3">
+                <FaMoneyBillWave className="text-gray-400 mt-1" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Preferred Payment Method</p>
+                  <p className="text-sm text-gray-600">{formatValue(customer.preferredPaymentMethod)}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Additional Information */}
+        {(customer.businessRegistrationNumber || customer.notes || customer.tags?.length > 0) && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {customer.businessRegistrationNumber && (
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Business Registration Number</p>
+                  <p className="text-sm text-gray-600">{formatValue(customer.businessRegistrationNumber)}</p>
+                </div>
+              )}
+              {customer.notes && (
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Notes</p>
+                  <p className="text-sm text-gray-600">{formatValue(customer.notes)}</p>
+                </div>
+              )}
+              {customer.tags && customer.tags.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Tags</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {customer.tags.map((tag, index) => (
+                      <span key={index} className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Financial Overview */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -303,19 +460,59 @@ export default function CustomerDetailPage() {
               <p className="text-xs uppercase text-gray-500">Total Purchases</p>
               <p className="text-lg font-semibold text-gray-900">{formatCurrency(totalPurchases)}</p>
             </div>
-            <div className="bg-gray-50 rounded-md p-4">
+            <div className="bg-green-50 rounded-md p-4 border border-green-200">
               <p className="text-xs uppercase text-gray-500">Total Paid</p>
               <p className="text-lg font-semibold text-green-600">{formatCurrency(totalPaid)}</p>
+              <p className="text-xs text-gray-500 mt-1">From all sales</p>
             </div>
-            <div className="bg-gray-50 rounded-md p-4">
-              <p className="text-xs uppercase text-gray-500">Total Due</p>
+            <div className="bg-red-50 rounded-md p-4 border border-red-200">
+              <p className="text-xs uppercase text-gray-500">Total Due/Remaining</p>
               <p className="text-lg font-semibold text-red-600">{formatCurrency(totalDue)}</p>
+              <p className="text-xs text-gray-500 mt-1">Calculated from sales</p>
             </div>
-            <div className="bg-gray-50 rounded-md p-4">
-              <p className="text-xs uppercase text-gray-500">Credit Used</p>
-              <p className="text-lg font-semibold text-gray-900">{formatCurrency(customer.creditUsed)}</p>
+            <div className="bg-yellow-50 rounded-md p-4 border border-yellow-200">
+              <p className="text-xs uppercase text-gray-500">Outstanding Balance</p>
+              <p className="text-lg font-semibold text-yellow-700">{formatCurrency(outstandingBalance)}</p>
+              <p className="text-xs text-gray-500 mt-1">From customer record</p>
             </div>
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+            <div className="bg-blue-50 rounded-md p-4 border border-blue-200">
+              <p className="text-xs uppercase text-gray-500">Credit Limit</p>
+              <p className="text-lg font-semibold text-blue-600">{formatCurrency(customer.creditLimit || 0)}</p>
+            </div>
+            <div className="bg-purple-50 rounded-md p-4 border border-purple-200">
+              <p className="text-xs uppercase text-gray-500">Credit Used</p>
+              <p className="text-lg font-semibold text-purple-600">{formatCurrency(customer.creditUsed || 0)}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {customer.creditLimit > 0 
+                  ? `${((customer.creditUsed || 0) / customer.creditLimit * 100).toFixed(1)}% used`
+                  : 'N/A'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-md p-4">
+              <p className="text-xs uppercase text-gray-500">Available Credit</p>
+              <p className={`text-lg font-semibold ${
+                (customer.creditLimit || 0) - (customer.creditUsed || 0) < 0 
+                  ? 'text-red-600' 
+                  : 'text-gray-900'
+              }`}>
+                {formatCurrency(Math.max(0, (customer.creditLimit || 0) - (customer.creditUsed || 0)))}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-md p-4">
+              <p className="text-xs uppercase text-gray-500">Total Orders</p>
+              <p className="text-lg font-semibold text-gray-900">{customer.totalOrders || 0}</p>
+            </div>
+          </div>
+          {outstandingBalance !== totalDue && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                <strong>Note:</strong> Outstanding balance (Rs. {outstandingBalance.toFixed(2)}) differs from calculated total due (Rs. {totalDue.toFixed(2)}). 
+                This may be due to payments recorded outside of sales or data synchronization.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Record Payment */}
@@ -397,9 +594,15 @@ export default function CustomerDetailPage() {
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {sale.items?.length || 0} item(s)
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 text-right">{formatCurrency(sale.totalAmount)}</td>
-                      <td className="px-6 py-4 text-sm text-green-600 text-right">{formatCurrency(sale.paidAmount)}</td>
-                      <td className="px-6 py-4 text-sm text-red-600 text-right">{formatCurrency(sale.dueAmount || Math.max(0, (sale.totalAmount || 0) - (sale.paidAmount || 0)))}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 text-right font-semibold">
+                        {formatCurrency(sale.totalAmount || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-green-600 text-right font-semibold">
+                        {formatCurrency(sale.paidAmount || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-red-600 text-right font-semibold">
+                        {formatCurrency(sale.dueAmount || sale.remainingAmount || Math.max(0, (parseFloat(sale.totalAmount) || 0) - (parseFloat(sale.paidAmount) || 0)))}
+                      </td>
                       <td className="px-6 py-4 text-sm">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           sale.status === 'Completed' ? 'bg-green-100 text-green-800' :
@@ -417,6 +620,23 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Customer Form Modal */}
+      {showEditForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <CustomerForm
+              customer={customer}
+              onClose={() => setShowEditForm(false)}
+              onSuccess={() => {
+                setShowEditForm(false);
+                loadCustomerData();
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

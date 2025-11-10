@@ -143,6 +143,13 @@ const saleSchema = new mongoose.Schema({
     min: [0, "Remaining amount cannot be negative"]
   },
 
+  // Alias for remainingAmount for consistency with frontend
+  dueAmount: {
+    type: Number,
+    default: 0,
+    min: [0, "Due amount cannot be negative"]
+  },
+
   // Return Information (FR 20)
   returns: [{
     itemId: {
@@ -208,15 +215,58 @@ const saleSchema = new mongoose.Schema({
 saleSchema.pre("save", async function(next) {
   if (this.isNew && !this.invoiceNumber) {
     try {
-      const count = await this.constructor.countDocuments();
       const year = new Date().getFullYear();
       const month = String(new Date().getMonth() + 1).padStart(2, '0');
       const day = String(new Date().getDate()).padStart(2, '0');
-      this.invoiceNumber = `INV-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
+      const datePrefix = `${year}${month}${day}`;
+      
+      // Find the highest invoice number for today
+      const todayInvoices = await this.constructor.find({
+        invoiceNumber: new RegExp(`^INV-${datePrefix}-`)
+      }).sort({ invoiceNumber: -1 }).limit(1);
+      
+      let sequenceNumber = 1;
+      if (todayInvoices.length > 0) {
+        // Extract the sequence number from the last invoice
+        const lastInvoice = todayInvoices[0].invoiceNumber;
+        const match = lastInvoice.match(/-(\d+)$/);
+        if (match) {
+          sequenceNumber = parseInt(match[1], 10) + 1;
+        }
+      }
+      
+      // Generate invoice number with sequence
+      this.invoiceNumber = `INV-${datePrefix}-${String(sequenceNumber).padStart(4, '0')}`;
+      
+      // Double-check for uniqueness (race condition protection)
+      let attempts = 0;
+      let isUnique = false;
+      while (!isUnique && attempts < 10) {
+        const existing = await this.constructor.findOne({ invoiceNumber: this.invoiceNumber });
+        if (!existing) {
+          isUnique = true;
+        } else {
+          sequenceNumber++;
+          this.invoiceNumber = `INV-${datePrefix}-${String(sequenceNumber).padStart(4, '0')}`;
+          attempts++;
+        }
+      }
+      
+      if (!isUnique) {
+        // Fallback to timestamp-based number if we can't find a unique sequence
+        const timestamp = Date.now();
+        this.invoiceNumber = `INV-${datePrefix}-${timestamp}`;
+      }
+      
+      console.log(`Generated invoice number: ${this.invoiceNumber}`);
     } catch (error) {
       console.error('Error generating invoice number:', error);
       // Fallback to timestamp-based number
-      this.invoiceNumber = `INV-${Date.now()}`;
+      const timestamp = Date.now();
+      const year = new Date().getFullYear();
+      const month = String(new Date().getMonth() + 1).padStart(2, '0');
+      const day = String(new Date().getDate()).padStart(2, '0');
+      this.invoiceNumber = `INV-${year}${month}${day}-${timestamp}`;
     }
   }
   next();
@@ -224,35 +274,75 @@ saleSchema.pre("save", async function(next) {
 
 // Pre-save middleware to calculate totals
 saleSchema.pre("save", function(next) {
-  // Calculate subtotal from items
-  this.subtotal = this.items.reduce((sum, item) => sum + item.totalPrice, 0);
+  try {
+    // Calculate subtotal from items if items exist
+    if (this.items && this.items.length > 0) {
+      this.subtotal = this.items.reduce((sum, item) => sum + (parseFloat(item.totalPrice) || 0), 0);
+    } else if (!this.subtotal) {
+      this.subtotal = 0;
+    }
 
-  // Calculate discount amount
-  if (this.discount.type === "percentage") {
-    this.discount.amount = (this.subtotal * this.discount.value) / 100;
-  } else if (this.discount.type === "fixed") {
-    this.discount.amount = this.discount.value;
+    // Ensure discount object exists and has proper structure
+    if (!this.discount) {
+      this.discount = {
+        type: 'none',
+        value: 0,
+        amount: 0
+      };
+    } else {
+      // Ensure discount has all required fields
+      if (!this.discount.type) {
+        this.discount.type = 'none';
+      }
+      if (this.discount.value === undefined || this.discount.value === null) {
+        this.discount.value = 0;
+      }
+      
+      // Calculate discount amount based on type
+      if (this.discount.type === "percentage") {
+        this.discount.amount = (this.subtotal * (this.discount.value || 0)) / 100;
+      } else if (this.discount.type === "fixed") {
+        this.discount.amount = this.discount.value || 0;
+      } else {
+        // If type is 'none' or invalid, set amount to 0
+        this.discount.amount = 0;
+      }
+    }
+
+    // Calculate total amount
+    const taxAmount = parseFloat(this.tax) || 0;
+    const discountAmount = parseFloat(this.discount.amount) || 0;
+    this.totalAmount = this.subtotal - discountAmount + taxAmount;
+
+    // Calculate remaining amount
+    const paidAmount = parseFloat(this.paidAmount) || 0;
+    this.remainingAmount = Math.max(0, this.totalAmount - paidAmount);
+    // Set dueAmount to same value as remainingAmount for consistency
+    this.dueAmount = this.remainingAmount;
+
+    // Update payment status if not explicitly set or if amounts changed
+    // Only auto-update if paymentStatus wasn't explicitly provided or if it's a new document
+    if (this.isNew || this.isModified('paidAmount') || this.isModified('totalAmount')) {
+      // Only auto-set paymentStatus if it wasn't explicitly provided
+      if (!this.paymentStatus || (this.isModified('paidAmount') && !this.$__.$ignorePaymentStatusUpdate)) {
+        if (this.remainingAmount === 0) {
+          this.paymentStatus = "Paid";
+        } else if (this.paidAmount > 0) {
+          this.paymentStatus = "Partial";
+        } else {
+          this.paymentStatus = "Pending";
+        }
+      }
+    }
+
+    // Update timestamp
+    this.updatedAt = new Date();
+
+    next();
+  } catch (error) {
+    console.error('Error in Sale pre-save middleware:', error);
+    next(error);
   }
-
-  // Calculate total amount
-  this.totalAmount = this.subtotal - this.discount.amount + this.tax;
-
-  // Calculate remaining amount
-  this.remainingAmount = this.totalAmount - this.paidAmount;
-
-  // Update payment status
-  if (this.remainingAmount === 0) {
-    this.paymentStatus = "Paid";
-  } else if (this.paidAmount > 0) {
-    this.paymentStatus = "Partial";
-  } else {
-    this.paymentStatus = "Pending";
-  }
-
-  // Update timestamp
-  this.updatedAt = new Date();
-
-  next();
 });
 
 // Virtual for total items

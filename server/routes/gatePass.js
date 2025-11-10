@@ -22,12 +22,14 @@ const validateGatePass = [
 // @access  Admin, Manager, Employee
 router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, type, warehouse } = req.query;
+    const { page = 1, limit = 10, status, type, warehouse, relatedSale, relatedPurchase } = req.query;
     const query = {};
     
     if (status) query.status = status;
     if (type) query.type = type;
     if (warehouse) query.warehouse = warehouse;
+    if (relatedSale) query.relatedSale = relatedSale;
+    if (relatedPurchase) query.relatedPurchase = relatedPurchase;
     
     // Check if database is connected
     if (mongoose.connection.readyState !== 1) {

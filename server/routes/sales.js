@@ -102,6 +102,7 @@ router.get("/", [
       limit = 10,
       search,
       customerName,
+      customerId,
       status,
       paymentStatus,
       warehouse,
@@ -120,7 +121,10 @@ router.get("/", [
       ];
     }
 
-    if (customerName && customerName !== "all") {
+    // Filter by customerId if provided (priority over customerName)
+    if (customerId) {
+      filter["customer.customerId"] = customerId;
+    } else if (customerName && customerName !== "all") {
       filter["customer.name"] = { $regex: customerName, $options: "i" };
     }
 
@@ -144,7 +148,9 @@ router.get("/", [
     }
 
     // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // If customerId is provided, use a higher limit to get all sales for that customer
+    const effectiveLimit = customerId ? Math.max(parseInt(limit), 1000) : parseInt(limit);
+    const skip = (parseInt(page) - 1) * effectiveLimit;
 
     // Get sales with pagination
     const sales = await Sale.find(filter)
@@ -152,7 +158,7 @@ router.get("/", [
       .populate("createdBy", "firstName lastName")
       .sort({ saleDate: -1 })
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(effectiveLimit);
 
     // Get total count for pagination
     const total = await Sale.countDocuments(filter);
@@ -162,9 +168,9 @@ router.get("/", [
       data: sales,
       pagination: {
         current: parseInt(page),
-        limit: parseInt(limit),
+        limit: effectiveLimit,
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: Math.ceil(total / effectiveLimit)
       }
     });
 
