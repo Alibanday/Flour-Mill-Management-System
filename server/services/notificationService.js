@@ -197,6 +197,42 @@ class NotificationService {
     }
   }
 
+  // Create generic notification
+  static async createNotification({
+    type,
+    title,
+    message,
+    priority = "medium",
+    user = null,
+    recipient = null,
+    relatedEntity = null,
+    entityId = null,
+    data = {},
+    metadata = {}
+  }) {
+    try {
+      const notification = new Notification({
+        type: type,
+        title: title,
+        message: message,
+        priority: priority,
+        user: user,
+        recipient: recipient,
+        relatedEntity: relatedEntity,
+        entityId: entityId,
+        data: data,
+        metadata: metadata
+      });
+
+      await notification.save();
+      console.log(`Notification created: ${title}`);
+      return notification;
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      throw error;
+    }
+  }
+
   // Create system notification
   static async createSystemNotification(title, message, priority = "medium", user = null) {
     try {

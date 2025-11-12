@@ -49,6 +49,12 @@ const employeeSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  monthlyAllowedLeaves: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 31
+  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'terminated'],

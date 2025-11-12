@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaSpinner } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaSpinner, FaEye } from 'react-icons/fa';
 
-export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
+export default function EmployeeList({ onEditEmployee, onAddEmployee, onViewEmployee }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -292,6 +292,15 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee }) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
+                      {onViewEmployee && (
+                        <button
+                          onClick={() => onViewEmployee(employee)}
+                          className="text-green-600 hover:text-green-900 p-1"
+                          title="View Details"
+                        >
+                          <FaEye />
+                        </button>
+                      )}
                       <button
                         onClick={() => onEditEmployee(employee)}
                         className="text-blue-600 hover:text-blue-900 p-1"

@@ -58,7 +58,7 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedEntity: {
     type: String,
-    enum: ['inventory', 'sale', 'purchase', 'payment', 'production', 'warehouse', 'user', 'system'],
+    enum: ['inventory', 'sale', 'purchase', 'payment', 'production', 'warehouse', 'user', 'system', 'employee'],
     required: true
   },
   entityId: {

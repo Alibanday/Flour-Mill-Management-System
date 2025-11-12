@@ -12,6 +12,16 @@ export default function PayrollManagement() {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
   const [showPayrollModal, setShowPayrollModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [allowances, setAllowances] = useState(0);
+  const [deductions, setDeductions] = useState(0);
+  const [overtimeHours, setOvertimeHours] = useState(0);
+  const [overtimeRate, setOvertimeRate] = useState(0);
+  const [attendanceInfo, setAttendanceInfo] = useState({
+    absentDays: 0,
+    allowedLeaves: 0,
+    excessLeaves: 0,
+    leaveDeduction: 0
+  });
 
   const fetchEmployees = async () => {
     try {
@@ -37,6 +47,73 @@ export default function PayrollManagement() {
     } catch (error) {
       console.error('Error fetching employees:', error);
       setError('Failed to load employees: ' + error.message);
+    }
+  };
+
+  const fetchAttendanceInfo = async (employeeId, year, month) => {
+    if (!employeeId || !year || !month) {
+      setAttendanceInfo({
+        absentDays: 0,
+        allowedLeaves: 0,
+        excessLeaves: 0,
+        leaveDeduction: 0
+      });
+      return;
+    }
+
+    try {
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString().split('T')[0];
+      const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+      
+      const token = localStorage.getItem('token');
+      const employee = employees.find(emp => emp._id === employeeId);
+      
+      if (!employee) return;
+
+      const attendanceResponse = await fetch(
+        `http://localhost:7000/api/attendance/employee/${employeeId}?startDate=${startDate}&endDate=${endDate}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      let absentDays = 0;
+      
+      if (attendanceResponse.ok) {
+        const attendanceData = await attendanceResponse.json();
+        if (attendanceData.success && attendanceData.data) {
+          const fullAbsent = attendanceData.data.filter(record => 
+            record.status === 'absent'
+          ).length;
+          const halfDays = attendanceData.data.filter(record => 
+            record.status === 'half-day'
+          ).length;
+          absentDays = fullAbsent + (halfDays * 0.5);
+        }
+      }
+
+      const monthlyAllowedLeaves = employee.monthlyAllowedLeaves || 0;
+      const excessLeaves = Math.max(0, absentDays - monthlyAllowedLeaves);
+      const dailySalaryRate = (employee.salary || 0) / 30;
+      const leaveDeduction = excessLeaves * dailySalaryRate;
+
+      setAttendanceInfo({
+        absentDays: absentDays,
+        allowedLeaves: monthlyAllowedLeaves,
+        excessLeaves: excessLeaves,
+        leaveDeduction: leaveDeduction
+      });
+    } catch (error) {
+      console.error('Error fetching attendance info:', error);
+      setAttendanceInfo({
+        absentDays: 0,
+        allowedLeaves: 0,
+        excessLeaves: 0,
+        leaveDeduction: 0
+      });
     }
   };
 
@@ -478,20 +555,35 @@ export default function PayrollManagement() {
 
       {/* Payroll Generation Form Modal */}
       {showPayrollForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Generate Payroll</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
+            {/* Fixed Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-900">Generate Payroll</h3>
                 <button
-                  onClick={() => setShowPayrollForm(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    setShowPayrollForm(false);
+                    setAllowances(0);
+                    setDeductions(0);
+                    setOvertimeHours(0);
+                    setOvertimeRate(0);
+                    setSelectedEmployee('');
+                    setAttendanceInfo({
+                      absentDays: 0,
+                      allowedLeaves: 0,
+                      excessLeaves: 0,
+                      leaveDeduction: 0
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
                 >
                   ×
                 </button>
-              </div>
+            </div>
 
-              <form onSubmit={async (e) => {
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <form id="payroll-form" onSubmit={async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.target);
                 const [year, month] = formData.get('month').split('-');
@@ -502,34 +594,106 @@ export default function PayrollManagement() {
                   return;
                 }
 
-                // Calculate net salary
-                const basicSalary = employee.salary || 0;
-                const allowances = 0;
-                const deductions = 0;
-                const overtimeAmount = 0;
-                const netSalary = basicSalary + allowances + overtimeAmount - deductions;
-                
-                const payrollData = {
-                  employee: formData.get('employeeId'),
-                  month: parseInt(month),
-                  year: parseInt(year),
-                  basicSalary: basicSalary,
-                  allowances: allowances,
-                  deductions: deductions,
-                  netSalary: netSalary,
-                  workingDays: 30,
-                  totalDays: 30,
-                  paymentDate: new Date().toISOString().split('T')[0],
-                  paymentMethod: 'Bank Transfer',
-                  // Use the employee's warehouse or default to the first available warehouse
-                  // In a real app, you'd have proper account management
-                  salaryAccount: employee.warehouse || '68c49d0884b60adb796082ef', // Use employee's warehouse as account
-                  cashAccount: employee.warehouse || '68c49d0884b60adb796082ef', // Use employee's warehouse as account
-                  warehouse: employee.warehouse || '68c49d0884b60adb796082ef' // Use employee's warehouse
-                };
+                try {
+                  // Fetch attendance records for the month
+                  const startDate = new Date(parseInt(year), parseInt(month) - 1, 1).toISOString().split('T')[0];
+                  const endDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+                  
+                  const token = localStorage.getItem('token');
+                  const attendanceResponse = await fetch(
+                    `http://localhost:7000/api/attendance/employee/${employee._id}?startDate=${startDate}&endDate=${endDate}`,
+                    {
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    }
+                  );
 
-                console.log('Generated payroll data:', payrollData);
-                await handleGeneratePayroll(payrollData);
+                  let absentDays = 0;
+                  let totalDaysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
+                  
+                  if (attendanceResponse.ok) {
+                    const attendanceData = await attendanceResponse.json();
+                    if (attendanceData.success && attendanceData.data) {
+                      // Count absent days (full absent = 1, half-day = 0.5)
+                      const fullAbsent = attendanceData.data.filter(record => 
+                        record.status === 'absent'
+                      ).length;
+                      const halfDays = attendanceData.data.filter(record => 
+                        record.status === 'half-day'
+                      ).length;
+                      absentDays = fullAbsent + (halfDays * 0.5);
+                    }
+                  }
+
+                  // Calculate salary deductions based on leaves
+                  const basicSalary = employee.salary || 0;
+                  const monthlyAllowedLeaves = employee.monthlyAllowedLeaves || 0;
+                  const excessLeaves = Math.max(0, absentDays - monthlyAllowedLeaves);
+                  
+                  // Calculate daily salary rate (assuming 30 working days per month)
+                  const dailySalaryRate = basicSalary / 30;
+                  const leaveDeduction = excessLeaves * dailySalaryRate;
+
+                  // Calculate net salary using form values
+                  const allowancesValue = parseFloat(allowances) || 0;
+                  const deductionsValue = parseFloat(deductions) || 0;
+                  const overtimeHoursValue = parseFloat(overtimeHours) || 0;
+                  const overtimeRateValue = parseFloat(overtimeRate) || 0;
+                  const overtimeAmount = overtimeHoursValue * overtimeRateValue;
+                  
+                  // Total deductions = manual deductions + leave deductions
+                  const totalDeductions = deductionsValue + leaveDeduction;
+                  const netSalary = basicSalary + allowancesValue + overtimeAmount - totalDeductions;
+                  
+                  // Calculate actual working days
+                  const actualWorkingDays = totalDaysInMonth - absentDays;
+                  
+                  const payrollData = {
+                    employee: formData.get('employeeId'),
+                    month: parseInt(month),
+                    year: parseInt(year),
+                    basicSalary: basicSalary,
+                    allowances: allowancesValue,
+                    deductions: totalDeductions,
+                    leaveDeduction: leaveDeduction,
+                    absentDays: absentDays,
+                    allowedLeaves: monthlyAllowedLeaves,
+                    excessLeaves: excessLeaves,
+                    overtimeHours: overtimeHoursValue,
+                    overtimeRate: overtimeRateValue,
+                    overtimeAmount: overtimeAmount,
+                    netSalary: netSalary,
+                    workingDays: actualWorkingDays,
+                    totalDays: totalDaysInMonth,
+                    paymentDate: new Date().toISOString().split('T')[0],
+                    paymentMethod: 'Bank Transfer',
+                    // Use the employee's warehouse or default to the first available warehouse
+                    // In a real app, you'd have proper account management
+                    salaryAccount: employee.warehouse || '68c49d0884b60adb796082ef', // Use employee's warehouse as account
+                    cashAccount: employee.warehouse || '68c49d0884b60adb796082ef', // Use employee's warehouse as account
+                    warehouse: employee.warehouse || '68c49d0884b60adb796082ef' // Use employee's warehouse
+                  };
+
+                  console.log('Generated payroll data:', payrollData);
+                  await handleGeneratePayroll(payrollData);
+                } catch (error) {
+                  console.error('Error calculating payroll:', error);
+                  alert('Error calculating payroll based on attendance. Please try again.');
+                }
+                // Reset form after successful submission
+                setAllowances(0);
+                setDeductions(0);
+                setOvertimeHours(0);
+                setOvertimeRate(0);
+                setSelectedEmployee('');
+                setAttendanceInfo({
+                  absentDays: 0,
+                  allowedLeaves: 0,
+                  excessLeaves: 0,
+                  leaveDeduction: 0
+                });
               }}>
                 <div className="space-y-4">
                   <div>
@@ -539,7 +703,13 @@ export default function PayrollManagement() {
                     <select
                       name="employeeId"
                       value={selectedEmployee}
-                      onChange={(e) => setSelectedEmployee(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedEmployee(e.target.value);
+                        const [year, month] = selectedMonth.split('-');
+                        if (e.target.value) {
+                          fetchAttendanceInfo(e.target.value, year, month);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     >
@@ -560,11 +730,107 @@ export default function PayrollManagement() {
                       type="month"
                       name="month"
                       value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedMonth(e.target.value);
+                        const [year, month] = e.target.value.split('-');
+                        if (selectedEmployee) {
+                          fetchAttendanceInfo(selectedEmployee, year, month);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Allowances ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={allowances}
+                      onChange={(e) => setAllowances(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Deductions ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={deductions}
+                      onChange={(e) => setDeductions(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Overtime Hours
+                      </label>
+                      <input
+                        type="number"
+                        value={overtimeHours}
+                        onChange={(e) => setOvertimeHours(e.target.value)}
+                        min="0"
+                        step="0.5"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Overtime Rate ($/hour)
+                      </label>
+                      <input
+                        type="number"
+                        value={overtimeRate}
+                        onChange={(e) => setOvertimeRate(e.target.value)}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Attendance Info */}
+                  {selectedEmployee && (
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <h4 className="font-medium text-gray-900 mb-2">Attendance Summary</h4>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span>Absent Days:</span>
+                          <span>{attendanceInfo.absentDays}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Allowed Leaves:</span>
+                          <span>{attendanceInfo.allowedLeaves}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Excess Leaves:</span>
+                          <span className={attendanceInfo.excessLeaves > 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
+                            {attendanceInfo.excessLeaves}
+                          </span>
+                        </div>
+                        {attendanceInfo.excessLeaves > 0 && (
+                          <div className="flex justify-between text-red-600 font-medium">
+                            <span>Leave Deduction:</span>
+                            <span>-${attendanceInfo.leaveDeduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-2">Payroll Calculation</h4>
@@ -575,41 +841,76 @@ export default function PayrollManagement() {
                       </div>
                       <div className="flex justify-between">
                         <span>Allowances:</span>
-                        <span>$0</span>
+                        <span className="text-green-600">+${parseFloat(allowances || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      {attendanceInfo.excessLeaves > 0 && (
+                        <div className="flex justify-between">
+                          <span>Leave Deduction ({attendanceInfo.excessLeaves} excess days):</span>
+                          <span className="text-red-600">-${attendanceInfo.leaveDeduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Other Deductions:</span>
+                        <span className="text-red-600">-${parseFloat(deductions || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Deductions:</span>
-                        <span>$0</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Overtime:</span>
-                        <span>$0</span>
+                        <span>Overtime ({parseFloat(overtimeHours || 0)} hrs × ${parseFloat(overtimeRate || 0).toFixed(2)}):</span>
+                        <span className="text-blue-600">+${(parseFloat(overtimeHours || 0) * parseFloat(overtimeRate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       </div>
                       <hr />
                       <div className="flex justify-between font-medium">
                         <span>Net Salary:</span>
-                        <span>${selectedEmployee ? employees.find(emp => emp._id === selectedEmployee)?.salary?.toLocaleString() : '0'}</span>
+                        <span className="text-green-600">
+                          ${(() => {
+                            const basic = selectedEmployee ? employees.find(emp => emp._id === selectedEmployee)?.salary || 0 : 0;
+                            const allow = parseFloat(allowances || 0);
+                            const deduct = parseFloat(deductions || 0);
+                            const overtime = parseFloat(overtimeHours || 0) * parseFloat(overtimeRate || 0);
+                            const leaveDeduct = attendanceInfo.leaveDeduction || 0;
+                            return (basic + allow + overtime - deduct - leaveDeduct).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                          })()}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
+              </form>
+            </div>
 
-                <div className="flex justify-end space-x-4 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowPayrollForm(false)}
+            {/* Fixed Footer */}
+            <div className="flex justify-end space-x-4 p-6 border-t border-gray-200 flex-shrink-0">
+              <button
+                type="button"
+                    onClick={() => {
+                      setShowPayrollForm(false);
+                      setAllowances(0);
+                      setDeductions(0);
+                      setOvertimeHours(0);
+                      setOvertimeRate(0);
+                      setSelectedEmployee('');
+                      setAttendanceInfo({
+                        absentDays: 0,
+                        allowedLeaves: 0,
+                        excessLeaves: 0,
+                        leaveDeduction: 0
+                      });
+                    }}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Generate Payroll
-                  </button>
-                </div>
-              </form>
+              <button
+                type="button"
+                onClick={() => {
+                  const form = document.getElementById('payroll-form');
+                  if (form) {
+                    form.requestSubmit();
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Generate Payroll
+              </button>
             </div>
           </div>
         </div>

@@ -12,6 +12,7 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
     salary: '',
     hireDate: '',
     warehouse: '',
+    monthlyAllowedLeaves: 0,
     address: {
       street: '',
       city: '',
@@ -76,6 +77,16 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
   useEffect(() => {
     fetchWarehouses();
     if (employee) {
+      // Handle warehouse - it could be an object with _id or just an _id string
+      let warehouseId = '';
+      if (employee.warehouse) {
+        if (typeof employee.warehouse === 'object' && employee.warehouse._id) {
+          warehouseId = employee.warehouse._id;
+        } else if (typeof employee.warehouse === 'string') {
+          warehouseId = employee.warehouse;
+        }
+      }
+
       setFormData({
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
@@ -83,9 +94,10 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         phone: employee.phone || '',
         department: employee.department || 'Production',
         position: employee.position || '',
-        salary: employee.salary || '',
+        salary: employee.salary ? String(employee.salary) : '',
         hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
-        warehouse: employee.warehouse || '',
+        warehouse: warehouseId,
+        monthlyAllowedLeaves: employee.monthlyAllowedLeaves || 0,
         address: {
           street: employee.address?.street || '',
           city: employee.address?.city || '',
@@ -144,37 +156,51 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
   const validateField = (name, value) => {
     let error = '';
     
+    // Helper function to safely convert value to string
+    const getStringValue = (val) => {
+      if (val === null || val === undefined) return '';
+      return String(val);
+    };
+    
     switch (name) {
       case 'firstName':
-        if (!value.trim()) error = 'First name is required';
-        else if (value.trim().length < 2) error = 'First name must be at least 2 characters';
+        const firstNameStr = getStringValue(value);
+        if (!firstNameStr.trim()) error = 'First name is required';
+        else if (firstNameStr.trim().length < 2) error = 'First name must be at least 2 characters';
         break;
       case 'lastName':
-        if (!value.trim()) error = 'Last name is required';
-        else if (value.trim().length < 2) error = 'Last name must be at least 2 characters';
+        const lastNameStr = getStringValue(value);
+        if (!lastNameStr.trim()) error = 'Last name is required';
+        else if (lastNameStr.trim().length < 2) error = 'Last name must be at least 2 characters';
         break;
       case 'email':
-        if (!value.trim()) error = 'Email is required';
-        else if (!/\S+@\S+\.\S+/.test(value)) error = 'Please enter a valid email address';
+        const emailStr = getStringValue(value);
+        if (!emailStr.trim()) error = 'Email is required';
+        else if (!/\S+@\S+\.\S+/.test(emailStr)) error = 'Please enter a valid email address';
         break;
       case 'phone':
-        if (!value.trim()) error = 'Phone number is required';
-        else if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(value)) error = 'Please enter a valid phone number';
+        const phoneStr = getStringValue(value);
+        if (!phoneStr.trim()) error = 'Phone number is required';
+        else if (!/^[\+]?[0-9\s\-\(\)]{10,}$/.test(phoneStr)) error = 'Please enter a valid phone number';
         break;
       case 'department':
-        if (!value.trim()) error = 'Department is required';
+        const deptStr = getStringValue(value);
+        if (!deptStr.trim()) error = 'Department is required';
         break;
       case 'warehouse':
-        if (!value.trim()) error = 'Warehouse is required';
+        const warehouseStr = getStringValue(value);
+        if (!warehouseStr.trim()) error = 'Warehouse is required';
         break;
       case 'position':
-        if (!value.trim()) error = 'Position is required';
-        else if (value.trim().length < 2) error = 'Position must be at least 2 characters';
+        const positionStr = getStringValue(value);
+        if (!positionStr.trim()) error = 'Position is required';
+        else if (positionStr.trim().length < 2) error = 'Position must be at least 2 characters';
         break;
       case 'salary':
-        if (!value) error = 'Salary is required';
-        else if (isNaN(value) || value < 0) error = 'Salary must be a valid positive number';
-        else if (value < 10000) error = 'Salary must be at least 10,000';
+        const salaryValue = parseFloat(value);
+        if (!value && value !== 0) error = 'Salary is required';
+        else if (isNaN(salaryValue) || salaryValue < 0) error = 'Salary must be a valid positive number';
+        else if (salaryValue < 10000) error = 'Salary must be at least 10,000';
         break;
       case 'hireDate':
         if (!value) error = 'Hire date is required';
@@ -186,16 +212,20 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         }
         break;
       case 'cnic':
-        if (value && !/^\d{5}-\d{7}-\d{1}$/.test(value)) error = 'CNIC must be in format 12345-1234567-1 (optional field)';
+        const cnicStr = getStringValue(value);
+        if (cnicStr && !/^\d{5}-\d{7}-\d{1}$/.test(cnicStr)) error = 'CNIC must be in format 12345-1234567-1 (optional field)';
         break;
       case 'bankDetails.accountNumber':
-        if (value && value.length < 10) error = 'Account number must be at least 10 characters';
+        const accountStr = getStringValue(value);
+        if (accountStr && accountStr.length < 10) error = 'Account number must be at least 10 characters';
         break;
       case 'bankDetails.bankName':
-        if (value && value.length < 2) error = 'Bank name must be at least 2 characters';
+        const bankNameStr = getStringValue(value);
+        if (bankNameStr && bankNameStr.length < 2) error = 'Bank name must be at least 2 characters';
         break;
       case 'bankDetails.branchCode':
-        if (value && value.length < 3) error = 'Branch code must be at least 3 characters';
+        const branchCodeStr = getStringValue(value);
+        if (branchCodeStr && branchCodeStr.length < 3) error = 'Branch code must be at least 3 characters';
         break;
     }
     
@@ -219,14 +249,14 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
     });
 
     // Validate nested fields (only if they have values)
-    if (formData.cnic && formData.cnic.trim()) {
+    if (formData.cnic && String(formData.cnic).trim()) {
       const cnicError = validateField('cnic', formData.cnic);
       if (cnicError) {
         newErrors.cnic = cnicError;
       }
     }
 
-    if (formData.bankDetails.accountNumber) {
+    if (formData.bankDetails.accountNumber && String(formData.bankDetails.accountNumber).trim()) {
       const accountError = validateField('bankDetails.accountNumber', formData.bankDetails.accountNumber);
       if (accountError) {
         newErrors['bankDetails.accountNumber'] = accountError;
@@ -235,16 +265,51 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
     
     setErrors(newErrors);
     setFieldErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return { isValid: Object.keys(newErrors).length === 0, errors: newErrors };
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted', formData);
     
     // Clear previous server errors
     setServerError('');
     
-    if (!validateForm()) {
+    const validationResult = validateForm();
+    const isValid = validationResult.isValid;
+    const validationErrors = validationResult.errors;
+    
+    console.log('Form validation result:', isValid);
+    console.log('Validation errors:', validationErrors);
+    
+    if (!isValid) {
+      console.log('Validation failed. Errors:', validationErrors);
+      console.log('Form data being validated:', formData);
+      
+      // Wait a moment for errors state to update, then scroll to first error
+      setTimeout(() => {
+        const errorKeys = Object.keys(validationErrors);
+        console.log('Error keys:', errorKeys);
+        
+        if (errorKeys.length > 0) {
+          const firstErrorField = errorKeys[0];
+          console.log('First error field:', firstErrorField, 'Error:', validationErrors[firstErrorField]);
+          
+          const errorElement = document.querySelector(`[name="${firstErrorField}"]`);
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorElement.focus();
+          } else {
+            console.warn('Could not find element for field:', firstErrorField);
+          }
+        }
+        
+        // Show a detailed error message
+        const errorMessages = Object.entries(validationErrors)
+          .map(([field, error]) => `${field}: ${error}`)
+          .join(', ');
+        setServerError(`Please fix the following errors: ${errorMessages}`);
+      }, 100);
       return;
     }
 
@@ -255,6 +320,7 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
       // Check if user is authenticated
       if (!token) {
         setServerError('You are not logged in. Please log in first.');
+        setLoading(false);
         setTimeout(() => {
           window.location.href = '/login';
         }, 2000);
@@ -266,24 +332,74 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         : 'http://localhost:7000/api/employees/create';
       const method = employee ? 'PUT' : 'POST';
 
+      // Clean up form data - convert empty strings to null for optional fields
+      const cleanedFormData = {
+        ...formData,
+        salary: parseFloat(formData.salary) || 0, // Convert salary to number
+        monthlyAllowedLeaves: parseInt(formData.monthlyAllowedLeaves) || 0, // Convert to integer
+        cnic: formData.cnic && String(formData.cnic).trim() ? String(formData.cnic).trim() : null,
+        emergencyContact: {
+          name: formData.emergencyContact.name?.trim() || null,
+          relationship: formData.emergencyContact.relationship?.trim() || null,
+          phone: formData.emergencyContact.phone?.trim() || null
+        },
+        bankDetails: {
+          accountNumber: formData.bankDetails.accountNumber?.trim() || null,
+          bankName: formData.bankDetails.bankName?.trim() || null,
+          branchCode: formData.bankDetails.branchCode?.trim() || null
+        }
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(cleanedFormData)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        let errorData = {};
+        try {
+          const text = await response.text();
+          errorData = text ? JSON.parse(text) : {};
+        } catch (parseError) {
+          console.error('Error parsing response:', parseError);
+          errorData = { message: 'An error occurred while processing your request' };
+        }
         console.error('Error response:', errorData);
         
         // Handle specific server errors
         if (response.status === 400) {
-          if (errorData.message && errorData.message.includes('email already exists')) {
+          // Check if the error response includes a specific field that caused the duplicate
+          if (errorData.field) {
+            if (errorData.field === 'email') {
+              setServerError(errorData.message || 'An employee with this email address already exists. Please use a different email.');
+              setErrors(prev => ({ ...prev, email: 'This email is already registered' }));
+            } else if (errorData.field === 'cnic') {
+              setServerError(errorData.message || 'An employee with this CNIC already exists. Please use a different CNIC.');
+              setErrors(prev => ({ ...prev, cnic: 'This CNIC is already registered' }));
+            } else if (errorData.field === 'employeeId') {
+              setServerError(errorData.message || 'An employee with this ID already exists. Please try again.');
+            } else {
+              setServerError(errorData.message || 'Please check your input and try again.');
+            }
+          } else if (errorData.message && errorData.message.includes('email or CNIC already exists')) {
+            // Fallback for older error messages
+            setServerError('An employee with this email address or CNIC already exists. Please use different values.');
+            // Set errors for both fields to help user identify the issue
+            setErrors(prev => ({ 
+              ...prev, 
+              email: 'This email may already be registered',
+              cnic: 'This CNIC may already be registered'
+            }));
+          } else if (errorData.message && errorData.message.includes('email already exists')) {
             setServerError('An employee with this email address already exists. Please use a different email.');
             setErrors(prev => ({ ...prev, email: 'This email is already registered' }));
+          } else if (errorData.message && errorData.message.includes('CNIC already exists')) {
+            setServerError('An employee with this CNIC already exists. Please use a different CNIC.');
+            setErrors(prev => ({ ...prev, cnic: 'This CNIC is already registered' }));
           } else if (errorData.message && errorData.message.includes('employeeId already exists')) {
             setServerError('An employee with this ID already exists. Please try again.');
           } else {
@@ -299,8 +415,9 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         } else if (response.status === 500) {
           setServerError('Server error occurred. Please try again later.');
         } else {
-          setServerError('An unexpected error occurred. Please try again.');
+          setServerError(errorData.message || 'An unexpected error occurred. Please try again.');
         }
+        setLoading(false);
         return;
       }
 
@@ -685,6 +802,25 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
                 <p className="text-red-500 text-sm mt-1">{errors.hireDate}</p>
               )}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Allowed Leaves
+              </label>
+              <input
+                type="number"
+                name="monthlyAllowedLeaves"
+                value={formData.monthlyAllowedLeaves}
+                onChange={handleChange}
+                min="0"
+                max="31"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Number of leaves allowed per month (excess leaves will result in salary deduction)
+              </p>
+            </div>
           </div>
         </div>
 
@@ -748,6 +884,14 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
           <button
             type="submit"
             disabled={loading}
+            onClick={(e) => {
+              console.log('Button clicked!', { loading, formData });
+              if (loading) {
+                e.preventDefault();
+                return;
+              }
+              // Let the form handle submission
+            }}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-medium shadow-sm hover:shadow-md disabled:shadow-none"
           >
             {loading ? (

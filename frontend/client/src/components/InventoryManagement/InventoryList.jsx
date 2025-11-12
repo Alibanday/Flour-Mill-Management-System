@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FaBoxes, FaSearch, FaFilter, FaEdit, FaTrash, FaEye, 
-  FaPlus, FaSort, FaSortUp, FaSortDown,
-  FaExclamationTriangle, FaCheckCircle, FaTimesCircle
+  FaBoxes, FaSearch, FaFilter,
+  FaSort, FaSortUp, FaSortDown,
+  FaExclamationTriangle, FaCheckCircle, FaTimesCircle,
+  FaWarehouse
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
-import InventoryForm from './InventoryForm';
 
 const InventoryList = () => {
   const { isAdmin, isManager, isEmployee } = useAuth();
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     category: 'all',
@@ -145,36 +143,6 @@ const InventoryList = () => {
     setPagination(prev => ({ ...prev, current: page }));
   };
 
-  const handleCreate = () => {
-    setEditingItem(null);
-    setShowForm(true);
-  };
-
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (item) => {
-    if (!isAdmin()) {
-      toast.error('Only Admin can delete inventory items');
-      return;
-    }
-
-    if (!window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
-      return;
-    }
-
-    try {
-      await api.delete(API_ENDPOINTS.INVENTORY.DELETE(item._id));
-      
-      toast.success('Inventory item deleted successfully');
-      fetchInventory();
-    } catch (error) {
-      const message = error.response?.data?.message || 'Error deleting inventory item';
-      toast.error(message);
-    }
-  };
 
   const handleStatusUpdate = async (item, newStatus) => {
     if (!isAdmin() && !isManager()) {
@@ -193,11 +161,6 @@ const InventoryList = () => {
     }
   };
 
-  const handleFormSave = () => {
-    setShowForm(false);
-    setEditingItem(null);
-    fetchInventory();
-  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -211,13 +174,24 @@ const InventoryList = () => {
   };
 
   const getStockStatusColor = (item) => {
-    if (item.weight === 0) return 'text-red-600';
+    // Use currentStock if available, otherwise fall back to weight for backward compatibility
+    const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+    if (stock === 0) return 'text-red-600';
+    if (item.minimumStock && stock <= item.minimumStock) return 'text-yellow-600';
     return 'text-green-600';
   };
 
   const getStockStatusIcon = (item) => {
-    if (item.weight === 0) return <FaTimesCircle className="text-red-500" />;
+    // Use currentStock if available, otherwise fall back to weight for backward compatibility
+    const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+    if (stock === 0) return <FaTimesCircle className="text-red-500" />;
+    if (item.minimumStock && stock <= item.minimumStock) return <FaExclamationTriangle className="text-yellow-500" />;
     return <FaCheckCircle className="text-green-500" />;
+  };
+
+  const getCurrentStock = (item) => {
+    // Use currentStock if available, otherwise fall back to weight for backward compatibility
+    return item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
   };
 
   if (loading && inventory.length === 0) {
@@ -234,18 +208,12 @@ const InventoryList = () => {
       <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6 rounded-t-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <FaBoxes className="text-2xl" />
-            <h2 className="text-2xl font-bold">Inventory Management</h2>
+            <FaWarehouse className="text-2xl" />
+            <div>
+              <h2 className="text-2xl font-bold">Stock Levels</h2>
+              <p className="text-green-100 text-sm">View actual inventory quantities and stock status</p>
+            </div>
           </div>
-          {(isAdmin() || isManager()) && (
-            <button
-              onClick={handleCreate}
-              className="bg-white text-green-600 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-2"
-            >
-              <FaPlus />
-              <span>Add Item</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -362,13 +330,16 @@ const InventoryList = () => {
                 </div>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleSort('weight')}>
+                  onClick={() => handleSort('currentStock')}>
                 <div className="flex items-center space-x-1">
-                  <span>Weight</span>
-                  {sortConfig.key === 'weight' && (
+                  <span>Current Stock</span>
+                  {sortConfig.key === 'currentStock' && (
                     sortConfig.direction === 'asc' ? <FaSortUp /> : <FaSortDown />
                   )}
                 </div>
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <span>Min. Stock</span>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort('status')}>
@@ -410,9 +381,14 @@ const InventoryList = () => {
                   <div className="flex items-center space-x-2">
                     {getStockStatusIcon(item)}
                     <span className={`text-sm font-medium ${getStockStatusColor(item)}`}>
-                      {item.weight} kg
+                      {getCurrentStock(item).toLocaleString()} kg
                     </span>
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm text-gray-600">
+                    {item.minimumStock ? `${item.minimumStock.toLocaleString()} kg` : 'Not set'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
@@ -420,37 +396,19 @@ const InventoryList = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Edit"
+                  {(isAdmin() || isManager()) && (
+                    <select
+                      value={item.status}
+                      onChange={(e) => handleStatusUpdate(item, e.target.value)}
+                      className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-green-500"
                     >
-                      <FaEdit />
-                    </button>
-                    {isAdmin() && (
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
-                    )}
-                    {(isAdmin() || isManager()) && (
-                      <select
-                        value={item.status}
-                        onChange={(e) => handleStatusUpdate(item, e.target.value)}
-                        className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-green-500"
-                      >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                        <option value="Low Stock">Low Stock</option>
-                        <option value="Out of Stock">Out of Stock</option>
-                        <option value="Discontinued">Discontinued</option>
-                      </select>
-                    )}
-                  </div>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="Low Stock">Low Stock</option>
+                      <option value="Out of Stock">Out of Stock</option>
+                      <option value="Discontinued">Discontinued</option>
+                    </select>
+                  )}
                 </td>
               </tr>
             ))}
@@ -510,32 +468,14 @@ const InventoryList = () => {
               ? 'Try adjusting your search or filter criteria.'
               : 'Get started by creating a new inventory item.'}
           </p>
-          {(isAdmin() || isManager()) && (
-            <div className="mt-6">
-              <button
-                onClick={handleCreate}
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
-              >
-                <FaPlus className="-ml-1 mr-2 h-4 w-4" />
-                Add Item
-              </button>
-            </div>
-          )}
+          <div className="mt-6">
+            <p className="text-sm text-gray-500">
+              Use <strong>Product Catalog</strong> to add new products and manage prices.
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Inventory Form Modal */}
-      {showForm && (
-        <InventoryForm
-          inventory={editingItem}
-          mode={editingItem ? 'edit' : 'create'}
-          onSave={handleFormSave}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingItem(null);
-          }}
-        />
-      )}
     </div>
   );
 };

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FaBoxes, FaWarehouse, FaExclamationTriangle, FaCheckCircle, 
-  FaTimesCircle, FaChartBar, FaPlus, FaSearch, FaFilter, FaSync
+  FaTimesCircle, FaChartBar, FaPlus, FaSearch, FaFilter, FaSync,
+  FaTags
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../services/api';
 import InventoryList from '../components/InventoryManagement/InventoryList';
+import ProductCatalog from '../components/InventoryManagement/ProductCatalog';
 
 const InventoryPage = () => {
   const { user, isAdmin, isManager, isEmployee } = useAuth();
@@ -17,6 +19,7 @@ const InventoryPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [showProductCatalog, setShowProductCatalog] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -147,6 +150,13 @@ const InventoryPage = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowProductCatalog(true)}
+                className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md"
+              >
+                <FaTags />
+                <span>Product Catalog</span>
+              </button>
               <span className="text-sm text-gray-500">
                 Welcome back, {user?.name || 'User'}
               </span>
@@ -338,6 +348,11 @@ const InventoryPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Product Catalog Modal */}
+      {showProductCatalog && (
+        <ProductCatalog onClose={() => setShowProductCatalog(false)} />
+      )}
     </div>
   );
 };

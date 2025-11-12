@@ -4,6 +4,7 @@ import { FaUsers, FaHome, FaSignOutAlt, FaUserCog, FaUserPlus, FaList, FaClock, 
 import { useAuth } from '../hooks/useAuth';
 import EmployeeList from '../components/EmployeeManagement/EmployeeList';
 import EmployeeForm from '../components/EmployeeManagement/EmployeeForm';
+import EmployeeDetail from '../components/EmployeeManagement/EmployeeDetail';
 import EmployeeDashboard from '../components/EmployeeManagement/EmployeeDashboard';
 import EmployeeReports from '../components/EmployeeManagement/EmployeeReports';
 import AttendanceManagement from '../components/EmployeeManagement/AttendanceManagement';
@@ -15,6 +16,7 @@ export default function EmployeesPage() {
   const [activeTab, setActiveTab] = useState('employees');
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [viewingEmployee, setViewingEmployee] = useState(null);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -32,10 +34,17 @@ export default function EmployeesPage() {
     setShowEmployeeForm(true);
   };
 
+  const handleViewEmployee = (employee) => {
+    setViewingEmployee(employee);
+  };
 
   const handleCloseForm = () => {
     setShowEmployeeForm(false);
     setEditingEmployee(null);
+  };
+
+  const handleCloseDetail = () => {
+    setViewingEmployee(null);
   };
 
 
@@ -178,6 +187,7 @@ export default function EmployeesPage() {
               <EmployeeList 
                 onEditEmployee={handleEditEmployee}
                 onAddEmployee={handleAddEmployee}
+                onViewEmployee={handleViewEmployee}
               />
             )}
             {activeTab === 'attendance' && (
@@ -202,6 +212,18 @@ export default function EmployeesPage() {
                 />
               </div>
             </div>
+          )}
+
+          {/* Employee Detail Modal */}
+          {viewingEmployee && (
+            <EmployeeDetail
+              employeeId={viewingEmployee._id}
+              onClose={handleCloseDetail}
+              onEdit={(employee) => {
+                handleCloseDetail();
+                handleEditEmployee(employee);
+              }}
+            />
           )}
 
         </main>

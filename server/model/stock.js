@@ -72,8 +72,10 @@ stockSchema.pre('save', async function(next) {
     
     // For 'out' movements, check if there's sufficient stock
     if (this.movementType === 'out') {
-      if (inventory.currentStock < this.quantity) {
-        throw new Error(`Insufficient stock available. Current stock: ${inventory.currentStock}, Requested: ${this.quantity}`);
+      // Use currentStock if available, otherwise fall back to weight for backward compatibility
+      const availableStock = inventory.currentStock !== undefined ? inventory.currentStock : (inventory.weight || 0);
+      if (availableStock < this.quantity) {
+        throw new Error(`Insufficient stock available. Current stock: ${availableStock}, Requested: ${this.quantity}`);
       }
     }
     
@@ -91,25 +93,31 @@ stockSchema.pre('save', async function(next) {
       
       // Check reasonable stock addition limits - allow up to current stock size
       // Exception: Allow stock additions to newly created inventory items (currentStock = 0) during transfers
-      const maxReasonableAddition = inventory.currentStock;
-      if (this.quantity > maxReasonableAddition && inventory.currentStock > 0) {
-        throw new Error(`Stock addition too large. Current stock: ${inventory.currentStock}, Maximum allowed: ${maxReasonableAddition}, Requested: ${this.quantity}`);
+      const currentStock = inventory.currentStock !== undefined ? inventory.currentStock : (inventory.weight || 0);
+      const maxReasonableAddition = currentStock;
+      if (this.quantity > maxReasonableAddition && currentStock > 0) {
+        throw new Error(`Stock addition too large. Current stock: ${currentStock}, Maximum allowed: ${maxReasonableAddition}, Requested: ${this.quantity}`);
       }
     }
     
     // Only update inventory stock if this is NOT an initial stock movement
     if (this.reason !== 'Initial Stock') {
+      // Initialize currentStock if it doesn't exist (backward compatibility)
+      if (inventory.currentStock === undefined) {
+        inventory.currentStock = inventory.weight || 0;
+      }
+      
       // Update inventory stock based on movement type
       if (this.movementType === 'in') {
         inventory.currentStock += this.quantity;
       } else if (this.movementType === 'out') {
-        inventory.currentStock -= this.quantity;
+        inventory.currentStock = Math.max(0, inventory.currentStock - this.quantity);
       }
       
       // Update inventory status based on new stock level
       if (inventory.currentStock === 0) {
         inventory.status = "Out of Stock";
-      } else if (inventory.currentStock <= inventory.minimumStock) {
+      } else if (inventory.minimumStock && inventory.currentStock <= inventory.minimumStock) {
         inventory.status = "Low Stock";
       } else {
         inventory.status = "Active";

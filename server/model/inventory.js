@@ -38,6 +38,18 @@ const inventorySchema = new mongoose.Schema({
     min: [0, "Weight cannot be negative"],
     default: 0
   },
+  // Current stock quantity (calculated from Stock movements)
+  currentStock: {
+    type: Number,
+    min: [0, "Current stock cannot be negative"],
+    default: 0
+  },
+  // Minimum stock level for alerts
+  minimumStock: {
+    type: Number,
+    min: [0, "Minimum stock cannot be negative"],
+    default: 0
+  },
   price: {
     type: Number,
     required: [true, "Price is required"],
@@ -59,7 +71,10 @@ const inventorySchema = new mongoose.Schema({
 
 // Virtual for stock status
 inventorySchema.virtual("stockStatus").get(function() {
-  if (this.weight === 0) return "Out of Stock";
+  // Use currentStock if available, otherwise fall back to weight for backward compatibility
+  const stock = this.currentStock !== undefined ? this.currentStock : this.weight;
+  if (stock === 0) return "Out of Stock";
+  if (this.minimumStock && stock <= this.minimumStock) return "Low Stock";
   return "In Stock";
 });
 
@@ -86,9 +101,12 @@ inventorySchema.pre("save", function(next) {
   // Update lastUpdated
   this.lastUpdated = new Date();
   
-  // Auto-update status based on weight
-  if (this.weight === 0) {
+  // Auto-update status based on currentStock (or weight for backward compatibility)
+  const stock = this.currentStock !== undefined ? this.currentStock : this.weight;
+  if (stock === 0) {
     this.status = "Out of Stock";
+  } else if (this.minimumStock && stock <= this.minimumStock) {
+    this.status = "Low Stock";
   } else {
     this.status = "Active";
   }
@@ -147,7 +165,12 @@ inventorySchema.methods.getStockSummary = function() {
 
 // Statics
 inventorySchema.statics.getOutOfStockItems = function() {
-  return this.find({ weight: 0 });
+  return this.find({ 
+    $or: [
+      { currentStock: 0 },
+      { currentStock: { $exists: false }, weight: 0 }
+    ]
+  });
 };
 
 // Check if model already exists to prevent overwrite errors
