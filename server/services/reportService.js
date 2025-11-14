@@ -26,19 +26,66 @@ class ReportService {
 
       const sales = await Sale.find(query)
         .populate('warehouse', 'name location')
+        .populate('customer', 'name customerName')
+        .populate('items.product', 'name code')
         .sort({ saleDate: -1 });
 
       const summary = {
         totalSales: sales.length,
-        totalAmount: sales.reduce((sum, sale) => sum + sale.totalAmount, 0),
-        totalQuantity: sales.reduce((sum, sale) => sum + sale.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0),
-        averageOrderValue: sales.length > 0 ? sales.reduce((sum, sale) => sum + sale.totalAmount, 0) / sales.length : 0,
+        totalAmount: sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0),
+        totalQuantity: sales.reduce((sum, sale) => {
+          const items = sale.items || [];
+          return sum + items.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0);
+        }, 0),
+        averageOrderValue: sales.length > 0 ? sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0) / sales.length : 0,
         paymentBreakdown: {
-          paid: sales.filter(sale => /paid/i.test(sale.paymentStatus)).length,
-          pending: sales.filter(sale => /pending/i.test(sale.paymentStatus)).length,
-          partial: sales.filter(sale => /partial/i.test(sale.paymentStatus)).length
+          paid: sales.filter(sale => sale.paymentStatus && /paid/i.test(sale.paymentStatus)).length,
+          pending: sales.filter(sale => sale.paymentStatus && /pending/i.test(sale.paymentStatus)).length,
+          partial: sales.filter(sale => sale.paymentStatus && /partial/i.test(sale.paymentStatus)).length
         }
       };
+
+      // Format sales data for frontend
+      const formattedSales = sales.map(sale => {
+        // Ensure customer is an object with name
+        let customerData = sale.customer;
+        if (!customerData || typeof customerData !== 'object') {
+          customerData = { name: 'Unknown Customer' };
+        } else if (typeof customerData === 'string') {
+          customerData = { name: customerData };
+        }
+        
+        // Ensure items have product information
+        const formattedItems = (sale.items || []).map(item => {
+          const product = item.product || {};
+          let itemData;
+          try {
+            itemData = typeof item.toObject === 'function' ? item.toObject() : (item || {});
+          } catch (e) {
+            itemData = item || {};
+          }
+          return {
+            ...itemData,
+            product: {
+              name: item.productName || product.name || 'Unknown Product',
+              code: product.code || ''
+            }
+          };
+        });
+        
+        let saleData;
+        try {
+          saleData = typeof sale.toObject === 'function' ? sale.toObject() : (sale || {});
+        } catch (e) {
+          saleData = sale || {};
+        }
+        
+        return {
+          ...saleData,
+          customer: customerData,
+          items: formattedItems
+        };
+      });
 
       return {
         reportType: 'sales',
@@ -47,7 +94,7 @@ class ReportService {
           startDate: new Date(startDate),
           endDate: new Date(endDate)
         },
-        data: sales,
+        data: formattedSales,
         summary,
         filters: { startDate, endDate, ...filters }
       };
@@ -147,7 +194,7 @@ class ReportService {
         saleDate: { $gte: start, $lte: end }
       });
 
-      const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+      const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
 
       // Get cost of goods sold (COGS)
       const bagPurchases = await BagPurchase.find({
@@ -158,8 +205,8 @@ class ReportService {
         purchaseDate: { $gte: start, $lte: end }
       });
 
-      const totalCOGS = bagPurchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0) +
-                       foodPurchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
+      const totalCOGS = bagPurchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0) +
+                       foodPurchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
 
       // Get expenses
       const expenses = await FinancialTransaction.find({
@@ -167,7 +214,7 @@ class ReportService {
         transactionType: 'expense'
       });
 
-      const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
       // Get salaries
       const salaries = await FinancialTransaction.find({
@@ -176,7 +223,7 @@ class ReportService {
         category: 'salaries'
       });
 
-      const totalSalaries = salaries.reduce((sum, salary) => sum + salary.amount, 0);
+      const totalSalaries = salaries.reduce((sum, salary) => sum + (salary.amount || 0), 0);
 
       // Calculate profit/loss
       const grossProfit = totalRevenue - totalCOGS;
@@ -242,8 +289,8 @@ class ReportService {
 
       const summary = {
         totalExpenses: expenses.length,
-        totalAmount: expenses.reduce((sum, expense) => sum + expense.amount, 0),
-        averageExpense: expenses.length > 0 ? expenses.reduce((sum, expense) => sum + expense.amount, 0) / expenses.length : 0,
+        totalAmount: expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0),
+        averageExpense: expenses.length > 0 ? expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0) / expenses.length : 0,
         categoryBreakdown: {},
         monthlyBreakdown: {}
       };
@@ -251,18 +298,24 @@ class ReportService {
       // Group by category
       expenses.forEach(expense => {
         const cat = expense.category || 'Uncategorized';
+        const amount = expense.amount || 0;
         if (!summary.categoryBreakdown[cat]) {
           summary.categoryBreakdown[cat] = { count: 0, amount: 0 };
         }
         summary.categoryBreakdown[cat].count++;
-        summary.categoryBreakdown[cat].amount += expense.amount;
+        summary.categoryBreakdown[cat].amount += amount;
 
         // Group by month
-        const month = (expense.date instanceof Date ? expense.date : new Date(expense.date)).toISOString().substring(0, 7);
-        if (!summary.monthlyBreakdown[month]) {
-          summary.monthlyBreakdown[month] = 0;
+        if (expense.date) {
+          const expenseDate = expense.date instanceof Date ? expense.date : new Date(expense.date);
+          if (!isNaN(expenseDate.getTime())) {
+            const month = expenseDate.toISOString().substring(0, 7);
+            if (!summary.monthlyBreakdown[month]) {
+              summary.monthlyBreakdown[month] = 0;
+            }
+            summary.monthlyBreakdown[month] += amount;
+          }
         }
-        summary.monthlyBreakdown[month] += expense.amount;
       });
 
       return {
@@ -301,8 +354,8 @@ class ReportService {
 
       const summary = {
         totalSalaries: salaries.length,
-        totalAmount: salaries.reduce((sum, salary) => sum + salary.amount, 0),
-        averageSalary: salaries.length > 0 ? salaries.reduce((sum, salary) => sum + salary.amount, 0) / salaries.length : 0,
+        totalAmount: salaries.reduce((sum, salary) => sum + (salary.amount || 0), 0),
+        averageSalary: salaries.length > 0 ? salaries.reduce((sum, salary) => sum + (salary.amount || 0), 0) / salaries.length : 0,
         departmentBreakdown: {},
         monthlyBreakdown: {}
       };
@@ -310,18 +363,24 @@ class ReportService {
       // Group by department (using user role as department)
       salaries.forEach(salary => {
         const dept = salary.createdBy?.role || 'Unknown';
+        const amount = salary.amount || 0;
         if (!summary.departmentBreakdown[dept]) {
           summary.departmentBreakdown[dept] = { count: 0, amount: 0 };
         }
         summary.departmentBreakdown[dept].count++;
-        summary.departmentBreakdown[dept].amount += salary.amount;
+        summary.departmentBreakdown[dept].amount += amount;
 
         // Group by month
-        const month = salary.date.toISOString().substring(0, 7);
-        if (!summary.monthlyBreakdown[month]) {
-          summary.monthlyBreakdown[month] = 0;
+        if (salary.date) {
+          const salaryDate = salary.date instanceof Date ? salary.date : new Date(salary.date);
+          if (!isNaN(salaryDate.getTime())) {
+            const month = salaryDate.toISOString().substring(0, 7);
+            if (!summary.monthlyBreakdown[month]) {
+              summary.monthlyBreakdown[month] = 0;
+            }
+            summary.monthlyBreakdown[month] += amount;
+          }
         }
-        summary.monthlyBreakdown[month] += salary.amount;
       });
 
       return {
@@ -360,8 +419,8 @@ class ReportService {
           paymentStatus: { $in: ['pending', 'partial'] }
         });
 
-        const totalOutstanding = bagPurchases.reduce((sum, purchase) => sum + purchase.dueAmount, 0) +
-                               foodPurchases.reduce((sum, purchase) => sum + purchase.dueAmount, 0);
+        const totalOutstanding = bagPurchases.reduce((sum, purchase) => sum + (purchase.dueAmount || 0), 0) +
+                               foodPurchases.reduce((sum, purchase) => sum + (purchase.dueAmount || 0), 0);
 
         if (totalOutstanding > 0) {
           vendorOutstanding.push({

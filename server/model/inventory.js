@@ -1,42 +1,26 @@
 import mongoose from "mongoose";
 
+/**
+ * Inventory Model - Stock Levels Per Warehouse
+ * This tracks the current stock quantity of each product in each warehouse
+ * 
+ * Relationship:
+ * - Product (catalog) → One record per product type
+ * - Inventory → One record per product per warehouse (stock levels)
+ * - Stock (movements) → History of stock in/out
+ */
 const inventorySchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, "Inventory item name is required"],
-    trim: true,
-    maxlength: [100, "Item name cannot exceed 100 characters"]
+  // Reference to Product catalog (master product)
+  product: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Product",
+    required: false // Optional for backward compatibility, will be required in future
   },
-  code: {
-    type: String,
-    required: false, // Auto-generated, not required in input
-    trim: true,
-    unique: true,
-    uppercase: true,
-    maxlength: [20, "Item code cannot exceed 20 characters"]
-  },
-  category: {
-    type: String,
-    required: [true, "Category is required"],
-    enum: ["Raw Materials", "Finished Goods"],
-    default: "Raw Materials"
-  },
-  subcategory: {
-    type: String,
-    required: [true, "Subcategory is required"],
-    enum: [
-      // Raw Materials
-      "Wheat", "Choker",
-      // Finished Goods  
-      "Bags"
-    ],
-    default: "Wheat"
-  },
-  weight: {
-    type: Number,
-    required: [true, "Weight is required"],
-    min: [0, "Weight cannot be negative"],
-    default: 0
+  // Warehouse where this stock is located
+  warehouse: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Warehouse",
+    required: false // Optional for backward compatibility, will be required in future
   },
   // Current stock quantity (calculated from Stock movements)
   currentStock: {
@@ -44,18 +28,13 @@ const inventorySchema = new mongoose.Schema({
     min: [0, "Current stock cannot be negative"],
     default: 0
   },
-  // Minimum stock level for alerts
+  // Minimum stock level for alerts (can override product default)
   minimumStock: {
     type: Number,
     min: [0, "Minimum stock cannot be negative"],
     default: 0
   },
-  price: {
-    type: Number,
-    required: [true, "Price is required"],
-    min: [0, "Price cannot be negative"],
-    default: 0
-  },
+  // Status based on stock level
   status: {
     type: String,
     enum: ["Active", "Inactive", "Low Stock", "Out of Stock", "Discontinued"],
@@ -64,10 +43,40 @@ const inventorySchema = new mongoose.Schema({
   lastUpdated: {
     type: Date,
     default: Date.now
+  },
+  // Legacy fields for backward compatibility (will be removed later)
+  name: {
+    type: String,
+    trim: true
+  },
+  code: {
+    type: String,
+    trim: true
+  },
+  category: {
+    type: String
+  },
+  subcategory: {
+    type: String
+  },
+  weight: {
+    type: Number,
+    min: [0, "Weight cannot be negative"],
+    default: 0
+  },
+  price: {
+    type: Number,
+    min: [0, "Price cannot be negative"],
+    default: 0
   }
 }, {
   timestamps: true
 });
+
+// Compound index: one inventory record per product per warehouse (only when both exist)
+inventorySchema.index({ product: 1, warehouse: 1 }, { unique: true, sparse: true });
+inventorySchema.index({ warehouse: 1 });
+inventorySchema.index({ status: 1 });
 
 // Virtual for stock status
 inventorySchema.virtual("stockStatus").get(function() {
@@ -91,64 +100,54 @@ inventorySchema.virtual("priceDisplay").get(function() {
   return `${this.price} PKR per item`;
 });
 
-// Pre-save middleware
-inventorySchema.pre("save", function(next) {
-  // Auto-uppercase code
-  if (this.code) {
-    this.code = this.code.toUpperCase();
-  }
-  
-  // Update lastUpdated
-  this.lastUpdated = new Date();
-  
-  // Auto-update status based on currentStock (or weight for backward compatibility)
-  const stock = this.currentStock !== undefined ? this.currentStock : this.weight;
-  if (stock === 0) {
-    this.status = "Out of Stock";
-  } else if (this.minimumStock && stock <= this.minimumStock) {
-    this.status = "Low Stock";
-  } else {
-    this.status = "Active";
-  }
-  
-  next();
-});
-
-// Pre-save middleware to auto-generate item code
-inventorySchema.pre('save', async function(next) {
+// Pre-save middleware (merged)
+inventorySchema.pre("save", async function(next) {
   try {
-    // Always generate a new code if not provided
-    if (!this.code) {
-      let attempts = 0;
-      const maxAttempts = 10;
-      let code;
-      
-      do {
-        const categoryPrefix = this.category.substring(0, 3).toUpperCase();
-        const timestamp = Date.now().toString().slice(-6);
-        const randomSuffix = Math.random().toString(36).substring(2, 6);
-        const processId = process.pid ? process.pid.toString().slice(-2) : '00';
-        code = `${categoryPrefix}${timestamp}${randomSuffix}${processId}`;
-        
-        attempts++;
-        
-        // Check if code already exists
-        const existingItem = await mongoose.model('Inventory').findOne({ code });
-        if (!existingItem) {
-          break;
-        }
-        
-        if (attempts >= maxAttempts) {
-          throw new Error('Unable to generate unique code after maximum attempts');
-        }
-      } while (attempts < maxAttempts);
-      
-      this.code = code;
-      console.log('Generated unique code:', this.code);
+    // Auto-uppercase code
+    if (this.code) {
+      this.code = this.code.toUpperCase();
     }
+    
+    // Update lastUpdated
+    this.lastUpdated = new Date();
+    
+    // Auto-update status based on currentStock (or weight for backward compatibility)
+    const stock = this.currentStock !== undefined ? this.currentStock : (this.weight || 0);
+    if (stock === 0) {
+      this.status = "Out of Stock";
+    } else if (this.minimumStock && stock <= this.minimumStock) {
+      this.status = "Low Stock";
+    } else if (this.status === "Out of Stock" || this.status === "Low Stock") {
+      // Only change to Active if it was previously Out of Stock or Low Stock
+      this.status = "Active";
+    }
+    
+    // Populate product info for legacy fields if product exists
+    if (this.product && (!this.name || !this.code)) {
+      try {
+        // Use mongoose.models to avoid circular dependency
+        const ProductModel = mongoose.models.Product;
+        if (ProductModel) {
+          const product = await ProductModel.findById(this.product);
+          if (product) {
+            this.name = product.name;
+            this.code = product.code;
+            this.category = product.category;
+            this.subcategory = product.subcategory;
+            if (!this.minimumStock) {
+              this.minimumStock = product.minimumStock || 0;
+            }
+          }
+        }
+      } catch (error) {
+        // Silently fail if Product model not available yet (backward compatibility)
+        console.warn('Product model not available during inventory save:', error.message);
+      }
+    }
+    
     next();
   } catch (error) {
-    console.error('Error generating code:', error);
+    console.error('Error in inventory pre-save:', error);
     next(error);
   }
 });

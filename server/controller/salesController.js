@@ -42,21 +42,63 @@ export const createSale = async (req, res) => {
 
     // REAL-TIME INVENTORY INTEGRATION - Check stock availability first
     for (const item of items) {
-      // Verify product exists
-      const product = await Inventory.findById(item.product);
+      // item.product is now a Product ID from catalog
+      // We need to find the Inventory record (Product + Warehouse) to check stock
+      const Product = (await import("../model/Product.js")).default;
+      const product = await Product.findById(item.product);
+      
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: `Product with ID ${item.product} not found`
+          message: `Product with ID ${item.product} not found in catalog`
         });
       }
 
-      // Check stock availability using 'weight' field (old inventory model doesn't have currentStock)
-      const availableStock = product.weight || 0;
+      // Find inventory record for this product in this warehouse
+      let inventoryItem = await Inventory.findOne({
+        product: item.product,
+        warehouse: warehouse
+      });
+
+      // If no inventory record exists, create one (backward compatibility)
+      if (!inventoryItem) {
+        // Try legacy lookup by name
+        inventoryItem = await Inventory.findOne({
+          name: { $regex: new RegExp(`^${product.name}$`, 'i') },
+          warehouse: warehouse
+        });
+        
+        if (!inventoryItem) {
+          // Create new inventory record
+          inventoryItem = new Inventory({
+            product: product._id,
+            warehouse: warehouse,
+            currentStock: 0,
+            minimumStock: product.minimumStock || 0,
+            status: 'Active',
+            // Legacy fields
+            name: product.name,
+            code: product.code,
+            category: product.category,
+            subcategory: product.subcategory
+          });
+          await inventoryItem.save();
+        } else {
+          // Update legacy inventory to link to product
+          inventoryItem.product = product._id;
+          await inventoryItem.save();
+        }
+      }
+
+      // Check stock availability
+      const availableStock = inventoryItem.currentStock !== undefined 
+        ? inventoryItem.currentStock 
+        : (inventoryItem.weight || 0);
+        
       if (availableStock < item.quantity) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient stock for ${product.name}. Available: ${availableStock}, Requested: ${item.quantity}`
+          message: `Insufficient stock for ${product.name}. Available: ${availableStock} ${product.unit || 'units'}, Requested: ${item.quantity}`
         });
       }
 
@@ -74,10 +116,10 @@ export const createSale = async (req, res) => {
       }
 
       processedItems.push({
-        product: item.product,
+        product: inventoryItem._id, // Use inventory ID for stock movement
         productName: product.name,
         quantity: item.quantity,
-        unit: itemUnit,
+        unit: itemUnit || product.unit || 'units',
         unitPrice: item.unitPrice,
         totalPrice: totalPrice
       });
@@ -295,9 +337,10 @@ export const createSale = async (req, res) => {
     console.log("Starting real-time inventory integration for sales...");
 
     for (const item of processedItems) {
+      // item.product is now inventoryItem._id (from processedItems)
       // Create stock out movement for each sold item
       const stockOut = new Stock({
-        inventoryItem: item.product,
+        inventoryItem: item.product, // This is inventoryItem._id
         movementType: 'out',
         quantity: item.quantity,
         reason: `Sale - Invoice ${sale.invoiceNumber}`,
@@ -308,18 +351,25 @@ export const createSale = async (req, res) => {
 
       await stockOut.save();
       console.log(`Deducted ${item.quantity} units of ${item.productName} for sale`);
-
-      // Update product weight (old inventory model uses weight instead of currentStock)
-      const updatedProduct = await Inventory.findByIdAndUpdate(
+      
+      // Note: Stock middleware automatically updates Inventory.currentStock
+      // The direct update below is kept for backward compatibility with legacy weight field
+      const updatedInventory = await Inventory.findByIdAndUpdate(
         item.product,
-        { $inc: { weight: -item.quantity } },
+        { 
+          $inc: { 
+            currentStock: -item.quantity,
+            weight: -item.quantity // Legacy field
+          } 
+        },
         { new: true }
       );
       
-      console.log(`Updated ${item.productName} weight: ${updatedProduct.weight}`);
+      console.log(`Updated ${item.productName} stock: ${updatedInventory.currentStock || updatedInventory.weight}`);
       
       // Check if item is now low stock or out of stock
-      if (updatedProduct.weight === 0) {
+      const currentStock = updatedInventory.currentStock !== undefined ? updatedInventory.currentStock : (updatedInventory.weight || 0);
+      if (currentStock === 0) {
         // Create out of stock notification
         const notification = new Notification({
           title: "Product Out of Stock",
@@ -337,11 +387,11 @@ export const createSale = async (req, res) => {
           }
         });
         await notification.save();
-      } else if (updatedProduct.weight <= 50) {
-        // Create low stock notification (using 50 as threshold)
+      } else if (currentStock <= (updatedInventory.minimumStock || 50)) {
+        // Create low stock notification (using minimumStock or 50 as threshold)
         const notification = new Notification({
           title: "Low Stock Alert",
-          message: `${item.productName} is running low (${updatedProduct.weight} units remaining)`,
+          message: `${item.productName} is running low (${currentStock} units remaining)`,
           type: "inventory",
           priority: "medium",
           user: req.user._id || req.user.id,
@@ -350,7 +400,7 @@ export const createSale = async (req, res) => {
           data: {
             productId: item.product,
             productName: item.productName,
-            currentStock: updatedProduct.weight,
+            currentStock: currentStock,
             invoiceNumber: sale.invoiceNumber
           }
         });

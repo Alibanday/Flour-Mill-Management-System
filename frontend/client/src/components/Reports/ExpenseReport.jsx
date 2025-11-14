@@ -47,8 +47,12 @@ const ExpenseReport = ({ onReportGenerated }) => {
       }
 
       const result = await response.json();
-      setReportData(result.data);
-      onReportGenerated(result.data);
+      if (result.success && result.data) {
+        setReportData(result.data);
+        onReportGenerated(result.data);
+      } else {
+        throw new Error(result.message || 'Failed to generate report');
+      }
     } catch (error) {
       setError(error.message);
     } finally {

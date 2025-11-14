@@ -45,7 +45,7 @@ router.post('/sales', validateDateRange, handleValidationErrors, asyncHandler(as
     // Save report to database
     const savedReport = new Report({
       ...report,
-      generatedBy: req.user.id
+      generatedBy: req.user.id || req.user._id
     });
     await savedReport.save();
 
@@ -56,6 +56,7 @@ router.post('/sales', validateDateRange, handleValidationErrors, asyncHandler(as
       reportId: savedReport._id
     });
   } catch (error) {
+    console.error('Error generating sales report:', error);
     res.status(500).json({
       success: false,
       message: 'Error generating sales report',
@@ -74,7 +75,7 @@ router.post('/inventory', asyncHandler(async (req, res) => {
     // Save report to database
     const savedReport = new Report({
       ...report,
-      generatedBy: req.user.id
+      generatedBy: req.user.id || req.user._id
     });
     await savedReport.save();
 
@@ -103,7 +104,7 @@ router.post('/profit-loss', validateDateRange, handleValidationErrors, asyncHand
     // Save report to database
     const savedReport = new Report({
       ...report,
-      generatedBy: req.user.id
+      generatedBy: req.user.id || req.user._id
     });
     await savedReport.save();
 
@@ -132,7 +133,7 @@ router.post('/expense', validateDateRange, handleValidationErrors, asyncHandler(
     // Save report to database
     const savedReport = new Report({
       ...report,
-      generatedBy: req.user.id
+      generatedBy: req.user.id || req.user._id
     });
     await savedReport.save();
 
@@ -161,7 +162,7 @@ router.post('/salary', validateDateRange, handleValidationErrors, asyncHandler(a
     // Save report to database
     const savedReport = new Report({
       ...report,
-      generatedBy: req.user.id
+      generatedBy: req.user.id || req.user._id
     });
     await savedReport.save();
 
@@ -188,7 +189,7 @@ router.post('/vendor-outstanding', asyncHandler(async (req, res) => {
     // Save report to database
     const savedReport = new Report({
       ...report,
-      generatedBy: req.user.id
+      generatedBy: req.user.id || req.user._id
     });
     await savedReport.save();
 

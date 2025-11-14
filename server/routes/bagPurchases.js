@@ -230,6 +230,7 @@ router.post("/", [
 
     // Add stock movements for bags purchased
     try {
+      const Product = (await import("../model/Product.js")).default;
       const Inventory = (await import("../model/inventory.js")).default;
       const Stock = (await import("../model/stock.js")).default;
       
@@ -250,33 +251,54 @@ router.post("/", [
         
         for (const [productType, bagData] of bagEntries) {
           if (bagData && bagData.quantity > 0) {
-            // Find or create inventory item
+            // Step 1: Find or create Product in catalog
+            const productName = `${productType} Bags`;
+            let product = await Product.findOne({
+              name: { $regex: new RegExp(`^${productName}$`, 'i') },
+              category: 'Packaging Materials',
+              subcategory: 'Bags'
+            });
+            
+            if (!product) {
+              product = new Product({
+                name: productName,
+                category: 'Packaging Materials',
+                subcategory: 'Bags',
+                description: `${productType} bags`,
+                unit: bagData.unit || '50kg bags',
+                price: 0, // Will be set from sales
+                purchasePrice: bagData.unitPrice || 0,
+                minimumStock: 10,
+                status: 'Active'
+              });
+              await product.save();
+              console.log(`✅ Created product in catalog: ${productName}`);
+            }
+            
+            // Step 2: Find or create Inventory (Product + Warehouse)
             let inventoryItem = await Inventory.findOne({
-              name: { $regex: productType, $options: 'i' },
+              product: product._id,
               warehouse: warehouseId
             });
             
             if (!inventoryItem) {
-              // Create new inventory item for this bag type
               inventoryItem = new Inventory({
-                name: `${productType} Bags`,
-                category: 'Packaging Materials',
-                subcategory: 'Bags',
-                description: `Bags purchased`,
-                unit: bagData.unit || 'bags',
-                currentStock: 0, // Will be updated by stock movement
-                minimumStock: 10,
+                product: product._id,
                 warehouse: warehouseId,
-                cost: {
-                  purchasePrice: bagData.unitPrice || 0,
-                  currency: 'PKR'
-                },
-                status: 'Active'
+                currentStock: 0, // Will be updated by stock movement
+                minimumStock: product.minimumStock || 10,
+                status: 'Active',
+                // Legacy fields for backward compatibility
+                name: product.name,
+                code: product.code,
+                category: product.category,
+                subcategory: product.subcategory
               });
               await inventoryItem.save();
+              console.log(`✅ Created inventory record for ${productName} in warehouse`);
             }
             
-            // Create stock in movement
+            // Step 3: Create stock in movement
             const stockIn = new Stock({
               inventoryItem: inventoryItem._id,
               movementType: 'in',

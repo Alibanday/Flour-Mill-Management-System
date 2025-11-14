@@ -107,6 +107,16 @@ export const API_ENDPOINTS = {
     ADD_STOCK: (id) => `http://localhost:7000/api/inventory/${id}/add-stock`,
   },
   
+  // Product Catalog (master product list)
+  PRODUCT: {
+    GET_ALL: 'http://localhost:7000/api/products',
+    GET_BY_ID: (id) => `http://localhost:7000/api/products/${id}`,
+    CREATE: 'http://localhost:7000/api/products',
+    UPDATE: (id) => `http://localhost:7000/api/products/${id}`,
+    DELETE: (id) => `http://localhost:7000/api/products/${id}`,
+    STATS: 'http://localhost:7000/api/products/stats/overview',
+  },
+  
         // Stock management
         STOCK: {
           ADD: 'http://localhost:7000/api/stock/add',

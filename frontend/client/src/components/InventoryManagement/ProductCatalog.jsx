@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
-import InventoryForm from './InventoryForm';
+import ProductForm from './ProductForm';
 
 const ProductCatalog = ({ onClose }) => {
   const { isAdmin, isManager } = useAuth();
@@ -64,7 +64,7 @@ const ProductCatalog = ({ onClose }) => {
         ...(filters.subcategory !== 'all' && { subcategory: filters.subcategory })
       });
 
-      const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?${params}`);
+      const response = await api.get(`${API_ENDPOINTS.PRODUCT.GET_ALL}?${params}`);
       
       if (response.data && response.data.success) {
         setInventory(response.data.data || []);
@@ -84,8 +84,8 @@ const ProductCatalog = ({ onClose }) => {
         }));
       }
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      toast.error('Failed to fetch inventory items');
+      console.error('Error fetching products:', error);
+      toast.error('Failed to fetch products');
       setInventory([]);
     } finally {
       setLoading(false);
@@ -93,12 +93,8 @@ const ProductCatalog = ({ onClose }) => {
   };
 
   const fetchCategories = async () => {
-    try {
-      const response = await api.get('http://localhost:7000/api/inventory/category/all');
-      setCategories(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
+    // Categories are now hardcoded based on Product model
+    setCategories(['Raw Materials', 'Finished Goods', 'Packaging Materials']);
   };
 
   const handleSearch = (e) => {
@@ -143,11 +139,11 @@ const ProductCatalog = ({ onClose }) => {
     }
 
     try {
-      await api.delete(API_ENDPOINTS.INVENTORY.DELETE(item._id));
-      toast.success('Inventory item deleted successfully');
+      await api.delete(API_ENDPOINTS.PRODUCT.DELETE(item._id));
+      toast.success('Product deleted successfully');
       fetchInventory();
     } catch (error) {
-      const message = error.response?.data?.message || 'Error deleting inventory item';
+      const message = error.response?.data?.message || 'Error deleting product';
       toast.error(message);
     }
   };
@@ -467,8 +463,8 @@ const ProductCatalog = ({ onClose }) => {
         {showForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <InventoryForm
-                inventory={editingItem}
+              <ProductForm
+                product={editingItem}
                 mode={editingItem ? 'edit' : 'create'}
                 onSave={handleFormSave}
                 onCancel={() => {
