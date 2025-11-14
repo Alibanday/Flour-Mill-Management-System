@@ -41,19 +41,38 @@ const productSchema = new mongoose.Schema({
   unit: {
     type: String,
     required: [true, "Unit is required"],
-    enum: [
-      "tons", "kg", "quintals",
-      "50kg bags", "25kg bags", "20kg bags", "15kg bags", "10kg bags", "5kg bags",
-      "100kg sacks", "50kg sacks", "25kg sacks",
-      "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", 
-      "units", "sets", "kits", "pairs", "meters", "liters"
-    ],
     default: "kg"
   },
-  // Default selling price
+  // Multiple weight variants (e.g., 20kg, 25kg, 50kg) with different prices
+  weightVariants: [{
+    weight: {
+      type: Number,
+      required: [true, "Weight is required"],
+      min: [0, "Weight cannot be negative"]
+    },
+    price: {
+      type: Number,
+      required: [true, "Price is required"],
+      min: [0, "Price cannot be negative"]
+    },
+    unit: {
+      type: String,
+      default: "kg"
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  }],
+  // Legacy fields for backward compatibility
+  weight: {
+    type: Number,
+    min: [0, "Weight cannot be negative"],
+    default: 0
+  },
+  // Default selling price (for backward compatibility)
   price: {
     type: Number,
-    required: [true, "Price is required"],
     min: [0, "Price cannot be negative"],
     default: 0
   },

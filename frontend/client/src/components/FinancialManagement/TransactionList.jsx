@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaEye } from 'react-icons/fa';
 
-export default function TransactionList({ warehouses, accounts, onEdit }) {
+export default function TransactionList({ accounts, onEdit }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTransactionType, setSelectedTransactionType] = useState('');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -15,7 +14,7 @@ export default function TransactionList({ warehouses, accounts, onEdit }) {
 
   useEffect(() => {
     fetchTransactions();
-  }, [currentPage, searchTerm, selectedTransactionType, selectedPaymentStatus, selectedWarehouse, startDate, endDate]);
+  }, [currentPage, searchTerm, selectedTransactionType, selectedPaymentStatus, startDate, endDate]);
 
   const fetchTransactions = async () => {
     try {

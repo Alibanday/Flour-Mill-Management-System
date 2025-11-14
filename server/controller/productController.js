@@ -105,6 +105,8 @@ export const createProduct = asyncHandler(async (req, res) => {
       subcategory,
       description,
       unit,
+      weightVariants,
+      weight,
       price,
       purchasePrice,
       minimumStock,
@@ -126,14 +128,44 @@ export const createProduct = asyncHandler(async (req, res) => {
       });
     }
 
+    // Prepare weight variants - use weightVariants if provided, otherwise use legacy weight/price
+    let finalWeightVariants = [];
+    if (weightVariants && Array.isArray(weightVariants) && weightVariants.length > 0) {
+      // Use provided weightVariants
+      finalWeightVariants = weightVariants.map(v => ({
+        weight: parseFloat(v.weight) || 0,
+        price: parseFloat(v.price) || 0,
+        unit: v.unit || 'kg',
+        isActive: v.isActive !== false
+      }));
+    } else if (weight && price) {
+      // Fallback to legacy weight/price
+      finalWeightVariants = [{
+        weight: parseFloat(weight) || 0,
+        price: parseFloat(price) || 0,
+        unit: unit || 'kg',
+        isActive: true
+      }];
+    }
+
+    // Validate that at least one weight variant exists
+    if (finalWeightVariants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one weight category with price is required'
+      });
+    }
+
     const product = new Product({
       name,
       code,
       category,
       subcategory,
       description,
-      unit,
-      price: price || 0,
+      unit: unit || 'kg',
+      weightVariants: finalWeightVariants,
+      weight: finalWeightVariants[0].weight, // Legacy field - use first variant
+      price: finalWeightVariants[0].price, // Legacy field - use first variant
       purchasePrice: purchasePrice || 0,
       minimumStock: minimumStock || 0,
       status: status || 'Active',
@@ -179,6 +211,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
       subcategory,
       description,
       unit,
+      weightVariants,
+      weight,
       price,
       purchasePrice,
       minimumStock,
@@ -194,12 +228,58 @@ export const updateProduct = asyncHandler(async (req, res) => {
     if (subcategory !== undefined) product.subcategory = subcategory;
     if (description !== undefined) product.description = description;
     if (unit !== undefined) product.unit = unit;
-    if (price !== undefined) product.price = price;
     if (purchasePrice !== undefined) product.purchasePrice = purchasePrice;
     if (minimumStock !== undefined) product.minimumStock = minimumStock;
     if (status !== undefined) product.status = status;
     if (specifications !== undefined) product.specifications = specifications;
     if (tags !== undefined) product.tags = tags;
+
+    // Handle weight variants
+    if (weightVariants !== undefined && Array.isArray(weightVariants)) {
+      if (weightVariants.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'At least one weight category with price is required'
+        });
+      }
+      
+      // Process weight variants
+      const processedVariants = weightVariants
+        .filter(v => v.weight && v.price && v.weight !== '' && v.price !== '')
+        .map(v => ({
+          weight: parseFloat(v.weight) || 0,
+          price: parseFloat(v.price) || 0,
+          unit: v.unit || 'kg',
+          isActive: v.isActive !== false
+        }));
+      
+      if (processedVariants.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'At least one valid weight category with price is required'
+        });
+      }
+      
+      product.weightVariants = processedVariants;
+      // Update legacy fields from first variant
+      product.weight = processedVariants[0].weight;
+      product.price = processedVariants[0].price;
+    } else if (weight !== undefined && price !== undefined) {
+      // Fallback to legacy weight/price (update first variant or create new)
+      if (product.weightVariants && product.weightVariants.length > 0) {
+        product.weightVariants[0].weight = parseFloat(weight) || 0;
+        product.weightVariants[0].price = parseFloat(price) || 0;
+      } else {
+        product.weightVariants = [{
+          weight: parseFloat(weight) || 0,
+          price: parseFloat(price) || 0,
+          unit: unit || 'kg',
+          isActive: true
+        }];
+      }
+      product.weight = parseFloat(weight) || 0;
+      product.price = parseFloat(price) || 0;
+    }
 
     await product.save();
 

@@ -11,6 +11,7 @@ import FoodPurchaseForm from '../components/BagFoodPurchase/FoodPurchaseForm';
 import BagPurchaseList from '../components/BagFoodPurchase/BagPurchaseList';
 import FoodPurchaseList from '../components/BagFoodPurchase/FoodPurchaseList';
 import PurchaseSummary from '../components/BagFoodPurchase/PurchaseSummary';
+import BagPurchaseDetail from '../components/BagFoodPurchase/BagPurchaseDetail';
 
 export default function BagFoodPurchasePage() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function BagFoodPurchasePage() {
   const [activeTab, setActiveTab] = useState("bags");
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [viewingItem, setViewingItem] = useState(null);
   const [bagPurchases, setBagPurchases] = useState([]);
   const [foodPurchases, setFoodPurchases] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -150,8 +152,9 @@ export default function BagFoodPurchasePage() {
         console.log('Success response:', result);
         await fetchBagPurchases();
         await fetchStats();
-        setShowForm(false);
-        setEditingItem(null);
+        // Return the saved purchase data for gatepass creation
+        // The form will handle closing after gatepass creation or printing
+        return result.data || result;
       } else {
         const error = await response.json();
         console.error('Error response:', error);
@@ -423,6 +426,7 @@ export default function BagFoodPurchasePage() {
                 error={error}
                 onEdit={handleEdit}
                 onDelete={(item) => handleDelete(item, 'bag')}
+                onView={(item) => setViewingItem(item)}
                 suppliers={suppliers}
               />
             )}
@@ -447,6 +451,25 @@ export default function BagFoodPurchasePage() {
           </div>
         </main>
       </div>
+
+      {/* Detail View */}
+      {viewingItem && (
+        <BagPurchaseDetail
+          purchase={viewingItem}
+          onClose={() => setViewingItem(null)}
+          onEdit={(purchase) => {
+            setViewingItem(null);
+            setEditingItem(purchase);
+            setShowForm(true);
+          }}
+          onDelete={(purchase) => {
+            if (window.confirm('Are you sure you want to delete this purchase?')) {
+              handleDelete(purchase, 'bag');
+              setViewingItem(null);
+            }
+          }}
+        />
+      )}
 
       {/* Forms */}
       {showForm && activeTab === "bags" && (

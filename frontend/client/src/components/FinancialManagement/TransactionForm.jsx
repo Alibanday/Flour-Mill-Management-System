@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes, FaMoneyBillWave, FaCalendarAlt } from 'react-icons/fa';
 
-export default function TransactionForm({ warehouses, accounts, editData, onSubmit, onCancel }) {
+export default function TransactionForm({ accounts, editData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     transactionType: 'Payment',
     description: '',
@@ -14,7 +14,6 @@ export default function TransactionForm({ warehouses, accounts, editData, onSubm
     isPayable: false,
     isReceivable: false,
     dueDate: '',
-    warehouse: '',
     notes: ''
   });
 
@@ -35,7 +34,6 @@ export default function TransactionForm({ warehouses, accounts, editData, onSubm
         isPayable: editData.isPayable || false,
         isReceivable: editData.isReceivable || false,
         dueDate: editData.dueDate ? new Date(editData.dueDate).toISOString().split('T')[0] : '',
-        warehouse: editData.warehouse || '',
         notes: editData.notes || ''
       });
     }
@@ -338,32 +336,8 @@ export default function TransactionForm({ warehouses, accounts, editData, onSubm
             </div>
           </div>
 
-          {/* Warehouse and Currency */}
+          {/* Currency */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Warehouse *
-              </label>
-              <select
-                name="warehouse"
-                value={formData.warehouse}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.warehouse ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select Warehouse</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse._id} value={warehouse._id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-              {errors.warehouse && (
-                <p className="mt-1 text-sm text-red-600">{errors.warehouse}</p>
-              )}
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Currency

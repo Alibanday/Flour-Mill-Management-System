@@ -4,7 +4,6 @@ import Account from "../model/Account.js";
 import Transaction from "../model/Transaction.js";
 import Salary from "../model/Salary.js";
 import Employee from "../model/Employee.js";
-import Warehouse from "../model/warehouse.js";
 import { protect, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -16,7 +15,7 @@ const router = express.Router();
 // Get all accounts
 router.get("/accounts", protect, async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, accountType, category, warehouse } = req.query;
+    const { page = 1, limit = 10, search, accountType, category } = req.query;
     
     let query = {};
     
@@ -29,10 +28,8 @@ router.get("/accounts", protect, async (req, res) => {
     
     if (accountType) query.accountType = accountType;
     if (category) query.category = category;
-    if (warehouse) query.warehouse = warehouse;
     
     const accounts = await Account.find(query)
-      .populate('warehouse', 'name')
       .populate('createdBy', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -55,7 +52,6 @@ router.get("/accounts", protect, async (req, res) => {
 router.get("/accounts/:id", protect, async (req, res) => {
   try {
     const account = await Account.findById(req.params.id)
-      .populate('warehouse', 'name')
       .populate('createdBy', 'firstName lastName');
     
     if (!account) {
@@ -75,7 +71,6 @@ router.post("/accounts", protect, authorize("Admin", "Manager"), [
   body('accountType').isIn(['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']).withMessage('Invalid account type'),
   body('category').notEmpty().withMessage('Category is required'),
   body('openingBalance').isNumeric().withMessage('Opening balance must be a number'),
-  body('warehouse').notEmpty().withMessage('Warehouse is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -136,7 +131,7 @@ router.delete("/accounts/:id", protect, authorize("Admin"), async (req, res) => 
 // Get all transactions
 router.get("/transactions", protect, async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, transactionType, paymentStatus, warehouse, startDate, endDate } = req.query;
+    const { page = 1, limit = 10, search, transactionType, paymentStatus, startDate, endDate } = req.query;
     
     let query = {};
     
@@ -149,7 +144,6 @@ router.get("/transactions", protect, async (req, res) => {
     
     if (transactionType) query.transactionType = transactionType;
     if (paymentStatus) query.paymentStatus = paymentStatus;
-    if (warehouse) query.warehouse = warehouse;
     
     if (startDate || endDate) {
       query.transactionDate = {};
@@ -160,7 +154,6 @@ router.get("/transactions", protect, async (req, res) => {
     const transactions = await Transaction.find(query)
       .populate('debitAccount', 'accountNumber accountName')
       .populate('creditAccount', 'accountNumber accountName')
-      .populate('warehouse', 'name')
       .populate('createdBy', 'firstName lastName')
       .sort({ transactionDate: -1 })
       .limit(limit * 1)
@@ -185,7 +178,6 @@ router.get("/transactions/:id", protect, async (req, res) => {
     const transaction = await Transaction.findById(req.params.id)
       .populate('debitAccount', 'accountNumber accountName')
       .populate('creditAccount', 'accountNumber accountName')
-      .populate('warehouse', 'name')
       .populate('createdBy', 'firstName lastName');
     
     if (!transaction) {
@@ -206,7 +198,6 @@ router.post("/transactions", protect, authorize("Admin", "Manager", "Cashier"), 
   body('debitAccount').notEmpty().withMessage('Debit account is required'),
   body('creditAccount').notEmpty().withMessage('Credit account is required'),
   body('paymentMethod').isIn(['Cash', 'Bank Transfer', 'Cheque', 'Credit Card', 'Other']).withMessage('Invalid payment method'),
-  body('warehouse').notEmpty().withMessage('Warehouse is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -272,7 +263,7 @@ router.delete("/transactions/:id", protect, authorize("Admin"), async (req, res)
 // Get all salaries
 router.get("/salaries", protect, async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, month, year, paymentStatus, warehouse } = req.query;
+    const { page = 1, limit = 10, search, month, year, paymentStatus } = req.query;
     
     let query = {};
     
@@ -285,18 +276,12 @@ router.get("/salaries", protect, async (req, res) => {
     if (month) query.month = parseInt(month);
     if (year) query.year = parseInt(year);
     if (paymentStatus) query.paymentStatus = paymentStatus;
-    if (warehouse) query.warehouse = warehouse;
     
     const salaries = await Salary.find(query)
       .populate({
         path: 'employee',
-        select: 'firstName lastName email employeeId bankDetails warehouse',
-        populate: {
-          path: 'warehouse',
-          select: 'name location'
-        }
+        select: 'firstName lastName email employeeId bankDetails'
       })
-      .populate('warehouse', 'name location')
       .populate('processedBy', 'firstName lastName')
       .sort({ month: -1, year: -1 })
       .limit(limit * 1)
@@ -325,13 +310,8 @@ router.get("/salaries/:id", protect, async (req, res) => {
     const salary = await Salary.findById(req.params.id)
       .populate({
         path: 'employee',
-        select: 'firstName lastName email employeeId bankDetails warehouse',
-        populate: {
-          path: 'warehouse',
-          select: 'name location'
-        }
+        select: 'firstName lastName email employeeId bankDetails'
       })
-      .populate('warehouse', 'name location')
       .populate('processedBy', 'firstName lastName');
     
     if (!salary) {
@@ -356,7 +336,6 @@ router.post("/salaries", protect, authorize("Admin", "Manager"), [
   body('paymentMethod').isIn(['Cash', 'Bank Transfer', 'Cheque']).withMessage('Invalid payment method'),
   body('salaryAccount').notEmpty().withMessage('Salary account is required'),
   body('cashAccount').notEmpty().withMessage('Cash account is required'),
-  body('warehouse').notEmpty().withMessage('Warehouse is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -433,29 +412,21 @@ router.delete("/salaries/:id", protect, authorize("Admin"), async (req, res) => 
 // Get financial summary
 router.get("/summary", protect, async (req, res) => {
   try {
-    const { warehouse } = req.query;
-    let query = {};
-    if (warehouse) query.warehouse = warehouse;
-    
     // Account balances
-    const accounts = await Account.find(query).select('accountType category currentBalance');
+    const accounts = await Account.find().select('accountType category currentBalance');
     
     // Recent transactions
-    const recentTransactions = await Transaction.find(query)
+    const recentTransactions = await Transaction.find()
       .sort({ transactionDate: -1 })
       .limit(5)
       .populate('debitAccount', 'accountNumber accountName')
       .populate('creditAccount', 'accountNumber accountName');
     
     // Pending salaries
-    const pendingSalaries = await Salary.find({ ...query, paymentStatus: 'Pending' })
+    const pendingSalaries = await Salary.find({ paymentStatus: 'Pending' })
       .populate({
         path: 'employee',
-        select: 'firstName lastName bankDetails warehouse',
-        populate: {
-          path: 'warehouse',
-          select: 'name location'
-        }
+        select: 'firstName lastName bankDetails'
       })
       .sort({ month: -1, year: -1 })
       .limit(5);

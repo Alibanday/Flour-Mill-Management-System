@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { FaEdit, FaTrash, FaEye, FaPrint, FaSearch, FaFilter, FaDownload } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
-export default function BagPurchaseList({ purchases, loading, error, onEdit, onDelete, suppliers = [] }) {
+export default function BagPurchaseList({ purchases, loading, error, onEdit, onDelete, suppliers = [], onView }) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [supplierFilter, setSupplierFilter] = useState('all');
@@ -36,17 +38,56 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
     return purchase.supplier || '';
   };
 
-  // Helper: extract primary bag info from nested structure
-  const getPrimaryBagInfo = (purchase) => {
-    const bagTypes = ['ATA', 'MAIDA', 'SUJI', 'FINE'];
+  // Helper: get all products from bags Map/object
+  const getAllProducts = (purchase) => {
     const bags = purchase?.bags || {};
-    for (const type of bagTypes) {
-      const bag = bags[type];
-      if (bag && (bag.quantity || 0) > 0) {
-        return { type, quantity: bag.quantity || 0, unitPrice: bag.unitPrice || 0, totalPrice: bag.totalPrice || 0 };
-      }
+    const products = [];
+    
+    // Handle Map structure (Mongoose Map)
+    if (bags instanceof Map || bags.constructor?.name === 'Map') {
+      bags.forEach((bagData, productName) => {
+        if (bagData && (bagData.quantity || 0) > 0) {
+          products.push({
+            name: productName,
+            quantity: bagData.quantity || 0,
+            unit: bagData.unit || 'bags',
+            unitPrice: bagData.unitPrice || 0,
+            totalPrice: bagData.totalPrice || 0
+          });
+        }
+      });
+    } 
+    // Handle plain object structure
+    else if (bags && typeof bags === 'object') {
+      Object.entries(bags).forEach(([productName, bagData]) => {
+        if (bagData && (bagData.quantity || 0) > 0) {
+          products.push({
+            name: productName,
+            quantity: bagData.quantity || 0,
+            unit: bagData.unit || 'bags',
+            unitPrice: bagData.unitPrice || 0,
+            totalPrice: bagData.totalPrice || 0
+          });
+        }
+      });
     }
-    return { type: 'N/A', quantity: 0, unitPrice: 0, totalPrice: 0 };
+    
+    return products;
+  };
+
+  // Helper: get summary of all products
+  const getProductsSummary = (purchase) => {
+    const products = getAllProducts(purchase);
+    const totalQuantity = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
+    const totalPrice = products.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
+    
+    return {
+      products,
+      totalQuantity,
+      totalPrice,
+      productCount: products.length,
+      firstProduct: products[0] || null
+    };
   };
 
   const filteredPurchases = purchases.filter(purchase => {
@@ -208,41 +249,82 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
                   <div className="text-sm text-gray-900">
                     {getSupplierName(purchase) || 'Unknown Supplier'}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {getPrimaryBagInfo(purchase).type}
-                  </div>
+                  {purchase.warehouse && (
+                    <div className="text-xs text-gray-500">
+                      {typeof purchase.warehouse === 'object' 
+                        ? purchase.warehouse.name || 'Warehouse'
+                        : 'Warehouse'}
+                    </div>
+                  )}
                 </td>
                 
                 <td className="px-6 py-4">
-                  {(() => { const b = getPrimaryBagInfo(purchase); return (
-                  <div className="text-sm">
-                    <div className="text-xs">
-                      <span className="font-medium">Type:</span> {b.type}
-                    </div>
-                    <div className="text-xs">
-                      <span className="font-medium">Quantity:</span> {b.quantity} bags
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Total: {b.quantity} bags
-                    </div>
-                  </div>
-                  ); })()}
+                  {(() => { 
+                    const summary = getProductsSummary(purchase);
+                    if (summary.productCount === 0) {
+                      return <div className="text-sm text-gray-400">No products</div>;
+                    }
+                    if (summary.productCount === 1) {
+                      const p = summary.firstProduct;
+                      return (
+                        <div className="text-sm">
+                          <div className="text-xs font-medium text-gray-900">
+                            {p.name}
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {p.quantity} {p.unit}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {p.unitPrice > 0 ? `Rs. ${p.unitPrice.toLocaleString()}/${p.unit.split(' ')[0]}` : ''}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="text-sm">
+                        <div className="text-xs font-medium text-gray-900">
+                          {summary.productCount} Products
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {summary.totalQuantity} bags total
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {summary.firstProduct?.name}
+                          {summary.productCount > 1 && ` +${summary.productCount - 1} more`}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </td>
                 
                 <td className="px-6 py-4 min-w-[180px]">
-                  {(() => { const b = getPrimaryBagInfo(purchase); return (
-                  <div className="text-sm">
-                    <div className="text-gray-900 font-medium break-words">
-                      Rs. {(b.totalPrice || 0).toLocaleString()}
-                    </div>
-                    <div className="text-gray-500 break-words">
-                      Unit Price: Rs. {(b.unitPrice || 0).toLocaleString()}
-                    </div>
-                    <div className="text-gray-500">
-                      Status: {purchase.paymentStatus || 'Unknown'}
-                    </div>
-                  </div>
-                  ); })()}
+                  {(() => { 
+                    const summary = getProductsSummary(purchase);
+                    const totalAmount = purchase.totalPrice || purchase.totalAmount || summary.totalPrice || 0;
+                    const paidAmount = purchase.paidAmount || 0;
+                    const dueAmount = purchase.dueAmount || purchase.remainingAmount || (totalAmount - paidAmount);
+                    
+                    return (
+                      <div className="text-sm">
+                        <div className="text-gray-900 font-medium break-words">
+                          Rs. {totalAmount.toLocaleString()}
+                        </div>
+                        {purchase.paymentStatus === 'Partial' && (
+                          <>
+                            <div className="text-xs text-green-600 break-words">
+                              Paid: Rs. {paidAmount.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-red-600 break-words">
+                              Due: Rs. {dueAmount.toLocaleString()}
+                            </div>
+                          </>
+                        )}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {purchase.paymentStatus || 'Unknown'}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </td>
                 
                 <td className="px-6 py-4">
@@ -282,6 +364,13 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
                       <FaPrint />
                     </button>
                     <button
+                      onClick={() => {
+                        if (onView) {
+                          onView(purchase);
+                        } else {
+                          navigate(`/purchases/bags/${purchase._id}`);
+                        }
+                      }}
                       className="text-green-600 hover:text-green-900 p-1"
                       title="View Details"
                     >
@@ -304,12 +393,20 @@ export default function BagPurchaseList({ purchases, loading, error, onEdit, onD
           <div className="flex space-x-4 text-sm">
             <span className="text-gray-600">
               Total Value: <span className="font-semibold text-gray-900">
-                Rs. {filteredPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0).toLocaleString()}
+                Rs. {filteredPurchases.reduce((sum, p) => {
+                  const totalPrice = p.totalPrice || p.totalAmount || 0;
+                  if (totalPrice > 0) return sum + totalPrice;
+                  const summary = getProductsSummary(p);
+                  return sum + summary.totalPrice;
+                }, 0).toLocaleString()}
               </span>
             </span>
             <span className="text-gray-600">
               Total Bags: <span className="font-semibold text-gray-900">
-                {filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0)}
+                {filteredPurchases.reduce((sum, p) => {
+                  const summary = getProductsSummary(p);
+                  return sum + summary.totalQuantity;
+                }, 0)}
               </span>
             </span>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes, FaCalculator, FaBuilding } from 'react-icons/fa';
 
-export default function AccountForm({ warehouses, editData, onSubmit, onCancel }) {
+export default function AccountForm({ editData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     accountNumber: '',
     accountName: '',
@@ -10,8 +10,7 @@ export default function AccountForm({ warehouses, editData, onSubmit, onCancel }
     description: '',
     openingBalance: 0,
     currency: 'PKR',
-    status: 'Active',
-    warehouse: ''
+    status: 'Active'
   });
 
   const [errors, setErrors] = useState({});
@@ -27,8 +26,7 @@ export default function AccountForm({ warehouses, editData, onSubmit, onCancel }
         description: editData.description || '',
         openingBalance: editData.openingBalance || 0,
         currency: editData.currency || 'PKR',
-        status: editData.status || 'Active',
-        warehouse: editData.warehouse || ''
+        status: editData.status || 'Active'
       });
     }
   }, [editData]);
@@ -54,9 +52,6 @@ export default function AccountForm({ warehouses, editData, onSubmit, onCancel }
     }
     if (!formData.accountName.trim()) {
       newErrors.accountName = 'Account name is required';
-    }
-    if (!formData.warehouse) {
-      newErrors.warehouse = 'Warehouse is required';
     }
     if (formData.openingBalance < 0) {
       newErrors.openingBalance = 'Opening balance cannot be negative';
@@ -248,32 +243,8 @@ export default function AccountForm({ warehouses, editData, onSubmit, onCancel }
             </div>
           </div>
 
-          {/* Warehouse and Status */}
+          {/* Status */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Warehouse *
-              </label>
-              <select
-                name="warehouse"
-                value={formData.warehouse}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.warehouse ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select Warehouse</option>
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse._id} value={warehouse._id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-              {errors.warehouse && (
-                <p className="mt-1 text-sm text-red-600">{errors.warehouse}</p>
-              )}
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Status

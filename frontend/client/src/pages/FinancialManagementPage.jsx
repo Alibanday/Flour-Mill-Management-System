@@ -16,27 +16,12 @@ export default function FinancialManagementPage() {
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [showSalaryForm, setShowSalaryForm] = useState(false);
   const [editData, setEditData] = useState(null);
-  const [warehouses, setWarehouses] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchWarehouses();
     fetchAccounts();
   }, []);
-
-  const fetchWarehouses = async () => {
-    try {
-      const response = await fetch('http://localhost:7000/api/warehouses/active');
-      if (response.ok) {
-        const data = await response.json();
-        setWarehouses(data.data || data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching warehouses:', error);
-      setWarehouses([]);
-    }
-  };
 
   const fetchAccounts = async () => {
     try {
@@ -170,14 +155,12 @@ export default function FinancialManagementPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'dashboard' && (
           <FinancialDashboard 
-            warehouses={warehouses}
             onEdit={handleEdit}
           />
         )}
         
         {activeTab === 'accounts' && (
           <AccountList 
-            warehouses={warehouses}
             onEdit={(data) => handleEdit(data, 'account')}
             onRefresh={fetchAccounts}
           />
@@ -185,7 +168,6 @@ export default function FinancialManagementPage() {
         
         {activeTab === 'transactions' && (
           <TransactionList 
-            warehouses={warehouses}
             accounts={accounts}
             onEdit={(data) => handleEdit(data, 'transaction')}
           />
@@ -193,7 +175,6 @@ export default function FinancialManagementPage() {
         
         {activeTab === 'salaries' && (
           <SalaryList 
-            warehouses={warehouses}
             accounts={accounts}
             onEdit={(data) => handleEdit(data, 'salary')}
           />
@@ -203,7 +184,6 @@ export default function FinancialManagementPage() {
       {/* Forms */}
       {showAccountForm && (
         <AccountForm
-          warehouses={warehouses}
           editData={editData}
           onSubmit={handleFormSubmit}
           onCancel={handleFormClose}
@@ -212,7 +192,6 @@ export default function FinancialManagementPage() {
 
       {showTransactionForm && (
         <TransactionForm
-          warehouses={warehouses}
           accounts={accounts}
           editData={editData}
           onSubmit={handleFormSubmit}
@@ -222,7 +201,6 @@ export default function FinancialManagementPage() {
 
       {showSalaryForm && (
         <SalaryForm
-          warehouses={warehouses}
           accounts={accounts}
           editData={editData}
           onSubmit={handleFormSubmit}

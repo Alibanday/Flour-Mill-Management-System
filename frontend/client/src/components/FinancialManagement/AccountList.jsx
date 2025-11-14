@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaEye } from 'react-icons/fa';
 
-export default function AccountList({ warehouses, onEdit, onRefresh }) {
+export default function AccountList({ onEdit, onRefresh }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAccountType, setSelectedAccountType] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     fetchAccounts();
-  }, [currentPage, searchTerm, selectedAccountType, selectedCategory, selectedWarehouse]);
+  }, [currentPage, searchTerm, selectedAccountType, selectedCategory]);
 
   const fetchAccounts = async () => {
     try {
@@ -26,7 +25,6 @@ export default function AccountList({ warehouses, onEdit, onRefresh }) {
       if (searchTerm) params.append('search', searchTerm);
       if (selectedAccountType) params.append('accountType', selectedAccountType);
       if (selectedCategory) params.append('category', selectedCategory);
-      if (selectedWarehouse) params.append('warehouse', selectedWarehouse);
 
       const response = await fetch(`http://localhost:7000/api/financial/accounts?${params}`);
       if (response.ok) {
@@ -166,23 +164,6 @@ export default function AccountList({ warehouses, onEdit, onRefresh }) {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Warehouse
-            </label>
-            <select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Warehouses</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse._id} value={warehouse._id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
@@ -209,9 +190,6 @@ export default function AccountList({ warehouses, onEdit, onRefresh }) {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Balances
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Warehouse
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -254,11 +232,6 @@ export default function AccountList({ warehouses, onEdit, onRefresh }) {
                       <div className="text-sm text-gray-900">
                         <div>Opening: {formatCurrency(account.openingBalance)}</div>
                         <div className="font-medium">Current: {formatCurrency(account.currentBalance)}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {account.warehouse?.name || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

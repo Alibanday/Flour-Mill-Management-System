@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { FaCalculator, FaMoneyBillWave, FaUsers, FaChartLine, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 
-export default function FinancialDashboard({ warehouses, onEdit }) {
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
+export default function FinancialDashboard({ onEdit }) {
   const [financialData, setFinancialData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFinancialData();
-  }, [selectedWarehouse]);
+  }, []);
 
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
-      const params = selectedWarehouse ? `?warehouse=${selectedWarehouse}` : '';
-      const response = await fetch(`http://localhost:7000/api/financial/summary${params}`);
+      const response = await fetch(`http://localhost:7000/api/financial/summary`);
       if (response.ok) {
         const data = await response.json();
         setFinancialData(data);
@@ -53,25 +51,6 @@ export default function FinancialDashboard({ warehouses, onEdit }) {
 
   return (
     <div className="space-y-6">
-      {/* Warehouse Filter */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Filter by Warehouse
-        </label>
-        <select
-          value={selectedWarehouse}
-          onChange={(e) => setSelectedWarehouse(e.target.value)}
-          className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Warehouses</option>
-          {Array.isArray(warehouses) && warehouses.map((warehouse) => (
-            <option key={warehouse._id} value={warehouse._id}>
-              {warehouse.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Assets */}
