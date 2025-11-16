@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
-import InventoryForm from './InventoryForm';
+import ProductForm from './ProductForm';
 
 const ProductCatalog = ({ onClose }) => {
   const { isAdmin, isManager } = useAuth();
@@ -64,7 +64,7 @@ const ProductCatalog = ({ onClose }) => {
         ...(filters.subcategory !== 'all' && { subcategory: filters.subcategory })
       });
 
-      const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?${params}`);
+      const response = await api.get(`${API_ENDPOINTS.PRODUCT.GET_ALL}?${params}`);
       
       if (response.data && response.data.success) {
         setInventory(response.data.data || []);
@@ -84,8 +84,8 @@ const ProductCatalog = ({ onClose }) => {
         }));
       }
     } catch (error) {
-      console.error('Error fetching inventory:', error);
-      toast.error('Failed to fetch inventory items');
+      console.error('Error fetching products:', error);
+      toast.error('Failed to fetch products');
       setInventory([]);
     } finally {
       setLoading(false);
@@ -93,12 +93,8 @@ const ProductCatalog = ({ onClose }) => {
   };
 
   const fetchCategories = async () => {
-    try {
-      const response = await api.get('http://localhost:7000/api/inventory/category/all');
-      setCategories(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
+    // Categories are now hardcoded based on Product model
+    setCategories(['Raw Materials', 'Finished Goods', 'Packaging Materials']);
   };
 
   const handleSearch = (e) => {
@@ -143,11 +139,11 @@ const ProductCatalog = ({ onClose }) => {
     }
 
     try {
-      await api.delete(API_ENDPOINTS.INVENTORY.DELETE(item._id));
-      toast.success('Inventory item deleted successfully');
+      await api.delete(API_ENDPOINTS.PRODUCT.DELETE(item._id));
+      toast.success('Product deleted successfully');
       fetchInventory();
     } catch (error) {
-      const message = error.response?.data?.message || 'Error deleting inventory item';
+      const message = error.response?.data?.message || 'Error deleting product';
       toast.error(message);
     }
   };
@@ -311,14 +307,8 @@ const ProductCatalog = ({ onClose }) => {
                       )}
                     </div>
                   </th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-200 transition-colors"
-                      onClick={() => handleSort('price')}>
-                    <div className="flex items-center gap-2">
-                      <span>Price</span>
-                      {sortConfig.key === 'price' && (
-                        sortConfig.direction === 'asc' ? <FaSortUp className="text-gray-400" /> : <FaSortDown className="text-gray-400" />
-                      )}
-                    </div>
+                  <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <span>Weight Categories & Prices</span>
                   </th>
                   <th className="px-5 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -348,13 +338,33 @@ const ProductCatalog = ({ onClose }) => {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <FaDollarSign className="text-green-600 text-sm" />
-                        <span className="text-sm font-bold text-gray-900">
-                          {item.price ? item.price.toLocaleString() : 'N/A'}
-                        </span>
-                        {item.price && <span className="text-xs text-gray-500">PKR</span>}
-                      </div>
+                      {item.weightVariants && item.weightVariants.length > 0 ? (
+                        <div className="space-y-1">
+                          {item.weightVariants.filter(v => v.isActive !== false).map((variant, idx) => (
+                            <div key={idx} className="flex items-center gap-2 text-xs">
+                              <span className="font-medium text-gray-700">{variant.weight}kg:</span>
+                              <FaDollarSign className="text-green-600" />
+                              <span className="font-semibold text-gray-900">
+                                {variant.price ? variant.price.toLocaleString() : '0'}
+                              </span>
+                              <span className="text-gray-500">PKR</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : item.price ? (
+                        <div className="flex items-center gap-1.5">
+                          <FaDollarSign className="text-green-600 text-sm" />
+                          <span className="text-sm font-bold text-gray-900">
+                            {item.price.toLocaleString()}
+                          </span>
+                          <span className="text-xs text-gray-500">PKR</span>
+                          {item.weight && (
+                            <span className="text-xs text-gray-400">({item.weight}kg)</span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">N/A</span>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -467,8 +477,8 @@ const ProductCatalog = ({ onClose }) => {
         {showForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <InventoryForm
-                inventory={editingItem}
+              <ProductForm
+                product={editingItem}
                 mode={editingItem ? 'edit' : 'create'}
                 onSave={handleFormSave}
                 onCancel={() => {

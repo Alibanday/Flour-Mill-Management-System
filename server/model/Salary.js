@@ -108,7 +108,7 @@ const SalarySchema = new mongoose.Schema({
   warehouse: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Warehouse',
-    required: true
+    required: false
   },
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,

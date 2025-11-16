@@ -138,21 +138,90 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
     await gatePass.populate('warehouse', 'name location');
     await gatePass.populate('issuedBy', 'firstName lastName');
 
-    // Notify warehouse managers/admins that stock needs to be picked (FR 47, FR 48)
+    // Notify warehouse managers/admins based on gatepass purpose
     try {
       if (gatePass.warehouse) {
-        const recipientIds = await NotificationService.findRecipientsForWarehouse(gatePass.warehouse._id || gatePass.warehouse);
-        for (const recipientId of recipientIds) {
-          await (await import('../model/Notification.js')).default.create({
-            type: 'warehouse_transfer',
-            title: 'Gate Pass Issued - Pick Stock',
-            message: `Gate Pass ${gatePass.gatePassNumber} issued. Prepare stock for dispatch from ${gatePass.warehouse.name}.`,
-            priority: 'high',
-            recipient: recipientId,
-            relatedEntity: 'warehouse',
-            entityId: gatePass._id,
-            metadata: { gatePassNumber: gatePass.gatePassNumber, warehouse: gatePass.warehouse.name }
-          });
+        const warehouseId = gatePass.warehouse._id || gatePass.warehouse;
+        const Warehouse = (await import('../model/wareHouse.js')).default;
+        const User = (await import('../model/user.js')).default;
+        const Notification = (await import('../model/Notification.js')).default;
+        
+        // Find warehouse document to get manager
+        const warehouseDoc = await Warehouse.findById(warehouseId).populate('manager', '_id email firstName lastName');
+        
+        // Determine notification message based on purpose
+        const isReceiving = gatePass.purpose && (
+          gatePass.purpose.toLowerCase().includes('receiving') || 
+          gatePass.purpose.toLowerCase().includes('receive') ||
+          gatePass.purpose.toLowerCase().includes('purchase')
+        );
+        
+        const notificationTitle = isReceiving 
+          ? 'Gate Pass Issued - Goods Receiving'
+          : 'Gate Pass Issued - Stock Dispatch';
+        const notificationMessage = isReceiving
+          ? `Gate Pass ${gatePass.gatePassNumber} issued for goods receiving. Prepare to receive goods at ${warehouseDoc?.name || 'warehouse'}.`
+          : `Gate Pass ${gatePass.gatePassNumber} issued. Prepare stock for dispatch from ${warehouseDoc?.name || 'warehouse'}.`;
+        
+        // Find warehouse managers - check if warehouse has a manager field
+        const managers = [];
+        
+        if (warehouseDoc?.manager) {
+          const managerId = warehouseDoc.manager._id || warehouseDoc.manager;
+          if (managerId) {
+            managers.push(managerId.toString());
+          }
+        }
+        
+        // Also find all warehouse managers assigned to this warehouse (via User.warehouse field)
+        const warehouseManagers = await User.find({
+          $or: [
+            { role: 'Warehouse Manager', warehouse: warehouseId },
+            { role: 'Manager', warehouse: warehouseId },
+            { role: 'Admin' }
+          ]
+        }).select('_id').limit(10);
+        
+        // Add managers to list (avoid duplicates)
+        const managerIds = new Set(managers);
+        warehouseManagers.forEach(m => {
+          if (m._id) {
+            managerIds.add(m._id.toString());
+          }
+        });
+        
+        // Create notifications for all managers
+        for (const managerId of managerIds) {
+          try {
+            await Notification.create({
+              type: 'warehouse_transfer',
+              title: notificationTitle,
+              message: notificationMessage,
+              priority: 'high',
+              recipient: managerId,
+              user: managerId,
+              relatedEntity: 'warehouse',
+              entityId: gatePass._id,
+              status: 'unread',
+              metadata: { 
+                gatePassNumber: gatePass.gatePassNumber, 
+                warehouse: warehouseDoc?.name || 'Warehouse',
+                purpose: gatePass.purpose,
+                isReceiving: isReceiving
+              },
+              data: {
+                gatePassId: gatePass._id,
+                gatePassNumber: gatePass.gatePassNumber,
+                warehouseId: warehouseId,
+                warehouseName: warehouseDoc?.name || 'Warehouse',
+                purpose: gatePass.purpose,
+                items: gatePass.items || []
+              }
+            });
+            console.log(`✅ Notification sent to warehouse manager: ${managerId}`);
+          } catch (notifyErr) {
+            console.warn(`Failed to send notification to manager ${managerId}:`, notifyErr.message);
+          }
         }
       }
     } catch (notifyErr) {

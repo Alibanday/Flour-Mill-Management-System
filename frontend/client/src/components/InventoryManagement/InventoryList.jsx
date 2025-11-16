@@ -17,8 +17,10 @@ const InventoryList = () => {
   const [filters, setFilters] = useState({
     category: 'all',
     subcategory: 'all',
-    status: 'all'
+    status: 'all',
+    warehouse: 'all'
   });
+  const [warehouses, setWarehouses] = useState([]);
   const [sortConfig, setSortConfig] = useState({
     key: 'createdAt',
     direction: 'desc'
@@ -34,6 +36,7 @@ const InventoryList = () => {
   useEffect(() => {
     fetchInventory();
     fetchCategories();
+    fetchWarehouses();
   }, [pagination.current, pagination.limit, searchTerm, filters, sortConfig]);
 
   // Listen for custom events to trigger refresh
@@ -71,7 +74,8 @@ const InventoryList = () => {
         ...(searchTerm && { search: searchTerm }),
         ...(filters.category !== 'all' && { category: filters.category }),
         ...(filters.subcategory !== 'all' && { subcategory: filters.subcategory }),
-        ...(filters.status !== 'all' && { status: filters.status })
+        ...(filters.status !== 'all' && { status: filters.status }),
+        ...(filters.warehouse !== 'all' && { warehouse: filters.warehouse })
       });
 
       const response = await api.get(`${API_ENDPOINTS.INVENTORY.GET_ALL}?${params}`);
@@ -119,6 +123,17 @@ const InventoryList = () => {
       setCategories(response.data.data || []);
     } catch (error) {
       console.error('Error fetching categories:', error);
+    }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const response = await api.get('http://localhost:7000/api/warehouses');
+      if (response.data && response.data.success) {
+        setWarehouses(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
     }
   };
 
@@ -173,25 +188,24 @@ const InventoryList = () => {
     }
   };
 
+  const getCurrentStock = (item) => {
+    // Use stock field set by backend, or currentStock, or fallback to weight
+    return item.stock !== undefined ? item.stock : 
+           (item.currentStock !== undefined ? item.currentStock : (item.weight || 0));
+  };
+
   const getStockStatusColor = (item) => {
-    // Use currentStock if available, otherwise fall back to weight for backward compatibility
-    const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+    const stock = getCurrentStock(item);
     if (stock === 0) return 'text-red-600';
     if (item.minimumStock && stock <= item.minimumStock) return 'text-yellow-600';
     return 'text-green-600';
   };
 
   const getStockStatusIcon = (item) => {
-    // Use currentStock if available, otherwise fall back to weight for backward compatibility
-    const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+    const stock = getCurrentStock(item);
     if (stock === 0) return <FaTimesCircle className="text-red-500" />;
     if (item.minimumStock && stock <= item.minimumStock) return <FaExclamationTriangle className="text-yellow-500" />;
     return <FaCheckCircle className="text-green-500" />;
-  };
-
-  const getCurrentStock = (item) => {
-    // Use currentStock if available, otherwise fall back to weight for backward compatibility
-    return item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
   };
 
   if (loading && inventory.length === 0) {
@@ -241,7 +255,26 @@ const InventoryList = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <FaWarehouse className="inline mr-1" />
+                Warehouse
+              </label>
+              <select
+                value={filters.warehouse}
+                onChange={(e) => handleFilterChange('warehouse', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              >
+                <option value="all">All Warehouses</option>
+                {warehouses.map(warehouse => (
+                  <option key={warehouse._id} value={warehouse._id}>
+                    {warehouse.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <select
@@ -358,30 +391,35 @@ const InventoryList = () => {
               <tr key={item._id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                    <div className="text-sm text-gray-500">{item.code}</div>
-                    {item.description && (
-                      <div className="text-xs text-gray-400 truncate max-w-xs">
-                        {item.description}
+                    <div className="text-sm font-medium text-gray-900">
+                      {item.productName || item.product?.name || item.name || 'N/A'}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {item.productCode || item.product?.code || item.code || 'N/A'}
+                    </div>
+                    {item.warehouseName && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        <FaWarehouse className="inline mr-1" />
+                        {item.warehouseName || item.warehouse?.name || ''}
                       </div>
                     )}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {item.category}
+                    {item.category || item.product?.category || 'N/A'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    {item.subcategory || 'N/A'}
+                    {item.subcategory || item.product?.subcategory || 'N/A'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     {getStockStatusIcon(item)}
                     <span className={`text-sm font-medium ${getStockStatusColor(item)}`}>
-                      {getCurrentStock(item).toLocaleString()} kg
+                      {getCurrentStock(item).toLocaleString()} {item.unit || item.product?.unit || 'units'}
                     </span>
                   </div>
                 </td>
@@ -462,15 +500,16 @@ const InventoryList = () => {
       {!loading && inventory.length === 0 && (
         <div className="text-center py-12">
           <FaBoxes className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No inventory items found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No stock data found</h3>
           <p className="mt-1 text-sm text-gray-500">
             {searchTerm || Object.values(filters).some(f => f !== 'all' && f !== false)
               ? 'Try adjusting your search or filter criteria.'
-              : 'Get started by creating a new inventory item.'}
+              : 'No stock levels found. Stock data is created automatically when you make purchases, sales, or production.'}
           </p>
-          <div className="mt-6">
-            <p className="text-sm text-gray-500">
-              Use <strong>Product Catalog</strong> to add new products and manage prices.
+          <div className="mt-4">
+            <p className="text-xs text-gray-400">
+              <strong>Note:</strong> This shows actual stock levels per warehouse aggregated from all purchases, sales, production, and stock movements. 
+              Use the <strong>"Product Catalog"</strong> button above to manage your product catalog separately.
             </p>
           </div>
         </div>

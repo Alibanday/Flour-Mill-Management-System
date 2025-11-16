@@ -5,7 +5,7 @@ import api, { API_ENDPOINTS } from '../../services/api';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null, warehouses = [], inventory = [] }) {
+export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null, warehouses = [], products = [] }) {
   const [formData, setFormData] = useState({
     invoiceNumber: '', // Will be auto-generated
     customerId: '', // New field for customer reference
@@ -41,6 +41,8 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
   const [itemUnitPrice, setItemUnitPrice] = useState('');
   const [showReturns, setShowReturns] = useState(false);
   const [returns, setReturns] = useState([]);
+  const [inventoryStock, setInventoryStock] = useState({}); // Store inventory stock by product ID
+  const [availableStock, setAvailableStock] = useState(0); // Available stock for selected product
   
   // Customer search states (keeping for backward compatibility)
   const [customerSearchResults, setCustomerSearchResults] = useState([]);
@@ -52,25 +54,61 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     return isNaN(num) ? 0 : num;
   };
   
-  // Get filtered products based on selected warehouse
-  // Note: This old inventory model uses 'weight' for stock and 'price' for price
-  const getFilteredProducts = () => {
-    // Show all products with weight > 0
-    return inventory.filter(product => {
-      // Check if product has weight/stock
-      return product.weight !== undefined && product.weight > 0;
-    });
-  };
+  // Fetch inventory stock for selected warehouse
+  useEffect(() => {
+    const fetchInventoryStock = async () => {
+      if (!formData.warehouse) {
+        setInventoryStock({});
+        return;
+      }
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:7000/api/inventory?warehouse=${formData.warehouse}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Create a map of product ID to inventory stock
+            const stockMap = {};
+            data.data.forEach(item => {
+              // Handle both new structure (product reference) and legacy (direct product data)
+              const productId = item.product?._id || item.product || item._id;
+              const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+              stockMap[productId] = stock;
+            });
+            setInventoryStock(stockMap);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching inventory stock:', error);
+      }
+    };
+    
+    fetchInventoryStock();
+  }, [formData.warehouse]);
+  
+  // Update available stock when product or warehouse changes
+  useEffect(() => {
+    if (selectedProduct && formData.warehouse) {
+      const stock = inventoryStock[selectedProduct] || 0;
+      setAvailableStock(stock);
+    } else {
+      setAvailableStock(0);
+    }
+  }, [selectedProduct, formData.warehouse, inventoryStock]);
   
   // Auto-fill unit price when product is selected
   useEffect(() => {
     if (selectedProduct) {
-      const product = inventory.find(p => p._id === selectedProduct);
+      const product = products.find(p => p._id === selectedProduct);
       if (product && product.price) {
         setItemUnitPrice(product.price);
       }
     }
-  }, [selectedProduct, inventory]);
+  }, [selectedProduct, products]);
   
   // Auto-calculate total price for each item
   useEffect(() => {
@@ -417,17 +455,17 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
       return;
     }
 
-    const product = inventory.find(p => p._id === selectedProduct);
+    const product = products.find(p => p._id === selectedProduct);
     if (!product) {
       setErrors({ items: 'Product not found' });
       return;
     }
 
-    // Check stock availability - using 'weight' field which represents quantity in this old model
+    // Check stock availability from inventory
     const quantity = safeNumber(itemQuantity);
-    const availableStock = product.weight || 0;
-    if (availableStock < quantity) {
-      setErrors({ items: `Insufficient stock! Available: ${availableStock} units, Requested: ${quantity}` });
+    const stock = availableStock || 0;
+    if (stock < quantity) {
+      setErrors({ items: `Insufficient stock! Available: ${stock} ${product.unit || 'units'}, Requested: ${quantity}` });
       return;
     }
 
@@ -435,10 +473,10 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
     const totalPrice = quantity * unitPrice;
 
     const newItem = {
-      product: selectedProduct,
+      product: selectedProduct, // Product ID from catalog
       productName: product.name,
       quantity: quantity,
-      unit: 'units', // Display as units instead of kg
+      unit: product.unit || 'units',
       unitPrice: unitPrice,
       totalPrice: totalPrice
     };
@@ -1119,22 +1157,25 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
                         disabled={!formData.warehouse}
                       >
                         <option value="">Choose product</option>
-                        {getFilteredProducts().map(product => (
-                          <option key={product._id} value={product._id}>
-                            {product.name} - Stock: {product.weight || 0} units
-                          </option>
-                        ))}
+                        {products.filter(p => p.status === 'Active').map(product => {
+                          const stock = inventoryStock[product._id] || 0;
+                          return (
+                            <option key={product._id} value={product._id}>
+                              {product.name} ({product.code}) - Stock: {stock} {product.unit || 'units'}
+                            </option>
+                          );
+                        })}
                       </select>
                   {selectedProduct && (
                     <div className="mt-2 p-2 bg-blue-50 rounded-md">
                       <p className="text-sm text-blue-700">
-                        <strong>Product:</strong> {inventory.find(p => p._id === selectedProduct)?.name}
+                        <strong>Product:</strong> {products.find(p => p._id === selectedProduct)?.name || 'N/A'}
                       </p>
                       <p className="text-sm text-blue-600">
-                        <strong>Available Stock:</strong> {inventory.find(p => p._id === selectedProduct)?.weight || 0} units
+                        <strong>Available Stock:</strong> {availableStock} {products.find(p => p._id === selectedProduct)?.unit || 'units'}
                       </p>
                       <p className="text-sm text-gray-600">
-                        <strong>Price:</strong> Rs. {inventory.find(p => p._id === selectedProduct)?.price || 0}
+                        <strong>Price:</strong> Rs. {products.find(p => p._id === selectedProduct)?.price || 0}
                       </p>
                     </div>
                   )}
@@ -1154,7 +1195,7 @@ export default function SalesFormEnhanced({ onSubmit, onCancel, editData = null,
                   />
                   {selectedProduct && itemQuantity && (
                     <p className="text-xs text-gray-500 mt-1">
-                      Available: {inventory.find(p => p._id === selectedProduct)?.weight || 0} units
+                      Available: {availableStock} {products.find(p => p._id === selectedProduct)?.unit || 'units'}
                     </p>
                   )}
                 </div>

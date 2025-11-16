@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaChartLine, FaDownload, FaPrint, FaFilePdf, FaFileExcel, FaCalendarAlt, FaFilter, FaEye } from 'react-icons/fa';
+import { FaChartLine, FaEye } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import SalesReport from '../components/Reports/SalesReport';
 import InventoryReport from '../components/Reports/InventoryReport';
@@ -12,9 +12,6 @@ import ReportHistory from '../components/Reports/ReportHistory';
 const ReportsPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('sales');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [reportData, setReportData] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
 
   const reportTabs = [
@@ -59,41 +56,22 @@ const ReportsPage = () => {
   const renderReportComponent = () => {
     switch (activeTab) {
       case 'sales':
-        return <SalesReport onReportGenerated={setReportData} />;
+        return <SalesReport />;
       case 'inventory':
-        return <InventoryReport onReportGenerated={setReportData} />;
+        return <InventoryReport />;
       case 'profit-loss':
-        return <ProfitLossReport onReportGenerated={setReportData} />;
+        return <ProfitLossReport />;
       case 'expense':
-        return <ExpenseReport onReportGenerated={setReportData} />;
+        return <ExpenseReport />;
       case 'salary':
-        return <SalaryReport onReportGenerated={setReportData} />;
+        return <SalaryReport />;
       case 'vendor-outstanding':
-        return <VendorOutstandingReport onReportGenerated={setReportData} />;
+        return <VendorOutstandingReport />;
       default:
-        return <SalesReport onReportGenerated={setReportData} />;
+        return <SalesReport />;
     }
   };
 
-  const handlePrint = () => {
-    if (reportData) {
-      window.print();
-    }
-  };
-
-  const handleExportPDF = () => {
-    if (reportData) {
-      // PDF export functionality will be implemented in individual report components
-      console.log('Exporting to PDF:', reportData);
-    }
-  };
-
-  const handleExportExcel = () => {
-    if (reportData) {
-      // Excel export functionality will be implemented in individual report components
-      console.log('Exporting to Excel:', reportData);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -115,31 +93,6 @@ const ReportsPage = () => {
                 <FaEye className="mr-2" />
                 Report History
               </button>
-              {reportData && (
-                <>
-                  <button
-                    onClick={handlePrint}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaPrint className="mr-2" />
-                    Print
-                  </button>
-                  <button
-                    onClick={handleExportPDF}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaFilePdf className="mr-2" />
-                    Export PDF
-                  </button>
-                  <button
-                    onClick={handleExportExcel}
-                    className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <FaFileExcel className="mr-2" />
-                    Export Excel
-                  </button>
-                </>
-              )}
             </div>
           </div>
         </div>

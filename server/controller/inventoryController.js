@@ -98,10 +98,25 @@ export const createInventory = async (req, res) => {
 // Get all inventory items
 export const getAllInventory = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search, category, subcategory, status } = req.query;
+    const { page = 1, limit = 10, search, category, subcategory, status, warehouse } = req.query;
     
     // Build filter object
     const filter = {};
+    
+    // IMPORTANT: Only show inventory items that have a warehouse (actual stock levels)
+    // Filter out legacy catalog-only items that don't have warehouse
+    // This ensures we only show stock levels, not catalog items
+    const warehouseFilter = [];
+    
+    // If specific warehouse is requested, filter by it
+    if (warehouse && warehouse !== 'all') {
+      warehouseFilter.push({ warehouse: warehouse });
+    } else {
+      // Otherwise, only show items with any warehouse (exclude null/undefined)
+      warehouseFilter.push({ warehouse: { $exists: true, $ne: null } });
+    }
+    
+    filter.$and = warehouseFilter;
     
     // Apply warehouse scoping ONLY for Warehouse Manager
     if (req.user?.role === 'Warehouse Manager') {
@@ -113,27 +128,18 @@ export const getAllInventory = async (req, res) => {
         if (warehouseIds.length === 0) {
           return res.json({ success: true, data: [], pagination: { current: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
         }
-        filter.warehouse = { $in: warehouseIds };
+        // Override the $and filter for warehouse managers
+        filter.$and = [
+          { warehouse: { $in: warehouseIds } }
+        ];
       } catch (e) {
         console.warn('Warehouse scoping failed, proceeding without data:', e.message);
         return res.json({ success: true, data: [], pagination: { current: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
       }
     }
     
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { code: { $regex: search, $options: 'i' } }
-      ];
-    }
-    
-    if (category && category !== 'all') {
-      filter.category = category;
-    }
-    
-    if (subcategory && subcategory !== 'all') {
-      filter.subcategory = subcategory;
-    }
+    // Search filter - will be applied after population
+    // Category and subcategory will also be filtered after population to check product fields
     
     if (status && status !== 'all') {
       filter.status = status;
@@ -142,15 +148,79 @@ export const getAllInventory = async (req, res) => {
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Get inventory with pagination
-    const inventory = await Inventory.find(filter)
+    // Get inventory with pagination - populate product and warehouse
+    let inventory = await Inventory.find(filter)
+      .populate('product', 'name code category subcategory unit price purchasePrice') // Populate product catalog
+      .populate('warehouse', 'name code address') // Populate warehouse
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
     
-    // Add virtual fields to each inventory item
+    // Filter results after population for search, category, and subcategory
+    // (can't search/filter populated fields directly in MongoDB query)
+    if (search || (category && category !== 'all') || (subcategory && subcategory !== 'all')) {
+      const searchLower = search ? search.toLowerCase() : '';
+      const categoryMatch = category && category !== 'all' ? category : null;
+      const subcategoryMatch = subcategory && subcategory !== 'all' ? subcategory : null;
+      
+      inventory = inventory.filter(item => {
+        const product = item.product;
+        const warehouse = item.warehouse;
+        
+        // Search filter
+        if (search) {
+          const matchesSearch = (
+            (item.name && item.name.toLowerCase().includes(searchLower)) ||
+            (item.code && item.code.toLowerCase().includes(searchLower)) ||
+            (product && product.name && product.name.toLowerCase().includes(searchLower)) ||
+            (product && product.code && product.code.toLowerCase().includes(searchLower)) ||
+            (warehouse && warehouse.name && warehouse.name.toLowerCase().includes(searchLower))
+          );
+          if (!matchesSearch) return false;
+        }
+        
+        // Category filter - check both legacy field and product
+        if (categoryMatch) {
+          const itemCategory = item.category || (product && product.category);
+          if (itemCategory !== categoryMatch) return false;
+        }
+        
+        // Subcategory filter - check both legacy field and product
+        if (subcategoryMatch) {
+          const itemSubcategory = item.subcategory || (product && product.subcategory);
+          if (itemSubcategory !== subcategoryMatch) return false;
+        }
+        
+        return true;
+      });
+    }
+    
+    // Add virtual fields and ensure product/warehouse data is available
     const inventoryWithVirtuals = inventory.map(item => {
       const itemObj = item.toObject();
+      
+      // If product is populated, use product data for display
+      if (itemObj.product) {
+        itemObj.productName = itemObj.product.name;
+        itemObj.productCode = itemObj.product.code;
+        itemObj.category = itemObj.product.category || itemObj.category;
+        itemObj.subcategory = itemObj.product.subcategory || itemObj.subcategory;
+        itemObj.unit = itemObj.product.unit || itemObj.unit;
+      } else {
+        // Fallback to legacy fields
+        itemObj.productName = itemObj.name;
+        itemObj.productCode = itemObj.code;
+      }
+      
+      // If warehouse is populated, use warehouse data
+      if (itemObj.warehouse) {
+        itemObj.warehouseName = itemObj.warehouse.name;
+        itemObj.warehouseCode = itemObj.warehouse.code;
+      }
+      
+      // Use currentStock (from Stock movements) or fallback to weight for backward compatibility
+      itemObj.stock = itemObj.currentStock !== undefined ? itemObj.currentStock : (itemObj.weight || 0);
+      
       itemObj.totalValue = item.totalValue; // Include the virtual field
       itemObj.stockStatus = item.stockStatus; // Include the virtual field
       itemObj.priceDisplay = item.priceDisplay; // Include the virtual field
@@ -425,7 +495,15 @@ export const getLowStockItems = async (req, res) => {
 // Get out of stock items
 export const getOutOfStockItems = async (req, res) => {
   try {
-    const inventory = await Inventory.find({ weight: 0 });
+    // Use currentStock (from Stock movements) or fallback to weight
+    const inventory = await Inventory.find({
+      $or: [
+        { currentStock: 0 },
+        { currentStock: { $exists: false }, weight: 0 }
+      ]
+    })
+    .populate('product', 'name code category subcategory unit')
+    .populate('warehouse', 'name code');
     
     res.json({
       success: true,
@@ -495,17 +573,77 @@ export const updateStockLevels = async (req, res) => {
   }
 };
 
-// Get inventory summary for dashboard
+// Get inventory summary for dashboard - aggregates from all sources (purchases, sales, production, stock)
 export const getInventorySummary = async (req, res) => {
   try {
-    const totalItems = await Inventory.countDocuments();
-    const outOfStockItems = await Inventory.countDocuments({ weight: 0 });
-    const activeItems = await Inventory.countDocuments({ status: "Active" });
+    // IMPORTANT: Only count inventory items that have a warehouse (actual stock levels)
+    // Filter out legacy catalog-only items that don't have warehouse
+    const warehouseFilter = {
+      warehouse: { $exists: true, $ne: null }
+    };
+    
+    // Apply warehouse scoping ONLY for Warehouse Manager
+    if (req.user?.role === 'Warehouse Manager') {
+      try {
+        const Warehouse = (await import('../model/wareHouse.js')).default;
+        const managedWarehouses = await Warehouse.find({ manager: req.user._id }).select('_id');
+        const warehouseIds = managedWarehouses.map(w => w._id);
+        if (warehouseIds.length > 0) {
+          warehouseFilter.warehouse = { $in: warehouseIds };
+        } else {
+          // No warehouses assigned, return empty stats
+          return res.json({
+            success: true,
+            data: {
+              totalItems: 0,
+              outOfStockItems: 0,
+              activeItems: 0,
+              totalValue: 0
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Warehouse scoping failed:', e.message);
+      }
+    }
+    
+    // Count total inventory records (one per product per warehouse)
+    const totalItems = await Inventory.countDocuments(warehouseFilter);
+    
+    // Count out of stock items using currentStock (from Stock movements)
+    const outOfStockFilter = {
+      ...warehouseFilter,
+      $or: [
+        { currentStock: 0 },
+        { currentStock: { $exists: false }, weight: 0 }
+      ]
+    };
+    const outOfStockItems = await Inventory.countDocuments(outOfStockFilter);
+    
+    // Count active items (have stock)
+    const activeItemsFilter = {
+      ...warehouseFilter,
+      status: "Active",
+      $or: [
+        { currentStock: { $gt: 0 } },
+        { currentStock: { $exists: false }, weight: { $gt: 0 } }
+      ]
+    };
+    const activeItems = await Inventory.countDocuments(activeItemsFilter);
     
     // Calculate total value from all inventory items
-    const inventoryItems = await Inventory.find({}, 'weight price');
+    // Get inventory with populated product to get price
+    const inventoryItems = await Inventory.find(warehouseFilter)
+      .populate('product', 'price purchasePrice')
+      .populate('warehouse', 'name')
+      .select('currentStock weight product price');
+    
     const totalValue = inventoryItems.reduce((sum, item) => {
-      const itemValue = item.price || 0; // Price is per complete item
+      // Use product price if available, otherwise legacy price
+      const price = item.product?.price || item.price || 0;
+      // Use currentStock (from Stock movements) or fallback to weight
+      const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+      const itemValue = price * stock;
       return sum + itemValue;
     }, 0);
     
@@ -522,7 +660,8 @@ export const getInventorySummary = async (req, res) => {
     console.error("Get inventory summary error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching inventory summary"
+      message: "Error fetching inventory summary",
+      error: error.message
     });
   }
 };

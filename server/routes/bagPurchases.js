@@ -127,24 +127,59 @@ router.get("/stats", [
   }
 });
 
+// @route   GET /api/bag-purchases/:id
+// @desc    Get single bag purchase by ID
+// @access  Private (Manager, Admin, Employee)
+// NOTE: This route must come after /stats to avoid conflicts
+router.get("/:id", [
+  authorize("Manager", "Admin", "Employee")
+], async (req, res) => {
+  try {
+    const purchase = await BagPurchase.findById(req.params.id)
+      .populate('supplier', 'name contactPerson email phone supplierCode')
+      .populate('warehouse', 'name location')
+      .populate('createdBy', 'firstName lastName')
+      .populate('updatedBy', 'firstName lastName');
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: "Bag purchase not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: purchase
+    });
+  } catch (error) {
+    console.error("Get bag purchase error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching bag purchase",
+      error: error.message
+    });
+  }
+});
+
 // @route   POST /api/bag-purchases
 // @desc    Create new bag purchase
 // @access  Private (Manager, Admin)
 router.post("/", [
   authorize("Manager", "Admin"),
   body("supplier").trim().notEmpty().withMessage("Supplier is required"),
-  body("productType").trim().notEmpty().withMessage("Product type is required"),
-  body("quantity").isNumeric().withMessage("Quantity must be a number"),
-  body("unitPrice").isNumeric().withMessage("Unit price must be a number")
+  body("warehouse").trim().notEmpty().withMessage("Warehouse is required"),
+  body("bags").isObject().withMessage("Bags object is required"),
+  body("bags.*.quantity").isNumeric().withMessage("Quantity must be a number"),
+  body("bags.*.unitPrice").isNumeric().withMessage("Unit price must be a number")
 ], async (req, res) => {
   try {
     // Debug: Log the incoming request data
     console.log('📥 Bag purchase request received:', {
       body: req.body,
-      productType: req.body.productType,
-      quantity: req.body.quantity,
-      unit: req.body.unit,
-      supplier: req.body.supplier
+      bags: req.body.bags,
+      supplier: req.body.supplier,
+      warehouse: req.body.warehouse
     });
 
     // Check validation errors
@@ -158,8 +193,8 @@ router.post("/", [
       });
     }
 
-    // Map flat structure to nested structure expected by model
-    const { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, notes, unit, warehouse } = req.body;
+    // Map structure to nested structure expected by model
+    const { bags, supplier, purchaseDate, status, paymentStatus, notes, warehouse, paidAmount } = req.body;
 
     // Sanitize incoming status fields to match schema enums
     const allowedStatus = ["Pending", "Received", "Cancelled", "Completed"];
@@ -185,19 +220,33 @@ router.post("/", [
       var warehouseId = new mongoose.Types.ObjectId(warehouse);
     }
     
-    // Create the bags object with the specific product type as Map
-    const bags = new Map();
-    
-    // Normalize product type to uppercase (for compatibility)
-    const normalizedProductType = productType.toUpperCase();
-    
-    // Set the values for the specific product type (use normalized type)
-    bags.set(normalizedProductType, {
-      quantity: parseFloat(quantity) || 0,
-      unit: unit || "50kg bags", // Use provided unit or default
-      unitPrice: parseFloat(unitPrice) || 0,
-      totalPrice: parseFloat(totalPrice) || 0
+    // Validate bags object
+    if (!bags || typeof bags !== 'object' || Object.keys(bags).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one product is required"
+      });
+    }
+
+    // Create the bags Map from the bags object
+    const bagsMap = new Map();
+    Object.entries(bags).forEach(([productName, bagData]) => {
+      if (bagData && bagData.quantity > 0) {
+        bagsMap.set(productName, {
+          quantity: parseFloat(bagData.quantity) || 0,
+          unit: bagData.unit || "50kg bags",
+          unitPrice: parseFloat(bagData.unitPrice) || 0,
+          totalPrice: parseFloat(bagData.totalPrice) || 0
+        });
+      }
     });
+
+    if (bagsMap.size === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one product with quantity > 0 is required"
+      });
+    }
 
     // Generate purchase number manually if needed
     let purchaseNumber;
@@ -216,10 +265,11 @@ router.post("/", [
     const bagPurchaseData = {
       purchaseNumber: purchaseNumber, // Explicitly set purchase number
       supplier: mongoose.isValidObjectId(supplier) ? new mongoose.Types.ObjectId(supplier) : new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
-      bags,
+      bags: bagsMap,
       purchaseDate: purchaseDate ? new Date(purchaseDate) : new Date(),
       status: safeStatus,
       paymentStatus: safePaymentStatus,
+      paidAmount: parseFloat(paidAmount) || 0,
       notes: notes || "",
       warehouse: warehouseId,
       createdBy: new mongoose.Types.ObjectId(req.user._id || req.user.id || "507f1f77bcf86cd799439011")
@@ -230,66 +280,98 @@ router.post("/", [
 
     // Add stock movements for bags purchased
     try {
+      const Product = (await import("../model/Product.js")).default;
       const Inventory = (await import("../model/inventory.js")).default;
       const Stock = (await import("../model/stock.js")).default;
       
       const warehouseId = newPurchase.warehouse;
       
-      // Process each bag type in the purchase
-      if (bags && typeof bags === 'object') {
-        let bagEntries = [];
-        
-        // Handle Map structure
-        if (bags instanceof Map) {
-          bagEntries = Array.from(bags.entries());
-        } 
-        // Handle object structure
-        else {
-          bagEntries = Object.entries(bags);
-        }
-        
-        for (const [productType, bagData] of bagEntries) {
-          if (bagData && bagData.quantity > 0) {
-            // Find or create inventory item
-            let inventoryItem = await Inventory.findOne({
-              name: { $regex: productType, $options: 'i' },
-              warehouse: warehouseId
+      // Process each product in the purchase
+      let bagEntries = [];
+      
+      // Handle Map structure
+      if (bagsMap instanceof Map) {
+        bagEntries = Array.from(bagsMap.entries());
+      } 
+      // Handle object structure (fallback)
+      else if (bagsMap && typeof bagsMap === 'object') {
+        bagEntries = Object.entries(bagsMap);
+      }
+      
+      for (const [productName, bagData] of bagEntries) {
+        if (bagData && bagData.quantity > 0) {
+          // Extract weight from unit (e.g., "20kg bags" -> 20)
+          const weightMatch = bagData.unit.match(/(\d+)kg/);
+          const weight = weightMatch ? parseFloat(weightMatch[1]) : null;
+          
+          // Step 1: Find Product in catalog by name
+          // productName is the full product name from catalog (e.g., "ATA", "MAIDA")
+          let product = await Product.findOne({
+            name: { $regex: new RegExp(`^${productName}$`, 'i') }
+          });
+          
+          // If product not found by exact name, try case-insensitive search
+          if (!product) {
+            product = await Product.findOne({
+              name: { $regex: new RegExp(productName, 'i') }
             });
-            
-            if (!inventoryItem) {
-              // Create new inventory item for this bag type
-              inventoryItem = new Inventory({
-                name: `${productType} Bags`,
-                category: 'Packaging Materials',
-                subcategory: 'Bags',
-                description: `Bags purchased`,
-                unit: bagData.unit || 'bags',
-                currentStock: 0, // Will be updated by stock movement
-                minimumStock: 10,
-                warehouse: warehouseId,
-                cost: {
-                  purchasePrice: bagData.unitPrice || 0,
-                  currency: 'PKR'
-                },
-                status: 'Active'
-              });
-              await inventoryItem.save();
-            }
-            
-            // Create stock in movement
-            const stockIn = new Stock({
-              inventoryItem: inventoryItem._id,
-              movementType: 'in',
-              quantity: bagData.quantity,
-              reason: `Bag Purchase - ${newPurchase.purchaseNumber}`,
-              referenceNumber: newPurchase.purchaseNumber,
-              warehouse: warehouseId,
-              createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
-            });
-            
-            await stockIn.save();
-            console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${productType} to warehouse`);
           }
+          
+          if (!product) {
+            console.error(`❌ Product not found in catalog: ${productName}`);
+            continue; // Skip this product if not found in catalog
+          }
+          
+          // Step 2: Validate weight category exists in product
+          if (weight && product.weightVariants && product.weightVariants.length > 0) {
+            const weightVariant = product.weightVariants.find(v => 
+              v.weight === weight && v.isActive !== false
+            );
+            if (!weightVariant) {
+              console.error(`❌ Weight category ${weight}kg not found for product ${product.name}`);
+              continue; // Skip this product if weight category not found
+            }
+          }
+            
+          
+          // Step 3: Find or create Inventory (Product + Warehouse)
+          let inventoryItem = await Inventory.findOne({
+            product: product._id,
+            warehouse: warehouseId
+          });
+          
+          if (!inventoryItem) {
+            inventoryItem = new Inventory({
+              product: product._id,
+              warehouse: warehouseId,
+              currentStock: 0, // Will be updated by stock movement
+              minimumStock: product.minimumStock || 10,
+              status: 'Active',
+              // Legacy fields for backward compatibility
+              name: product.name,
+              code: product.code,
+              category: product.category,
+              subcategory: product.subcategory,
+              weight: weight || product.weight || 0,
+              price: product.price || 0
+            });
+            await inventoryItem.save();
+            console.log(`✅ Created inventory record for ${product.name} in warehouse`);
+          }
+          
+          // Step 4: Create stock in movement
+          const stockIn = new Stock({
+            inventoryItem: inventoryItem._id,
+            movementType: 'in',
+            quantity: bagData.quantity,
+            reason: `Bag Purchase - ${newPurchase.purchaseNumber}`,
+            referenceNumber: newPurchase.purchaseNumber,
+            warehouse: warehouseId,
+            createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
+          });
+          
+          await stockIn.save();
+          console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${product.name} (${weight}kg) to warehouse`);
         }
       }
     } catch (stockError) {

@@ -70,6 +70,16 @@ stockSchema.pre('save', async function(next) {
       throw new Error('Warehouse not found');
     }
     
+    // Ensure inventory has warehouse set (for new structure)
+    if (!inventory.warehouse) {
+      inventory.warehouse = this.warehouse;
+    }
+    
+    // Ensure inventory warehouse matches stock warehouse
+    if (inventory.warehouse && inventory.warehouse.toString() !== this.warehouse.toString()) {
+      throw new Error(`Inventory warehouse mismatch. Inventory is in warehouse ${inventory.warehouse}, but stock movement is for warehouse ${this.warehouse}`);
+    }
+    
     // For 'out' movements, check if there's sufficient stock
     if (this.movementType === 'out') {
       // Use currentStock if available, otherwise fall back to weight for backward compatibility

@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaEye } from 'react-icons/fa';
 
-export default function SalaryList({ warehouses, accounts, onEdit }) {
+export default function SalaryList({ accounts, onEdit }) {
   const [salaries, setSalaries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     fetchSalaries();
-  }, [currentPage, searchTerm, selectedMonth, selectedYear, selectedPaymentStatus, selectedWarehouse]);
+  }, [currentPage, searchTerm, selectedMonth, selectedYear, selectedPaymentStatus]);
 
   const fetchSalaries = async () => {
     try {

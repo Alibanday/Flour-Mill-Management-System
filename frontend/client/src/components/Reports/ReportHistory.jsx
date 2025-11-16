@@ -31,7 +31,7 @@ const ReportHistory = () => {
         ...filters
       });
 
-      const response = await fetch(`http://localhost:7000/api/reports?${queryParams}`, {
+      const response = await fetch(`http://localhost:7000/api/reports/all?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

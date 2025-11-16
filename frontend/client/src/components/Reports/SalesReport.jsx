@@ -49,8 +49,12 @@ const SalesReport = ({ onReportGenerated }) => {
       }
 
       const result = await response.json();
-      setReportData(result.data);
-      onReportGenerated(result.data);
+      if (result.success && result.data) {
+        setReportData(result.data);
+        onReportGenerated(result.data);
+      } else {
+        throw new Error(result.message || 'Failed to generate report');
+      }
     } catch (error) {
       setError(error.message);
     } finally {
@@ -59,58 +63,78 @@ const SalesReport = ({ onReportGenerated }) => {
   };
 
   const exportToPDF = () => {
-    if (!reportData) return;
+    try {
+      if (!reportData) {
+        setError('No report data available to export');
+        return;
+      }
 
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(20);
-    doc.text('Sales Report', 105, 20, { align: 'center' });
-    
-    // Date range
-    doc.setFontSize(12);
-    doc.text(`Period: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`, 20, 35);
-    
-    // Summary
-    doc.setFontSize(14);
-    doc.text('Summary', 20, 50);
-    
-    const summaryData = [
-      ['Total Sales', reportData.summary.totalSales.toString()],
-      ['Total Amount', `Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}`],
-      ['Total Quantity', reportData.summary.totalQuantity.toString()],
-      ['Average Order Value', `Rs. ${(reportData.summary.averageOrderValue || 0).toLocaleString()}`]
-    ];
-    
-    doc.autoTable({
-      startY: 60,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid'
-    });
+      if (typeof jsPDF === 'undefined') {
+        setError('PDF export library not available. Please use Print or Excel export instead.');
+        return;
+      }
 
-    // Sales data
-    if (reportData.data && reportData.data.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Sales Details', 20, 20);
+      const doc = new jsPDF();
       
-      const salesData = reportData.data.map(sale => [
-        new Date(sale.saleDate).toLocaleDateString(),
-        sale.customer?.name || 'N/A',
-        (sale.totalAmount || 0).toLocaleString(),
-        sale.paymentStatus
-      ]);
+      // Title
+      doc.setFontSize(20);
+      doc.text('Sales Report', 105, 20, { align: 'center' });
+      
+      // Date range
+      doc.setFontSize(12);
+      const dateRange = filters.startDate && filters.endDate 
+        ? `${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`
+        : 'All Time';
+      doc.text(`Period: ${dateRange}`, 20, 35);
+      
+      // Summary
+      doc.setFontSize(14);
+      doc.text('Summary', 20, 50);
+      
+      const summaryData = [
+        ['Total Sales', (reportData.summary?.totalSales || 0).toString()],
+        ['Total Amount', `Rs. ${(reportData.summary?.totalAmount || 0).toLocaleString()}`],
+        ['Total Quantity', (reportData.summary?.totalQuantity || 0).toString()],
+        ['Average Order Value', `Rs. ${(reportData.summary?.averageOrderValue || 0).toLocaleString()}`]
+      ];
       
       doc.autoTable({
-        startY: 30,
-        head: [['Date', 'Customer', 'Amount (Rs.)', 'Payment Status']],
-        body: salesData,
+        startY: 60,
+        head: [['Metric', 'Value']],
+        body: summaryData,
         theme: 'grid'
       });
-    }
 
-    doc.save('sales-report.pdf');
+      // Sales data
+      if (reportData.data && reportData.data.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('Sales Details', 20, 20);
+        
+        const salesData = reportData.data.map(sale => [
+          sale.saleDate ? new Date(sale.saleDate).toLocaleDateString() : 'N/A',
+          sale.customer?.name || sale.customer?.customerName || 'N/A',
+          (sale.totalAmount || 0).toLocaleString(),
+          (sale.paidAmount || 0).toLocaleString(),
+          (sale.remainingAmount || sale.dueAmount || 0).toLocaleString(),
+          sale.paymentStatus || 'N/A'
+        ]);
+        
+        doc.autoTable({
+          startY: 30,
+          head: [['Date', 'Customer', 'Total Amount (Rs.)', 'Paid Amount (Rs.)', 'Debit/Outstanding (Rs.)', 'Payment Status']],
+          body: salesData,
+          theme: 'grid',
+          styles: { fontSize: 9 },
+          headStyles: { fontSize: 9 }
+        });
+      }
+
+      doc.save('sales-report.pdf');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      setError('Failed to export PDF. Please use Print or Excel export instead.');
+    }
   };
 
   const exportToExcel = () => {
@@ -136,7 +160,7 @@ const SalesReport = ({ onReportGenerated }) => {
     // Sales data sheet
     if (reportData.data && reportData.data.length > 0) {
       const salesData = [
-        ['Date', 'Customer', 'Amount (Rs.)', 'Payment Status', 'Items']
+        ['Date', 'Customer', 'Total Amount (Rs.)', 'Paid Amount (Rs.)', 'Debit/Outstanding (Rs.)', 'Payment Status', 'Items']
       ];
       
       reportData.data.forEach(sale => {
@@ -144,7 +168,9 @@ const SalesReport = ({ onReportGenerated }) => {
         salesData.push([
           new Date(sale.saleDate).toLocaleDateString(),
           sale.customer?.name || 'N/A',
-          sale.totalAmount,
+          sale.totalAmount || 0,
+          sale.paidAmount || 0,
+          sale.remainingAmount || sale.dueAmount || 0,
           sale.paymentStatus,
           items
         ]);
@@ -160,7 +186,353 @@ const SalesReport = ({ onReportGenerated }) => {
   };
 
   const printReport = () => {
-    window.print();
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    
+    if (!printWindow || !reportData) return;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Sales Report</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 1cm;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: 'Arial', sans-serif;
+              font-size: 12px;
+              color: #333;
+              line-height: 1.6;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .header h1 {
+              font-size: 28px;
+              color: #1e40af;
+              margin-bottom: 10px;
+              font-weight: bold;
+            }
+            .header .company-info {
+              font-size: 14px;
+              color: #666;
+              margin-top: 10px;
+            }
+            .report-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 25px;
+              padding: 15px;
+              background-color: #f8f9fa;
+              border-left: 4px solid #2563eb;
+            }
+            .report-info div {
+              flex: 1;
+            }
+            .report-info strong {
+              color: #1e40af;
+              display: block;
+              margin-bottom: 5px;
+              font-size: 11px;
+              text-transform: uppercase;
+            }
+            .summary-section {
+              margin-bottom: 30px;
+              page-break-inside: avoid;
+            }
+            .summary-section h2 {
+              font-size: 18px;
+              color: #1e40af;
+              margin-bottom: 15px;
+              border-bottom: 2px solid #e5e7eb;
+              padding-bottom: 8px;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 15px;
+              margin-bottom: 20px;
+            }
+            .summary-card {
+              background: #f8f9fa;
+              padding: 15px;
+              border-radius: 5px;
+              border-left: 4px solid #2563eb;
+            }
+            .summary-card .label {
+              font-size: 10px;
+              color: #666;
+              text-transform: uppercase;
+              margin-bottom: 5px;
+            }
+            .summary-card .value {
+              font-size: 20px;
+              font-weight: bold;
+              color: #1e40af;
+            }
+            .payment-breakdown {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 15px;
+              margin-top: 15px;
+            }
+            .payment-item {
+              text-align: center;
+              padding: 15px;
+              background: #f8f9fa;
+              border-radius: 5px;
+            }
+            .payment-item .count {
+              font-size: 24px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .payment-item.paid .count { color: #10b981; }
+            .payment-item.pending .count { color: #f59e0b; }
+            .payment-item.partial .count { color: #3b82f6; }
+            .payment-item .label {
+              font-size: 11px;
+              color: #666;
+              text-transform: uppercase;
+            }
+            .sales-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+              page-break-inside: avoid;
+            }
+            .sales-table thead {
+              background-color: #1e40af;
+              color: white;
+            }
+            .sales-table th {
+              padding: 12px 8px;
+              text-align: left;
+              font-size: 10px;
+              text-transform: uppercase;
+              font-weight: bold;
+              border: 1px solid #1e3a8a;
+            }
+            .sales-table td {
+              padding: 10px 8px;
+              border: 1px solid #e5e7eb;
+              font-size: 11px;
+            }
+            .sales-table th:nth-child(3),
+            .sales-table td:nth-child(3) {
+              max-width: 200px;
+              word-wrap: break-word;
+            }
+            .sales-table tbody tr:nth-child(even) {
+              background-color: #f8f9fa;
+            }
+            .sales-table tbody tr:hover {
+              background-color: #e0e7ff;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 10px;
+              border-radius: 12px;
+              font-size: 10px;
+              font-weight: bold;
+              text-transform: uppercase;
+            }
+            .status-paid {
+              background-color: #d1fae5;
+              color: #065f46;
+            }
+            .status-pending {
+              background-color: #fef3c7;
+              color: #92400e;
+            }
+            .status-partial {
+              background-color: #dbeafe;
+              color: #1e40af;
+            }
+            .footer {
+              margin-top: 40px;
+              padding-top: 20px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              font-size: 10px;
+              color: #666;
+            }
+            .items-list {
+              font-size: 10px;
+              color: #666;
+            }
+            .items-list span {
+              display: inline-block;
+              margin-right: 8px;
+              margin-bottom: 3px;
+            }
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>SALES REPORT</h1>
+            <div class="company-info">
+              <div>Floor Mill Management System</div>
+              <div>Generated on: ${new Date().toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</div>
+            </div>
+          </div>
+
+          <div class="report-info">
+            <div>
+              <strong>Report Period</strong>
+              ${new Date(reportData.dateRange.startDate).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })} - ${new Date(reportData.dateRange.endDate).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </div>
+            <div>
+              <strong>Report Type</strong>
+              Sales Report
+            </div>
+            <div>
+              <strong>Total Records</strong>
+              ${reportData.summary.totalSales} Sales
+            </div>
+          </div>
+
+          <div class="summary-section">
+            <h2>Summary</h2>
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div class="label">Total Sales</div>
+                <div class="value">${reportData.summary.totalSales}</div>
+              </div>
+              <div class="summary-card">
+                <div class="label">Total Amount</div>
+                <div class="value">Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}</div>
+              </div>
+              <div class="summary-card">
+                <div class="label">Total Quantity</div>
+                <div class="value">${reportData.summary.totalQuantity}</div>
+              </div>
+              <div class="summary-card">
+                <div class="label">Average Order Value</div>
+                <div class="value">Rs. ${(reportData.summary.averageOrderValue || 0).toLocaleString()}</div>
+              </div>
+            </div>
+
+            <div class="payment-breakdown">
+              <div class="payment-item paid">
+                <div class="count">${reportData.summary.paymentBreakdown.paid}</div>
+                <div class="label">Paid Orders</div>
+              </div>
+              <div class="payment-item pending">
+                <div class="count">${reportData.summary.paymentBreakdown.pending}</div>
+                <div class="label">Pending Orders</div>
+              </div>
+              <div class="payment-item partial">
+                <div class="count">${reportData.summary.paymentBreakdown.partial}</div>
+                <div class="label">Partial Orders</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-section">
+            <h2>Sales Details</h2>
+            <table class="sales-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Customer</th>
+                  <th>Items</th>
+                  <th>Quantity</th>
+                  <th>Total Amount (Rs.)</th>
+                  <th>Paid Amount (Rs.)</th>
+                  <th>Debit/Outstanding (Rs.)</th>
+                  <th>Payment Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.data && reportData.data.length > 0 ? reportData.data.map((sale, index) => {
+                  const saleDate = new Date(sale.saleDate).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  });
+                  const customerName = sale.customer?.name || sale.customer?.customerName || 'N/A';
+                  const items = sale.items || [];
+                  const itemsList = items.map(item => 
+                    `${item.product?.name || item.productName || 'N/A'} (${item.quantity || 0})`
+                  ).join(', ') || 'N/A';
+                  const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                  const totalAmount = (sale.totalAmount || 0).toLocaleString();
+                  const paidAmount = (sale.paidAmount || 0).toLocaleString();
+                  const debitAmount = (sale.remainingAmount || sale.dueAmount || 0).toLocaleString();
+                  const paymentStatus = (sale.paymentStatus || 'pending').toLowerCase();
+                  const statusClass = paymentStatus === 'paid' ? 'status-paid' : 
+                                     paymentStatus === 'pending' ? 'status-pending' : 'status-partial';
+                  
+                  return `
+                    <tr>
+                      <td>${saleDate}</td>
+                      <td><strong>${customerName}</strong></td>
+                      <td class="items-list">${itemsList}</td>
+                      <td>${totalQuantity}</td>
+                      <td><strong>Rs. ${totalAmount}</strong></td>
+                      <td style="color: #10b981; font-weight: 600;">Rs. ${paidAmount}</td>
+                      <td style="color: #ef4444; font-weight: 600;">Rs. ${debitAmount}</td>
+                      <td><span class="status-badge ${statusClass}">${paymentStatus}</span></td>
+                    </tr>
+                  `;
+                }).join('') : '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #666;">No sales data available</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <p>This report was generated automatically by the Floor Mill Management System</p>
+            <p>Report ID: ${reportData.reportType.toUpperCase()}-${Date.now()}</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+      // Close the window after printing (optional)
+      // printWindow.close();
+    }, 250);
   };
 
   return (
@@ -183,9 +555,10 @@ const SalesReport = ({ onReportGenerated }) => {
                 name="startDate"
                 value={filters.startDate}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
-              <FaCalendarAlt className="absolute right-3 top-3 text-gray-400" />
+              <FaCalendarAlt className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
           
@@ -199,9 +572,11 @@ const SalesReport = ({ onReportGenerated }) => {
                 name="endDate"
                 value={filters.endDate}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min={filters.startDate || undefined}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
-              <FaCalendarAlt className="absolute right-3 top-3 text-gray-400" />
+              <FaCalendarAlt className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
           
@@ -278,13 +653,6 @@ const SalesReport = ({ onReportGenerated }) => {
                 Print
               </button>
               <button
-                onClick={exportToPDF}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFilePdf className="mr-2" />
-                Export PDF
-              </button>
-              <button
                 onClick={exportToExcel}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
@@ -314,25 +682,6 @@ const SalesReport = ({ onReportGenerated }) => {
             </div>
           </div>
 
-          {/* Payment Status Breakdown */}
-          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-            <h4 className="text-lg font-medium text-gray-900 mb-4">Payment Status Breakdown</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{reportData.summary.paymentBreakdown.paid}</div>
-                <div className="text-sm text-gray-500">Paid Orders</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">{reportData.summary.paymentBreakdown.pending}</div>
-                <div className="text-sm text-gray-500">Pending Orders</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{reportData.summary.paymentBreakdown.partial}</div>
-                <div className="text-sm text-gray-500">Partial Orders</div>
-              </div>
-            </div>
-          </div>
-
           {/* Sales Data Table */}
           {reportData.data && reportData.data.length > 0 && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -359,8 +708,14 @@ const SalesReport = ({ onReportGenerated }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {sale.customer?.name || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
                           Rs. {(sale.totalAmount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">
+                          Rs. {(sale.paidAmount || 0).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-semibold">
+                          Rs. {(sale.remainingAmount || sale.dueAmount || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

@@ -236,39 +236,59 @@ router.post("/", [
       // Add food stock to selected warehouse
       try {
         // Import models
+        const Product = (await import("../model/Product.js")).default;
         const Inventory = (await import("../model/inventory.js")).default;
         const Stock = (await import("../model/stock.js")).default;
         
         // Process each food item in the purchase
         for (const foodItem of foodItems) {
-          // Find or create inventory item
+          // Step 1: Find or create Product in catalog
+          let product = await Product.findOne({
+            name: { $regex: new RegExp(`^${foodItem.name}$`, 'i') },
+            category: foodItem.category || 'Raw Materials',
+            subcategory: productType
+          });
+          
+          if (!product) {
+            product = new Product({
+              name: foodItem.name,
+              category: foodItem.category || 'Raw Materials',
+              subcategory: productType,
+              description: `${foodItem.name} - ${productType}`,
+              unit: foodItem.unit || 'kg',
+              price: 0, // Will be set from sales
+              purchasePrice: foodItem.unitPrice || 0,
+              minimumStock: 10,
+              status: 'Active'
+            });
+            await product.save();
+            console.log(`✅ Created product in catalog: ${foodItem.name}`);
+          }
+          
+          // Step 2: Find or create Inventory (Product + Warehouse)
           let inventoryItem = await Inventory.findOne({
-            name: { $regex: foodItem.name, $options: 'i' },
+            product: product._id,
             warehouse: warehouseId
           });
           
           if (!inventoryItem) {
-            // Create new inventory item for this food type
             inventoryItem = new Inventory({
-              name: foodItem.name,
-              category: foodItem.category || 'Raw Materials',
-              subcategory: productType,
-              description: `Food purchased`,
-              unit: foodItem.unit || 'kg',
-              currentStock: 0, // Will be updated by stock movement
-              minimumStock: 10,
+              product: product._id,
               warehouse: warehouseId,
-              cost: {
-                purchasePrice: foodItem.unitPrice || 0,
-                currency: 'PKR'
-              },
-              status: 'Active'
+              currentStock: 0, // Will be updated by stock movement
+              minimumStock: product.minimumStock || 10,
+              status: 'Active',
+              // Legacy fields for backward compatibility
+              name: product.name,
+              code: product.code,
+              category: product.category,
+              subcategory: product.subcategory
             });
             await inventoryItem.save();
-            console.log(`✅ Created new inventory item: ${foodItem.name}`);
+            console.log(`✅ Created inventory record for ${foodItem.name} in warehouse`);
           }
           
-          // Create stock in movement
+          // Step 3: Create stock in movement
           const stockIn = new Stock({
             inventoryItem: inventoryItem._id,
             movementType: 'in',

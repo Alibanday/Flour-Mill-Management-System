@@ -11,7 +11,7 @@ export default function SalesPage() {
   const [editData, setEditData] = useState(null);
   const [sales, setSales] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
-  const [inventory, setInventory] = useState([]);
+  const [products, setProducts] = useState([]); // Changed from inventory to products
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,10 +22,13 @@ export default function SalesPage() {
     try {
       console.log('🔄 Fetching data...');
       setLoading(true);
-      const [salesRes, warehousesRes, inventoryRes] = await Promise.all([
-        fetch('http://localhost:7000/api/sales'),
-        fetch('http://localhost:7000/api/warehouses'),
-        fetch('http://localhost:7000/api/inventory')
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+      
+      const [salesRes, warehousesRes, productsRes] = await Promise.all([
+        fetch('http://localhost:7000/api/sales', { headers }),
+        fetch('http://localhost:7000/api/warehouses', { headers }),
+        fetch('http://localhost:7000/api/products?status=Active&limit=1000', { headers })
       ]);
 
       if (salesRes.ok) {
@@ -36,9 +39,9 @@ export default function SalesPage() {
         const warehousesData = await warehousesRes.json();
         setWarehouses(warehousesData.data || []);
       }
-      if (inventoryRes.ok) {
-        const inventoryData = await inventoryRes.json();
-        setInventory(inventoryData.data || []);
+      if (productsRes.ok) {
+        const productsData = await productsRes.json();
+        setProducts(productsData.data || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -268,7 +271,7 @@ export default function SalesPage() {
           }}
           editData={editData}
           warehouses={warehouses}
-          inventory={inventory}
+          products={products}
         />
       )}
     </div>

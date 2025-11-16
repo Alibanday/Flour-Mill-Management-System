@@ -46,23 +46,14 @@ export default function Dashboard() {
   const capabilityFallback = t('dashboard.capabilities.default');
 
   const quickActionTranslationMap = {
-    "User Management": "dashboard.quickActions.userManagement",
     "Accounts": "dashboard.quickActions.accounts",
     "Financial Management": "dashboard.quickActions.financialManagement",
-    "Supplier Management": "dashboard.quickActions.supplierManagement",
-    "Bag & Food Purchase": "dashboard.quickActions.bagFoodPurchase",
-    "Gate Pass System": "dashboard.quickActions.gatePass",
     "Production": "dashboard.quickActions.production",
     "Sales": "dashboard.quickActions.sales",
     "Warehouse": "dashboard.quickActions.warehouse",
     "Warehouse Dashboard": "dashboard.quickActions.warehouseDashboard",
-    "Inventory": "dashboard.quickActions.inventory",
     "Stock": "dashboard.quickActions.stock",
-    "Employees": "dashboard.quickActions.employees",
-    "Customer Management": "dashboard.quickActions.customerManagement",
-    "Reports": "dashboard.quickActions.reports",
-    "Notifications & Utilities": "dashboard.quickActions.notifications",
-    "System Configuration": "dashboard.quickActions.systemConfiguration"
+    "Employees": "dashboard.quickActions.employees"
   };
 
   // Redirect warehouse managers to their own dashboard
@@ -135,17 +126,9 @@ export default function Dashboard() {
     return filteredMenu;
   };
 
-  // Role-based function buttons
+  // Role-based function buttons (only unique items not in sidebar)
   const getFunctionButtons = () => {
     const allButtons = [
-      { 
-        name: "User Management", 
-        shortcut: "F1", 
-        icon: <FaUserShield />, 
-        action: () => navigate("/users"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-purple-100 text-purple-600"
-      },
       { 
         name: "Accounts", 
         shortcut: "F2", 
@@ -161,30 +144,6 @@ export default function Dashboard() {
         action: () => navigate("/financial"),
         roles: ['Admin', 'General Manager'],
         color: "bg-emerald-100 text-emerald-600"
-      },
-      { 
-        name: "Supplier Management", 
-        shortcut: "F4", 
-        icon: <FaUsers />, 
-        action: () => navigate("/suppliers"),
-        roles: ['Admin', 'General Manager', 'Sales Manager'],
-        color: "bg-yellow-100 text-yellow-600"
-      },
-      {
-        name: "Bag & Food Purchase",
-        shortcut: "F5",
-        icon: <FaShoppingBag />,
-        action: () => navigate("/bag-food-purchase"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-orange-100 text-orange-600"
-      },
-      { 
-        name: "Gate Pass System", 
-        shortcut: "F6", 
-        icon: <FaPassport />, 
-        action: () => navigate("/gate-pass"),
-        roles: ['Admin', 'General Manager', 'Production Manager', 'Warehouse Manager'],
-        color: "bg-purple-100 text-purple-600"
       },
       { 
         name: "Production", 
@@ -219,14 +178,6 @@ export default function Dashboard() {
         color: "bg-purple-100 text-purple-600"
       },
       { 
-        name: "Inventory", 
-        shortcut: "F10", 
-        icon: <FaBoxes />, 
-        action: () => navigate("/inventory"),
-        roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
-        color: "bg-cyan-100 text-cyan-600"
-      },
-      { 
         name: "Stock", 
         shortcut: "F11", 
         icon: <FaBoxes />, 
@@ -242,38 +193,6 @@ export default function Dashboard() {
         roles: ['Admin', 'General Manager'],
         color: "bg-pink-100 text-pink-600"
       },
-      { 
-        name: "Customer Management", 
-        shortcut: "F13", 
-        icon: <FaUserPlus />, 
-        action: () => navigate("/customers"),
-        roles: ['Admin', 'General Manager', 'Sales Manager'],
-        color: "bg-indigo-100 text-indigo-600"
-      },
-      { 
-        name: "Reports", 
-        shortcut: "F14", 
-        icon: <FaChartLine />, 
-        action: () => navigate("/reports"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-red-100 text-red-600"
-      },
-      { 
-        name: "Notifications & Utilities", 
-        shortcut: "F15", 
-        icon: <FaBell />, 
-        action: () => navigate("/notifications"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-orange-100 text-orange-600"
-      },
-      { 
-        name: "System Configuration", 
-        shortcut: "F16", 
-        icon: <FaCog />, 
-        action: () => navigate("/system-config"),
-        roles: ['Admin'],
-        color: "bg-gray-100 text-gray-600"
-      },
     ];
 
     const visibleButtons = allButtons.filter(button => button.roles.includes(role));
@@ -281,10 +200,7 @@ export default function Dashboard() {
     if (isSalesMgr) {
       const allowedSalesManagerButtons = new Set([
         "Sales",
-        "Customer Management",
-        "Inventory",
-        "Warehouse",
-        "Supplier Management"
+        "Warehouse"
       ]);
       return visibleButtons.filter(button => allowedSalesManagerButtons.has(button.name));
     }
