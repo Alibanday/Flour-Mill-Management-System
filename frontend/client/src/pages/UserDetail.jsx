@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import api, { API_ENDPOINTS } from "../services/api";
 import { FaEdit, FaTrash, FaEnvelope, FaPhone, FaIdCard, FaGraduationCap, FaWallet, FaUserShield, FaHome } from "react-icons/fa";
 
 export default function UserDetail() {
@@ -10,8 +10,9 @@ export default function UserDetail() {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get(`http://localhost:8000/api/users/${id}`);
-      setUser(response.data || null);
+      const response = await api.get(API_ENDPOINTS.USERS.GET_BY_ID(id));
+      const data = response.data?.data || response.data?.user || response.data;
+      setUser(data || null);
     } catch (error) {
       console.error("Fetch user error: ", error);
       alert(error.response?.data?.message || "Failed to load user details");
@@ -25,7 +26,7 @@ export default function UserDetail() {
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
     try {
-      await axios.delete(`http://localhost:8000/api/users/${id}`);
+      await api.delete(API_ENDPOINTS.USERS.DELETE(id));
       alert("User deleted successfully");
       navigate("/users");
     } catch (err) {

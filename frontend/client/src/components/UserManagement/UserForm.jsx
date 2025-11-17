@@ -23,6 +23,30 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     profilePicture: null
   };
 
+  // Create validation schema that depends on user prop
+  // Note: Cross-field validation (password matching) is handled in handleSubmit
+  const validationSchema = {
+    ...validationSchemas.user,
+    confirmPassword: {
+      // Only validate if password is provided
+      required: (value) => {
+        // This will be checked in handleSubmit based on current formData
+        return null; // Skip here, validate in submit
+      }
+    },
+    password: {
+      // Make password optional when editing (only required when creating new user)
+      ...(validationSchemas.user?.password || {}),
+      required: (value) => {
+        if (user) return null; // Optional when editing
+        return !value ? 'Password is required' : null;
+      }
+    },
+    role: {
+      required: (value) => !value ? 'Role is required' : null
+    }
+  };
+
   const {
     data: formData,
     errors,
@@ -31,19 +55,11 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     handleBlur,
     validateForm: validateFormData,
     setData
-  } = useValidation(initialData, {
-    ...validationSchemas.user,
-    confirmPassword: {
-      required: (value) => !value ? 'Confirm password is required' : null,
-      match: (value) => value !== formData.password ? 'Passwords do not match' : null
-    },
-    role: {
-      required: (value) => !value ? 'Role is required' : null
-    }
-  });
+  } = useValidation(initialData, validationSchema);
 
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
+  const [fetchingUser, setFetchingUser] = useState(false);
 
   const roles = [
     { value: 'Admin', label: 'Administrator', description: 'Full system access and user management' },
@@ -53,7 +69,165 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     { value: 'Warehouse Manager', label: 'Warehouse Manager', description: 'Inventory and warehouse operations' }
   ];
 
+  // Fetch full user data when editing
   useEffect(() => {
+    const fetchUserData = async () => {
+      if (user && user._id) {
+        try {
+          setFetchingUser(true);
+          const response = await api.get(API_ENDPOINTS.USERS.GET_BY_ID(user._id));
+          
+          // Debug: log the response to see actual structure
+          console.log('User API Response:', response.data);
+          
+          // Handle different response structures
+          let fullUserData = response.data?.data || response.data?.user || response.data || user;
+          
+          // Convert Mongoose document to plain object if needed
+          if (fullUserData && typeof fullUserData.toObject === 'function') {
+            fullUserData = fullUserData.toObject();
+          }
+          
+          // Handle both phone and mobile fields from API (backend uses 'mobile', routes might use 'phone')
+          const phoneNumber = fullUserData.phone || fullUserData.mobile || user.phone || user.mobile || '';
+          
+          // Handle address - could be string or object
+          let addressValue = '';
+          if (typeof fullUserData.address === 'string') {
+            addressValue = fullUserData.address;
+          } else if (fullUserData.address && typeof fullUserData.address === 'object') {
+            addressValue = fullUserData.address.street || fullUserData.address.address || '';
+          }
+          
+          // Handle city, state, zipCode - could be flat or nested in address
+          // Check multiple possible locations for these fields
+          const cityValue = fullUserData.city 
+            || fullUserData.address?.city 
+            || (typeof fullUserData.address === 'object' && fullUserData.address?.city)
+            || '';
+          const stateValue = fullUserData.state 
+            || fullUserData.address?.state 
+            || (typeof fullUserData.address === 'object' && fullUserData.address?.state)
+            || '';
+          const zipCodeValue = fullUserData.zipCode 
+            || fullUserData.zipcode 
+            || fullUserData.address?.zipCode 
+            || fullUserData.address?.zipcode
+            || (typeof fullUserData.address === 'object' && fullUserData.address?.zipCode)
+            || '';
+          
+          console.log('Full user data from API:', JSON.stringify(fullUserData, null, 2));
+          console.log('Loaded user data fields:', {
+            phone: phoneNumber,
+            city: cityValue,
+            state: stateValue,
+            zipCode: zipCodeValue,
+            address: addressValue,
+            hasCity: !!fullUserData.city,
+            hasState: !!fullUserData.state,
+            hasZipCode: !!fullUserData.zipCode,
+            hasAddress: !!fullUserData.address,
+            addressType: typeof fullUserData.address
+          });
+          
+          setData({
+            firstName: fullUserData.firstName || '',
+            lastName: fullUserData.lastName || '',
+            email: fullUserData.email || '',
+            password: '', // Always empty for security - never populate password
+            confirmPassword: '', // Always empty - password fields should remain empty in edit mode
+            phone: phoneNumber,
+            cnic: fullUserData.cnic || '',
+            address: addressValue,
+            city: cityValue,
+            state: stateValue,
+            zipCode: zipCodeValue,
+            role: fullUserData.role || 'Production Manager',
+            isActive: fullUserData.isActive !== undefined 
+              ? fullUserData.isActive 
+              : (fullUserData.status === 'Active' || fullUserData.status === 'active'),
+            profilePicture: null
+          });
+          
+          if (fullUserData.profilePicture || fullUserData.profileImage) {
+            setImagePreview(fullUserData.profilePicture || fullUserData.profileImage);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          console.error('Error details:', error.response?.data);
+          toast.error('Failed to load user data. Using available data.');
+          
+          // Fallback to user object passed as prop
+          const phoneNumber = user.phone || user.mobile || '';
+          let addressValue = '';
+          if (typeof user.address === 'string') {
+            addressValue = user.address;
+          } else if (user.address && typeof user.address === 'object') {
+            addressValue = user.address.street || user.address.address || '';
+          }
+          const cityValue = user.city || (user.address?.city) || '';
+          const stateValue = user.state || (user.address?.state) || '';
+          const zipCodeValue = user.zipCode || (user.address?.zipCode) || '';
+          
+          setData({
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            email: user.email || '',
+            password: '',
+            confirmPassword: '',
+            phone: phoneNumber,
+            cnic: user.cnic || '',
+            address: addressValue,
+            city: cityValue,
+            state: stateValue,
+            zipCode: zipCodeValue,
+            role: user.role || 'Production Manager',
+            isActive: user.isActive !== undefined ? user.isActive : (user.status === 'Active'),
+            profilePicture: null
+          });
+          
+          if (user.profilePicture || user.profileImage) {
+            setImagePreview(user.profilePicture || user.profileImage);
+          }
+        } finally {
+          setFetchingUser(false);
+        }
+      } else if (user) {
+        // If user object is provided but no ID, use it directly
+        const phoneNumber = user.phone || user.mobile || '';
+        let addressValue = '';
+        if (typeof user.address === 'string') {
+          addressValue = user.address;
+        } else if (user.address && typeof user.address === 'object') {
+          addressValue = user.address.street || user.address.address || '';
+        }
+        const cityValue = user.city || (user.address?.city) || '';
+        const stateValue = user.state || (user.address?.state) || '';
+        const zipCodeValue = user.zipCode || (user.address?.zipCode) || '';
+        
+        setData({
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          email: user.email || '',
+          password: '', // Always empty - password should not be populated for security
+          confirmPassword: '', // Always empty
+          phone: phoneNumber,
+          cnic: user.cnic || '',
+          address: addressValue,
+          city: cityValue,
+          state: stateValue,
+          zipCode: zipCodeValue,
+          role: user.role || 'Production Manager',
+          isActive: user.isActive !== undefined ? user.isActive : (user.status === 'Active'),
+          profilePicture: null
+        });
+        
+        if (user.profilePicture || user.profileImage) {
+          setImagePreview(user.profilePicture || user.profileImage);
+        }
+      }
+    };
+
     // Add ESC key handler
     const handleEscKey = (e) => {
       if (e.key === 'Escape') {
@@ -63,33 +237,13 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     
     document.addEventListener('keydown', handleEscKey);
     
-    if (user) {
-      setData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        password: '',
-        confirmPassword: '',
-        phone: user.phone || '',
-        cnic: user.cnic || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zipCode: user.zipCode || '',
-        role: user.role || 'Employee',
-        isActive: user.isActive !== undefined ? user.isActive : true,
-        profilePicture: null
-      });
-      if (user.profilePicture) {
-        setImagePreview(user.profilePicture);
-      }
-    }
+    fetchUserData();
       
     // Cleanup function
     return () => {
       document.removeEventListener('keydown', handleEscKey);
     };
-  }, [user, onCancel]);
+  }, [user, onCancel, setData]);
 
 
 
@@ -97,7 +251,38 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     e.preventDefault();
 
     const validationResult = validateFormData();
-    if (!validationResult.isValid) {
+    
+    // Custom validation for password matching
+    const customErrors = {};
+    if (formData.password && formData.password.trim() !== '') {
+      // If password is provided, confirmPassword is required
+      if (!formData.confirmPassword || formData.confirmPassword.trim() === '') {
+        customErrors.confirmPassword = 'Please confirm your password';
+      } else if (formData.password !== formData.confirmPassword) {
+        customErrors.confirmPassword = 'Passwords do not match';
+      }
+    } else if (!user && !formData.password) {
+      // For new users, password is required
+      customErrors.password = 'Password is required';
+    }
+    
+    // Merge custom errors
+    const allErrors = { ...validationResult.errors, ...customErrors };
+    if (Object.keys(allErrors).length > 0 || !validationResult.isValid) {
+      // Scroll to first error field
+      const firstErrorKey = Object.keys(allErrors)[0];
+      if (firstErrorKey) {
+        const errorElement = document.querySelector(`[name="${firstErrorKey}"]`);
+        if (errorElement) {
+          setTimeout(() => {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorElement.focus();
+          }, 100);
+        }
+      }
+      if (Object.keys(allErrors).length > 0) {
+        toast.error('Please fix the validation errors');
+      }
       return;
     }
 
@@ -109,13 +294,20 @@ export default function UserForm({ user = null, onCancel, onSave }) {
       // Append all form fields
       Object.keys(formData).forEach(key => {
         if (key === 'profilePicture' && formData[key]) {
-          // backend expects profileImage
-          formDataToSend.append('profileImage', formData[key]);
+          // backend expects profilePicture
+          formDataToSend.append('profilePicture', formData[key]);
         } else if (key === 'phone') {
-          formDataToSend.append('mobile', formData[key]);
+          // Backend expects 'phone' field
+          formDataToSend.append('phone', formData[key]);
         } else if (key === 'isActive') {
-          formDataToSend.append('status', formData[key] ? 'Active' : 'Inactive');
-        } else if (key !== 'profilePicture' && key !== 'confirmPassword') {
+          // Backend might expect status or isActive
+          formDataToSend.append('isActive', formData[key]);
+        } else if (key === 'password') {
+          // Only send password if it's provided (for edit mode)
+          if (formData[key] && formData[key].trim() !== '') {
+            formDataToSend.append('password', formData[key]);
+          }
+        } else if (key !== 'profilePicture' && key !== 'confirmPassword' && key !== 'password') {
           formDataToSend.append(key, formData[key]);
         }
       });
@@ -155,11 +347,11 @@ export default function UserForm({ user = null, onCancel, onSave }) {
     }));
 
     // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+    // Use handleChange from useValidation which handles errors automatically
+    if (type === 'checkbox') {
+      handleChange(name, checked);
+    } else {
+      handleChange(name, value);
     }
   };
 
@@ -192,6 +384,19 @@ export default function UserForm({ user = null, onCancel, onSave }) {
       onCancel();
     }
   };
+
+  if (fetchingUser) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-xl p-8">
+          <div className="flex items-center space-x-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="text-lg font-medium text-gray-700">Loading user data...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm" onClick={handleBackdropClick}>
@@ -306,7 +511,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
                 <input
                   type="tel"
                   name="phone"
-                  value={formData.phone}
+                  value={formData.phone || ''}
                   onChange={handleInputChange}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     errors.phone ? 'border-red-500' : 'border-gray-300'
@@ -395,7 +600,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
                 <input
                   type="text"
                   name="city"
-                  value={formData.city}
+                  value={formData.city || ''}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter city"
@@ -409,7 +614,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
                 <input
                   type="text"
                   name="state"
-                  value={formData.state}
+                  value={formData.state || ''}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter state"
@@ -423,7 +628,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
                 <input
                   type="text"
                   name="zipCode"
-                  value={formData.zipCode}
+                  value={formData.zipCode || ''}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter ZIP code"
@@ -433,54 +638,74 @@ export default function UserForm({ user = null, onCancel, onSave }) {
           </div>
 
           {/* Password Section */}
-          {!user && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
-                <FaIdCard className="mr-2 text-blue-600" />
-                Password
-              </h3>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-800 mb-4 flex items-center">
+              <FaIdCard className="mr-2 text-blue-600" />
+              Password {user ? '(Leave blank to keep current password)' : '*'}
+            </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.password ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Enter password"
-                  />
-                  {errors.password && (
-                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                  )}
-                </div>
+            {user && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> For security reasons, passwords cannot be displayed. 
+                  {user ? ' Enter a new password below to change it, or leave it blank to keep the current password.' : ' Please enter a password.'}
+                </p>
+              </div>
+            )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password *
-                  </label>
-                  <input
-                    type="password"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Confirm password"
-                  />
-                  {errors.confirmPassword && (
-                    <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
-                  )}
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password {!user && '*'}
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password || ''}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.password ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder={user ? "Enter new password (optional)" : "Enter password"}
+                />
+                {errors.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                )}
+                {user && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Leave blank to keep the current password
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirm Password {!user && '*'}
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword || ''}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder={user ? "Confirm new password (optional)" : "Confirm password"}
+                />
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                )}
+                {/* Show custom validation error for password matching */}
+                {formData.password && formData.password.trim() !== '' && 
+                 (!formData.confirmPassword || formData.password !== formData.confirmPassword) &&
+                 touched.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {!formData.confirmPassword ? 'Please confirm your password' : 'Passwords do not match'}
+                  </p>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Status */}
           <div className="flex items-center">

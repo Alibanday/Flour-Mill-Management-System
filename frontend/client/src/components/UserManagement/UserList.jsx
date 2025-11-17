@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaPlus, FaEdit, FaTrash, FaEye, FaEyeSlash, FaDownload, FaRedo } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import UserForm from './UserForm';
@@ -7,6 +8,7 @@ import api, { API_ENDPOINTS } from '../../services/api';
 
 export default function UserList() {
   const { user: currentUser, role, isAdmin, isManager } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -129,6 +131,13 @@ export default function UserList() {
               <div className="text-sm text-gray-600">{u.email} · {u.role}</div>
             </div>
             <div className="space-x-2">
+              <button
+                onClick={() => navigate(`/users/${u._id}`)}
+                className="px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+                title="View details"
+              >
+                <FaEye />
+              </button>
               <button onClick={() => handleEditUser(u)} className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600">
                 <FaEdit />
               </button>
