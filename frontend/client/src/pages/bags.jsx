@@ -20,14 +20,22 @@ export default function BagInventory() {
 
   // Add Bag
   const addBag = () => {
-    if (!newBag.name || !newBag.quantity || !newBag.price) return alert("All fields are required!");
+    if (!newBag.name || !newBag.quantity || !newBag.price || !newBag.category)
+      return alert("All fields are required!");
+
     const bag = {
       id: Date.now(),
       ...newBag,
       quantity: Number(newBag.quantity),
       price: Number(newBag.price),
     };
+
     setBags([...bags, bag]);
+    setNewBag({ name: "", quantity: "", price: "", category: "" });
+  };
+
+  // Clear Form
+  const clearForm = () => {
     setNewBag({ name: "", quantity: "", price: "", category: "" });
   };
 
@@ -59,11 +67,15 @@ export default function BagInventory() {
   // Total inventory value
   const totalValue = bags.reduce((sum, bag) => sum + bag.price * bag.quantity, 0);
 
+  // Total count
+  const totalBags = bags.length;
+
   return (
     <div style={{ padding: "20px" }}>
       <h2>👜 Bag Inventory Management</h2>
 
       <p><b>Total Inventory Value:</b> Rs {totalValue}</p>
+      <p><b>Total Bags:</b> {totalBags}</p>
 
       {/* Search */}
       <input
@@ -106,11 +118,22 @@ export default function BagInventory() {
           value={newBag.price}
           onChange={(e) => setNewBag({ ...newBag, price: e.target.value })} />
 
-        <input type="text" placeholder="Category"
+        <select
           value={newBag.category}
-          onChange={(e) => setNewBag({ ...newBag, category: e.target.value })} />
+          onChange={(e) => setNewBag({ ...newBag, category: e.target.value })}
+        >
+          <option value="">Select Category</option>
+          <option value="Backpack">Backpack</option>
+          <option value="Handbag">Handbag</option>
+          <option value="Shoulder Bag">Shoulder Bag</option>
+        </select>
 
-        <button onClick={addBag}>Add Bag</button>
+        <button disabled={!newBag.name || !newBag.quantity || !newBag.price || !newBag.category}
+          onClick={addBag}>
+          Add Bag
+        </button>
+
+        <button onClick={clearForm} style={{ marginLeft: 10 }}>Clear</button>
       </div>
 
       <hr />
@@ -138,9 +161,9 @@ export default function BagInventory() {
 
               <td>
                 {bag.quantity < 5 ? (
-                  <span style={{ color: "red" }}>Low Stock</span>
+                  <span style={{ color: "white", background: "red", padding: "3px 6px" }}>Low Stock</span>
                 ) : (
-                  <span>OK</span>
+                  <span style={{ color: "white", background: "green", padding: "3px 6px" }}>OK</span>
                 )}
               </td>
 
