@@ -11,7 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 export default function SupplierManagementPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('list');
+  const [activeTab, setActiveTab] = useState('government');
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -278,7 +278,17 @@ export default function SupplierManagementPage() {
       supplier.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || supplier.status === statusFilter;
-    const matchesSupplierType = supplierTypeFilter === 'all' || supplier.supplierType === supplierTypeFilter;
+    
+    // Filter by supplier type based on active tab
+    let matchesSupplierType = true;
+    if (activeTab === 'government') {
+      matchesSupplierType = supplier.supplierType === 'Government';
+    } else if (activeTab === 'private') {
+      matchesSupplierType = supplier.supplierType === 'Private';
+    } else {
+      // For other tabs (outstanding, analytics), use the dropdown filter
+      matchesSupplierType = supplierTypeFilter === 'all' || supplier.supplierType === supplierTypeFilter;
+    }
     
     return matchesSearch && matchesStatus && matchesSupplierType;
   });
@@ -370,7 +380,10 @@ export default function SupplierManagementPage() {
             <ul className="space-y-1">
               <li>
                 <button
-                  onClick={() => setActiveTab('government')}
+                  onClick={() => {
+                    setActiveTab('government');
+                    setSupplierTypeFilter('Government');
+                  }}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === 'government' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
@@ -381,7 +394,10 @@ export default function SupplierManagementPage() {
               </li>
               <li>
                 <button
-                  onClick={() => setActiveTab('private')}
+                  onClick={() => {
+                    setActiveTab('private');
+                    setSupplierTypeFilter('Private');
+                  }}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === 'private' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
@@ -392,7 +408,10 @@ export default function SupplierManagementPage() {
               </li>
               <li>
                 <button
-                  onClick={() => setActiveTab('outstanding')}
+                  onClick={() => {
+                    setActiveTab('outstanding');
+                    setSupplierTypeFilter('all');
+                  }}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === 'outstanding' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
@@ -403,7 +422,10 @@ export default function SupplierManagementPage() {
               </li>
               <li>
                 <button
-                  onClick={() => setActiveTab('analytics')}
+                  onClick={() => {
+                    setActiveTab('analytics');
+                    setSupplierTypeFilter('all');
+                  }}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
                     activeTab === 'analytics' ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
                   }`}
@@ -505,7 +527,17 @@ export default function SupplierManagementPage() {
                     </select>
                     <select
                       value={supplierTypeFilter}
-                      onChange={(e) => setSupplierTypeFilter(e.target.value)}
+                      onChange={(e) => {
+                        setSupplierTypeFilter(e.target.value);
+                        // If user manually changes filter, update the active tab
+                        if (e.target.value === 'Government') {
+                          setActiveTab('government');
+                        } else if (e.target.value === 'Private') {
+                          setActiveTab('private');
+                        } else {
+                          setActiveTab('list');
+                        }
+                      }}
                       className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="all">All Types</option>
@@ -580,6 +612,13 @@ export default function SupplierManagementPage() {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex space-x-2">
+                                <button
+                                  onClick={() => navigate(`/suppliers/${supplier._id}`)}
+                                  className="text-green-600 hover:text-green-900"
+                                  title="View Supplier Details"
+                                >
+                                  <FaEye />
+                                </button>
                                 <button
                                   onClick={() => handleEdit(supplier)}
                                   className="text-blue-600 hover:text-blue-900"
@@ -690,18 +729,18 @@ export default function SupplierManagementPage() {
                             <td className="px-6 py-4">
                               <div className="flex space-x-2">
                                 <button
+                                  onClick={() => navigate(`/suppliers/${supplier._id}`)}
+                                  className="text-green-600 hover:text-green-900"
+                                  title="View Supplier Details"
+                                >
+                                  <FaEye />
+                                </button>
+                                <button
                                   onClick={() => handleEdit(supplier)}
                                   className="text-blue-600 hover:text-blue-900"
                                   title="Edit Supplier"
                                 >
                                   <FaEdit />
-                                </button>
-                                <button
-                                  onClick={() => navigate(`/financial?supplier=${supplier._id}`)}
-                                  className="text-green-600 hover:text-green-900"
-                                  title="View Financial Details"
-                                >
-                                  <FaEye />
                                 </button>
                               </div>
                             </td>

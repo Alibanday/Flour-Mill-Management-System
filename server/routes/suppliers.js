@@ -1,6 +1,9 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import Supplier from "../model/Supplier.js";
+import Purchase from "../model/Purchase.js";
+import BagPurchase from "../model/BagPurchase.js";
+import FoodPurchase from "../model/FoodPurchase.js";
 import { protect, authorize, isAdmin, isManagerOrAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -461,6 +464,92 @@ router.get("/summary", authorize("Admin", "Manager"), async (req, res) => {
         totalOutstanding: totalOutstanding[0]?.total || 0,
         businessTypeCount,
       },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// @desc    Record payment to supplier (reduce outstanding balance)
+// @route   PATCH /api/suppliers/:id/payment
+// @access  Admin, Manager
+router.patch("/:id/payment", authorize("Admin", "Manager"), async (req, res) => {
+  try {
+    const { amount, paymentMethod, notes } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Payment amount must be greater than zero",
+      });
+    }
+
+    const supplier = await Supplier.findById(req.params.id);
+    if (!supplier) {
+      return res.status(404).json({
+        success: false,
+        message: "Supplier not found",
+      });
+    }
+
+    // Calculate actual due amount from all purchases
+    // Get all purchases for this supplier
+    const regularPurchases = await Purchase.find({
+      "supplier.name": supplier.name
+    });
+    const bagPurchases = await BagPurchase.find({
+      supplier: supplier._id
+    });
+    const foodPurchases = await FoodPurchase.find({
+      supplier: supplier._id
+    });
+
+    // Calculate total due
+    const regularDue = regularPurchases.reduce((sum, p) => {
+      const total = parseFloat(p.totalAmount) || 0;
+      const paid = parseFloat(p.paidAmount) || 0;
+      return sum + Math.max(0, total - paid);
+    }, 0);
+
+    const bagDue = bagPurchases.reduce((sum, p) => {
+      const total = parseFloat(p.totalAmount) || 0;
+      const paid = parseFloat(p.paidAmount) || 0;
+      return sum + Math.max(0, total - paid);
+    }, 0);
+
+    const foodDue = foodPurchases.reduce((sum, p) => {
+      const total = parseFloat(p.totalAmount) || 0;
+      const paid = parseFloat(p.paidAmount) || 0;
+      return sum + Math.max(0, total - paid);
+    }, 0);
+
+    const calculatedTotalDue = regularDue + bagDue + foodDue;
+
+    // Use calculated total due for validation, not database outstandingBalance
+    if (amount > calculatedTotalDue) {
+      return res.status(400).json({
+        success: false,
+        message: `Payment amount (${amount}) cannot exceed total due amount (${calculatedTotalDue})`,
+      });
+    }
+
+    // Update outstanding balance
+    await supplier.updateOutstandingBalance(amount, "decrease");
+
+    // Reload supplier with updated data
+    const updatedSupplier = await Supplier.findById(req.params.id)
+      .populate("warehouse", "name location")
+      .populate("createdBy", "name email")
+      .populate("updatedBy", "name email");
+
+    res.json({
+      success: true,
+      data: updatedSupplier,
+      message: `Payment of ${amount} recorded successfully. Outstanding balance updated.`,
     });
   } catch (error) {
     res.status(500).json({

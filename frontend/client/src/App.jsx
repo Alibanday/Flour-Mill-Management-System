@@ -15,6 +15,7 @@ import InventoryPage from './pages/InventoryPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
 import BagFoodPurchasePage from './pages/BagFoodPurchasePage';
 import SupplierManagementPage from './pages/SupplierManagementPage';
+import SupplierDetailPage from './pages/SupplierDetailPage';
 import GatePassPage from './pages/GatePassPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SystemConfigPage from './pages/SystemConfigPage';
@@ -145,6 +146,14 @@ function App() {
               <SupplierManagementPage />
             </GeneralManagerRoute>
           } 
+        />
+        <Route
+          path="/suppliers/:id"
+          element={
+            <GeneralManagerRoute>
+              <SupplierDetailPage />
+            </GeneralManagerRoute>
+          }
         />
         
         {/* Gate Pass System - Admin, General Manager, Production Manager, and Warehouse Manager */}
