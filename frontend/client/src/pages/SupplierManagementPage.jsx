@@ -22,6 +22,8 @@ export default function SupplierManagementPage() {
   const [businessTypeFilter, setBusinessTypeFilter] = useState('all');
   const [supplierTypeFilter, setSupplierTypeFilter] = useState('all');
   const [warehouses, setWarehouses] = useState([]);
+  const [supplierOutstandingBalances, setSupplierOutstandingBalances] = useState({});
+  const [loadingOutstanding, setLoadingOutstanding] = useState(false);
   const [formData, setFormData] = useState({
     supplierCode: '',
     name: '',
@@ -48,6 +50,12 @@ export default function SupplierManagementPage() {
     fetchSuppliers();
     fetchWarehouses();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'outstanding') {
+      calculateOutstandingBalances();
+    }
+  }, [activeTab, suppliers]);
 
   const fetchSuppliers = async () => {
     try {
@@ -329,9 +337,18 @@ export default function SupplierManagementPage() {
     return 'text-green-600';
   };
 
-  const totalOutstanding = suppliers.reduce((sum, supplier) => sum + (supplier.outstandingBalance || 0), 0);
+  // Calculate total outstanding using calculated balances if available, otherwise use database field
+  const totalOutstanding = suppliers.reduce((sum, supplier) => {
+    const calculatedBalance = supplierOutstandingBalances[supplier._id];
+    const balance = calculatedBalance !== undefined ? calculatedBalance : (supplier.outstandingBalance || 0);
+    return sum + balance;
+  }, 0);
   const activeSuppliers = suppliers.filter(s => s.status === 'Active').length;
-  const suppliersWithOutstanding = suppliers.filter(s => (s.outstandingBalance || 0) > 0).length;
+  const suppliersWithOutstanding = suppliers.filter(s => {
+    const calculatedBalance = supplierOutstandingBalances[s._id];
+    const balance = calculatedBalance !== undefined ? calculatedBalance : (s.outstandingBalance || 0);
+    return balance > 0;
+  }).length;
   const governmentSuppliers = suppliers.filter(s => s.supplierType === 'Government').length;
   const privateSuppliers = suppliers.filter(s => s.supplierType === 'Private').length;
 
@@ -676,7 +693,7 @@ export default function SupplierManagementPage() {
             {activeTab === 'outstanding' && (
               <div>
                 <h2 className="text-xl font-semibold mb-4">Outstanding Balances</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div className="bg-red-50 rounded-lg p-4 border border-red-200">
                     <div className="text-2xl font-bold text-red-900">Rs. {(totalOutstanding || 0).toLocaleString()}</div>
                     <div className="text-sm text-red-600">Total Outstanding</div>
@@ -684,12 +701,6 @@ export default function SupplierManagementPage() {
                   <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
                     <div className="text-2xl font-bold text-orange-900">{suppliersWithOutstanding}</div>
                     <div className="text-sm text-orange-600">Suppliers with Outstanding</div>
-                  </div>
-                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                    <div className="text-2xl font-bold text-yellow-900">
-                      {suppliers.filter(s => s.creditLimit > 0 && s.outstandingBalance > s.creditLimit).length}
-                    </div>
-                    <div className="text-sm text-yellow-600">Over Credit Limit</div>
                   </div>
                 </div>
 
@@ -704,9 +715,23 @@ export default function SupplierManagementPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {suppliers
-                        .filter(s => (s.outstandingBalance || 0) > 0)
-                        .sort((a, b) => (b.outstandingBalance || 0) - (a.outstandingBalance || 0))
+                      {loadingOutstanding ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-4 text-center">
+                            <div className="flex items-center justify-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                              <span className="text-gray-600">Calculating outstanding balances...</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : suppliers
+                        .map(supplier => {
+                          const calculatedBalance = supplierOutstandingBalances[supplier._id];
+                          const balance = calculatedBalance !== undefined ? calculatedBalance : (supplier.outstandingBalance || 0);
+                          return { ...supplier, calculatedOutstanding: balance };
+                        })
+                        .filter(s => s.calculatedOutstanding > 0)
+                        .sort((a, b) => b.calculatedOutstanding - a.calculatedOutstanding)
                         .map((supplier) => (
                           <tr key={supplier._id} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
@@ -717,8 +742,8 @@ export default function SupplierManagementPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className={`text-sm font-medium ${getOutstandingColor(supplier.outstandingBalance, 0)}`}>
-                                Rs. {(supplier.outstandingBalance || 0).toLocaleString()}
+                              <div className={`text-sm font-medium ${getOutstandingColor(supplier.calculatedOutstanding, 0)}`}>
+                                Rs. {(supplier.calculatedOutstanding || 0).toLocaleString()}
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -749,6 +774,21 @@ export default function SupplierManagementPage() {
                     </tbody>
                   </table>
                 </div>
+                {!loadingOutstanding && suppliers.filter(s => {
+                  const calculatedBalance = supplierOutstandingBalances[s._id];
+                  const balance = calculatedBalance !== undefined ? calculatedBalance : (s.outstandingBalance || 0);
+                  return balance > 0;
+                }).length === 0 && (
+                  <div className="text-center py-12">
+                    <FaExclamationTriangle className="mx-auto text-6xl text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No Outstanding Balances
+                    </h3>
+                    <p className="text-gray-500">
+                      All suppliers are up to date with their payments.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

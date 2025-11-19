@@ -537,6 +537,61 @@ router.patch("/:id/payment", authorize("Admin", "Manager"), async (req, res) => 
       });
     }
 
+    // Apply payment to purchases (oldest first)
+    let remainingPayment = amount;
+
+    // Sort purchases by date (oldest first) to apply payment chronologically
+    const allPurchasesWithDue = [
+      ...regularPurchases.map(p => ({ ...p.toObject(), type: 'regular', due: Math.max(0, (parseFloat(p.totalAmount) || 0) - (parseFloat(p.paidAmount) || 0)) })),
+      ...bagPurchases.map(p => ({ ...p.toObject(), type: 'bag', due: Math.max(0, (parseFloat(p.totalAmount) || 0) - (parseFloat(p.paidAmount) || 0)) })),
+      ...foodPurchases.map(p => ({ ...p.toObject(), type: 'food', due: Math.max(0, (parseFloat(p.totalAmount) || 0) - (parseFloat(p.paidAmount) || 0)) }))
+    ]
+      .filter(p => p.due > 0)
+      .sort((a, b) => {
+        const dateA = new Date(a.purchaseDate || a.createdAt || 0);
+        const dateB = new Date(b.purchaseDate || b.createdAt || 0);
+        return dateA - dateB;
+      });
+
+    // Apply payment to each purchase until payment is exhausted
+    for (const purchase of allPurchasesWithDue) {
+      if (remainingPayment <= 0) break;
+
+      const currentDue = purchase.due;
+      const paymentToApply = Math.min(remainingPayment, currentDue);
+      const newPaidAmount = (parseFloat(purchase.paidAmount) || 0) + paymentToApply;
+      const newDueAmount = Math.max(0, (parseFloat(purchase.totalAmount) || 0) - newPaidAmount);
+
+      // Update the purchase record
+      if (purchase.type === 'regular') {
+        await Purchase.findByIdAndUpdate(purchase._id, {
+          $set: {
+            paidAmount: newPaidAmount,
+            remainingAmount: newDueAmount,
+            paymentStatus: newDueAmount === 0 ? 'Paid' : (newPaidAmount > 0 ? 'Partial' : 'Pending')
+          }
+        });
+      } else if (purchase.type === 'bag') {
+        await BagPurchase.findByIdAndUpdate(purchase._id, {
+          $set: {
+            paidAmount: newPaidAmount,
+            dueAmount: newDueAmount,
+            paymentStatus: newDueAmount === 0 ? 'Paid' : (newPaidAmount > 0 ? 'Partial' : 'Pending')
+          }
+        });
+      } else if (purchase.type === 'food') {
+        await FoodPurchase.findByIdAndUpdate(purchase._id, {
+          $set: {
+            paidAmount: newPaidAmount,
+            dueAmount: newDueAmount,
+            paymentStatus: newDueAmount === 0 ? 'Paid' : (newPaidAmount > 0 ? 'Partial' : 'Pending')
+          }
+        });
+      }
+
+      remainingPayment -= paymentToApply;
+    }
+
     // Update outstanding balance
     await supplier.updateOutstandingBalance(amount, "decrease");
 
@@ -549,7 +604,7 @@ router.patch("/:id/payment", authorize("Admin", "Manager"), async (req, res) => 
     res.json({
       success: true,
       data: updatedSupplier,
-      message: `Payment of ${amount} recorded successfully. Outstanding balance updated.`,
+      message: `Payment of ${amount} recorded successfully. Outstanding balance and purchase records updated.`,
     });
   } catch (error) {
     res.status(500).json({

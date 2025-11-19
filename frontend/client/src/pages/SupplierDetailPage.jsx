@@ -18,8 +18,11 @@ import {
   FaWarehouse,
   FaStar,
   FaExclamationTriangle,
-  FaCheckCircle
+  FaCheckCircle,
+  FaPrint
 } from 'react-icons/fa';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import { useAuth } from '../hooks/useAuth';
 
 const formatCurrency = (value) => {
@@ -228,6 +231,150 @@ export default function SupplierDetailPage() {
   // Use calculated totalDue as the source of truth
   const outstandingBalance = totalDue;
 
+  const printPaymentReceipt = (paymentData) => {
+    if (!supplier) return;
+
+    try {
+      const doc = new jsPDF();
+      
+      // Company Header
+      doc.setFontSize(20);
+      doc.text('FLOUR MILL MANAGEMENT SYSTEM', 105, 20, { align: 'center' });
+      doc.setFontSize(16);
+      doc.text('PAYMENT RECEIPT', 105, 30, { align: 'center' });
+      
+      // Receipt Details
+      doc.setFontSize(10);
+      const receiptNumber = `REC-${Date.now().toString().slice(-8)}`;
+      doc.text(`Receipt #: ${receiptNumber}`, 20, 45);
+      doc.text(`Date: ${new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`, 20, 52);
+      
+      // Supplier Details
+      doc.setFontSize(12);
+      doc.text('Paid To:', 20, 65);
+      doc.setFontSize(10);
+      doc.text(`Supplier: ${formatValue(supplier.name)}`, 20, 72);
+      doc.text(`Code: ${supplier.supplierCode || 'N/A'}`, 20, 79);
+      if (supplier.contactPerson) {
+        doc.text(`Contact Person: ${formatValue(supplier.contactPerson)}`, 20, 86);
+      }
+      if (supplier.phone) {
+        doc.text(`Phone: ${formatValue(supplier.phone)}`, 20, 93);
+      }
+      if (supplier.email) {
+        doc.text(`Email: ${formatValue(supplier.email)}`, 20, 100);
+      }
+      if (supplier.address) {
+        const addressStr = formatAddress(supplier.address);
+        const addressLines = doc.splitTextToSize(`Address: ${addressStr}`, 170);
+        doc.text(addressLines, 20, 107);
+      }
+      
+      // Payment Details
+      let startY = supplier.address ? 120 : 107;
+      doc.setFontSize(12);
+      doc.text('Payment Details:', 20, startY);
+      doc.setFontSize(10);
+      
+      // Outstanding balance before payment
+      const balanceBefore = outstandingBalance;
+      doc.text(`Outstanding Balance (Before): ${formatCurrency(balanceBefore)}`, 20, startY + 7);
+      
+      // Payment amount
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Payment Amount: ${formatCurrency(paymentData.amount)}`, 20, startY + 16);
+      
+      // Outstanding balance after payment
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      const balanceAfter = Math.max(0, balanceBefore - paymentData.amount);
+      doc.text(`Outstanding Balance (After): ${formatCurrency(balanceAfter)}`, 20, startY + 23);
+      
+      // Payment method
+      if (paymentData.paymentMethod) {
+        doc.text(`Payment Method: ${paymentData.paymentMethod}`, 20, startY + 30);
+      }
+      
+      // Summary Table (manual creation to avoid autotable dependency issues)
+      const tableStartY = startY + 40;
+      const tableData = [
+        { desc: 'Outstanding Balance (Before Payment)', amount: formatCurrency(balanceBefore) },
+        { desc: 'Payment Amount', amount: formatCurrency(paymentData.amount) },
+        { desc: 'Outstanding Balance (After Payment)', amount: formatCurrency(balanceAfter) }
+      ];
+      
+      // Table header
+      doc.setFillColor(66, 139, 202);
+      doc.rect(20, tableStartY, 170, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont(undefined, 'bold');
+      doc.text('Description', 25, tableStartY + 6);
+      doc.text('Amount', 170, tableStartY + 6, { align: 'right' });
+      
+      // Table rows
+      doc.setTextColor(0, 0, 0);
+      doc.setFont(undefined, 'normal');
+      let currentY = tableStartY + 8;
+      tableData.forEach((row, index) => {
+        // Draw row border
+        doc.setDrawColor(200, 200, 200);
+        doc.line(20, currentY, 190, currentY);
+        
+        // Alternate row color
+        if (index % 2 === 0) {
+          doc.setFillColor(245, 245, 245);
+          doc.rect(20, currentY, 170, 8, 'F');
+        }
+        
+        // Row text
+        doc.text(row.desc, 25, currentY + 6);
+        doc.setFont(undefined, index === 1 ? 'bold' : 'normal'); // Bold for payment amount
+        doc.text(row.amount, 170, currentY + 6, { align: 'right' });
+        doc.setFont(undefined, 'normal');
+        currentY += 8;
+      });
+      
+      // Bottom border
+      doc.line(20, currentY, 190, currentY);
+      
+      const finalTableY = currentY;
+      
+      // Notes
+      let footerY = finalTableY + 10;
+      if (paymentData.notes) {
+        doc.setFontSize(10);
+        doc.text('Notes:', 20, footerY);
+        const notesLines = doc.splitTextToSize(paymentData.notes, 170);
+        doc.text(notesLines, 20, footerY + 7);
+        footerY += 15;
+      }
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.text('This is a computer-generated receipt.', 105, footerY, { align: 'center' });
+      doc.text('Thank you for your payment!', 105, footerY + 7, { align: 'center' });
+      
+      // Save and open
+      const fileName = `Payment-Receipt-${supplier.supplierCode || supplier._id}-${Date.now()}.pdf`;
+      doc.save(fileName);
+      
+      // Also open in new window for printing
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+    } catch (error) {
+      console.error('Error generating receipt:', error);
+      alert('Error generating receipt PDF: ' + error.message);
+    }
+  };
+
   const handleRecordPayment = async (event) => {
     event.preventDefault();
     setPaymentError(null);
@@ -267,8 +414,21 @@ export default function SupplierDetailPage() {
         setSupplier(result.data);
       }
 
+      // Store payment data for receipt
+      const paymentData = {
+        amount: amountValue,
+        paymentMethod: 'Cash', // Default, can be enhanced later
+        notes: `Payment recorded on ${new Date().toLocaleString()}`
+      };
+
       setPaymentAmount('');
       setPaymentSuccess('Payment recorded successfully. Outstanding balance updated.');
+      
+      // Generate and print receipt
+      setTimeout(() => {
+        printPaymentReceipt(paymentData);
+      }, 500);
+      
       await loadSupplierData();
     } catch (paymentErr) {
       console.error('❌ Error recording payment:', paymentErr);
@@ -663,8 +823,8 @@ export default function SupplierDetailPage() {
                         </>
                       ) : (
                         <>
-                          <FaMoneyBillWave className="mr-2" />
-                          Record Payment
+                          <FaPrint className="mr-2" />
+                          Record Payment & Print Receipt
                         </>
                       )}
                     </button>
