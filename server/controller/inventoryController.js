@@ -814,6 +814,151 @@ export const getLowStockAlerts = async (req, res) => {
   }
 };
 
+// Get comprehensive stock dashboard - aggregates all warehouses
+export const getStockDashboard = async (req, res) => {
+  try {
+    const Warehouse = (await import('../model/wareHouse.js')).default;
+    
+    // Get all inventory items with warehouse
+    const warehouseFilter = {
+      warehouse: { $exists: true, $ne: null }
+    };
+    
+    // Apply warehouse scoping for Warehouse Manager
+    if (req.user?.role === 'Warehouse Manager') {
+      const managedWarehouses = await Warehouse.find({ manager: req.user._id }).select('_id');
+      const warehouseIds = managedWarehouses.map(w => w._id);
+      if (warehouseIds.length > 0) {
+        warehouseFilter.warehouse = { $in: warehouseIds };
+      } else {
+        return res.json({
+          success: true,
+          data: {
+            totalWheat: 0,
+            totalBags: { ata: 0, maida: 0, suji: 0, fine: 0, total: 0 },
+            totalValue: 0,
+            warehouses: []
+          }
+        });
+      }
+    }
+    
+    // Get all inventory items with populated warehouse and product
+    const inventoryItems = await Inventory.find(warehouseFilter)
+      .populate('warehouse', 'name warehouseNumber')
+      .populate('product', 'name code category price purchasePrice')
+      .select('name category currentStock weight price product warehouse');
+    
+    // Aggregate data
+    let totalWheat = 0; // Raw materials (wheat)
+    const totalBags = {
+      ata: 0,
+      maida: 0,
+      suji: 0,
+      fine: 0,
+      total: 0
+    };
+    let totalValue = 0;
+    const warehouses = {};
+    
+    inventoryItems.forEach(item => {
+      const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+      const itemName = (item.name || item.product?.name || '').toLowerCase();
+      const category = (item.category || item.product?.category || '').toLowerCase();
+      const price = item.product?.price || item.product?.purchasePrice || item.price || 0;
+      const warehouseId = item.warehouse?._id?.toString();
+      const warehouseName = item.warehouse?.name || 'Unknown';
+      
+      // Calculate value
+      const itemValue = stock * price;
+      totalValue += itemValue;
+      
+      // Initialize warehouse if not exists
+      if (warehouseId && !warehouses[warehouseId]) {
+        warehouses[warehouseId] = {
+          _id: warehouseId,
+          name: warehouseName,
+          warehouseNumber: item.warehouse?.warehouseNumber || '',
+          wheat: 0,
+          bags: { ata: 0, maida: 0, suji: 0, fine: 0, total: 0 },
+          value: 0
+        };
+      }
+      
+      // Categorize items
+      if (category.includes('wheat') || itemName.includes('wheat')) {
+        // Raw material (wheat)
+        totalWheat += stock;
+        if (warehouses[warehouseId]) {
+          warehouses[warehouseId].wheat += stock;
+        }
+      } else if (category.includes('finished goods') || category.includes('packaging')) {
+        // Finished goods (bags)
+        if (itemName.includes('ata') || itemName.includes('atta')) {
+          totalBags.ata += stock;
+          totalBags.total += stock;
+          if (warehouses[warehouseId]) {
+            warehouses[warehouseId].bags.ata += stock;
+            warehouses[warehouseId].bags.total += stock;
+          }
+        } else if (itemName.includes('maida')) {
+          totalBags.maida += stock;
+          totalBags.total += stock;
+          if (warehouses[warehouseId]) {
+            warehouses[warehouseId].bags.maida += stock;
+            warehouses[warehouseId].bags.total += stock;
+          }
+        } else if (itemName.includes('suji') || itemName.includes('sooji')) {
+          totalBags.suji += stock;
+          totalBags.total += stock;
+          if (warehouses[warehouseId]) {
+            warehouses[warehouseId].bags.suji += stock;
+            warehouses[warehouseId].bags.total += stock;
+          }
+        } else if (itemName.includes('fine')) {
+          totalBags.fine += stock;
+          totalBags.total += stock;
+          if (warehouses[warehouseId]) {
+            warehouses[warehouseId].bags.fine += stock;
+            warehouses[warehouseId].bags.total += stock;
+          }
+        }
+      }
+      
+      // Add value to warehouse
+      if (warehouses[warehouseId]) {
+        warehouses[warehouseId].value += itemValue;
+      }
+    });
+    
+    // Convert warehouses object to array
+    const warehousesArray = Object.values(warehouses);
+    
+    res.json({
+      success: true,
+      data: {
+        totalWheat,
+        totalBags,
+        totalValue,
+        warehouses: warehousesArray,
+        summary: {
+          totalRawMaterials: totalWheat,
+          totalFinishedGoods: totalBags.total,
+          totalInventoryValue: totalValue,
+          totalWarehouses: warehousesArray.length
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Get stock dashboard error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching stock dashboard data",
+      error: error.message
+    });
+  }
+};
+
 // Add weight to existing inventory item
 export const addStockToExisting = async (req, res) => {
   try {

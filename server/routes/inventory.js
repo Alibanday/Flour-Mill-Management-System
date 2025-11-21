@@ -16,7 +16,8 @@ import {
   getLowStockAlerts,
   addStockToExisting,
   findExistingItem,
-  updateInventoryStock
+  updateInventoryStock,
+  getStockDashboard
 } from "../controller/inventoryController.js";
 import { protect, authorize } from "../middleware/auth.js";
 
@@ -67,6 +68,9 @@ router.get("/out-of-stock", getOutOfStockItems);
 
 // Get inventory summary for dashboard
 router.get("/summary", getInventorySummary);
+
+// Get stock dashboard (aggregated from all warehouses)
+router.get("/dashboard", getStockDashboard);
 
 // Find existing inventory item by name and warehouse (must be before /:id route)
 router.get("/find-existing", protect, findExistingItem);

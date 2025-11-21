@@ -103,6 +103,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id) => `http://localhost:7000/api/inventory/${id}`,
     DELETE: (id) => `http://localhost:7000/api/inventory/${id}`,
     SUMMARY: 'http://localhost:7000/api/inventory/summary',
+    DASHBOARD: 'http://localhost:7000/api/inventory/dashboard',
     LOW_STOCK: 'http://localhost:7000/api/inventory/low-stock',
     FIND_EXISTING: 'http://localhost:7000/api/inventory/find-existing',
     ADD_STOCK: (id) => `http://localhost:7000/api/inventory/${id}/add-stock`,

@@ -376,6 +376,34 @@ router.post("/", [
             });
 
             await stockIn.save();
+            
+            // Step 5: Explicitly update Inventory.currentStock (backup to middleware)
+            // Stock middleware should update this, but we do it explicitly to ensure it happens
+            const updatedInventory = await Inventory.findById(inventoryItem._id);
+            if (updatedInventory) {
+              // Initialize currentStock if undefined
+              if (updatedInventory.currentStock === undefined || updatedInventory.currentStock === null) {
+                updatedInventory.currentStock = 0;
+              }
+              // Add the quantity
+              updatedInventory.currentStock = (updatedInventory.currentStock || 0) + bagData.quantity;
+              
+              // Update status based on stock level
+              if (updatedInventory.currentStock === 0) {
+                updatedInventory.status = "Out of Stock";
+              } else if (updatedInventory.minimumStock && updatedInventory.currentStock <= updatedInventory.minimumStock) {
+                updatedInventory.status = "Low Stock";
+              } else {
+                updatedInventory.status = "Active";
+              }
+              
+              updatedInventory.lastUpdated = new Date();
+              await updatedInventory.save();
+              console.log(`✅ Updated inventory.currentStock to ${updatedInventory.currentStock} for ${product.name}`);
+            } else {
+              console.warn(`⚠️ Inventory item ${inventoryItem._id} not found after stock movement`);
+            }
+            
             console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${product.name} (${weight}kg) to warehouse`);
           } catch (itemError) {
             console.error(`❌ Error processing item ${productName}:`, itemError);

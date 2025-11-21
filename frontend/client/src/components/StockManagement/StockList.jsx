@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaSearch, FaFilter, FaEdit, FaTrash, FaEye, FaDownload, FaPlus, FaTimes, FaSync, FaBoxes } from "react-icons/fa";
+import { FaSearch, FaFilter, FaEdit, FaTrash, FaEye, FaDownload, FaTimes, FaSync, FaBoxes } from "react-icons/fa";
 import api, { API_ENDPOINTS } from "../../services/api";
 
 export default function StockList({ stocks, onStockUpdate }) {
@@ -140,10 +140,6 @@ export default function StockList({ stocks, onStockUpdate }) {
           >
             <FaSync className="mr-2" />
             Refresh
-          </button>
-          <button className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            <FaPlus className="mr-2" />
-            Add Stock
           </button>
           <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
             <FaDownload className="mr-2" />

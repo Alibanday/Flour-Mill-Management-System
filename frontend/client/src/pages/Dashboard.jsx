@@ -46,14 +46,12 @@ export default function Dashboard() {
   const capabilityFallback = t('dashboard.capabilities.default');
 
   const quickActionTranslationMap = {
-    "Accounts": "dashboard.quickActions.accounts",
-    "Financial Management": "dashboard.quickActions.financialManagement",
     "Production": "dashboard.quickActions.production",
     "Sales": "dashboard.quickActions.sales",
     "Warehouse": "dashboard.quickActions.warehouse",
     "Warehouse Dashboard": "dashboard.quickActions.warehouseDashboard",
     "Stock": "dashboard.quickActions.stock",
-    "Employees": "dashboard.quickActions.employees"
+    "Bag & Food Purchase": "navigation.bagFoodPurchase"
   };
 
   // Redirect warehouse managers to their own dashboard
@@ -72,50 +70,7 @@ export default function Dashboard() {
 
   // Role-based masters menu
   const getMastersMenu = () => {
-    const baseMenu = [
-      {
-        key: 'ledger',
-        translationKey: 'dashboard.masters.ledger',
-        icon: <FaBook className="mr-3" />,
-        roles: ['Admin', 'General Manager'],
-        action: () => console.log('Ledger clicked')
-      },
-      {
-        key: 'bags',
-        translationKey: 'dashboard.masters.bags',
-        icon: <FaShoppingBag className="mr-3" />,
-        roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
-        action: () => console.log('Bags clicked')
-      },
-      {
-        key: 'foodPurchase',
-        translationKey: 'dashboard.masters.foodPurchase',
-        icon: <FaIndustry className="mr-3" />,
-        roles: ['Admin', 'General Manager'],
-        action: () => console.log('Food Purchase clicked')
-      },
-      {
-        key: 'privatePurchase',
-        translationKey: 'dashboard.masters.privatePurchase',
-        icon: <FaCashRegister className="mr-3" />,
-        roles: ['Admin', 'General Manager'],
-        action: () => console.log('Private Purchase clicked')
-      },
-      {
-        key: 'transactions',
-        translationKey: 'dashboard.masters.transactions',
-        icon: <FaBook className="mr-3" />,
-        roles: ['Admin', 'General Manager'],
-        action: () => console.log('Transactions clicked')
-      },
-      {
-        key: 'help',
-        translationKey: 'dashboard.masters.help',
-        icon: <FaCog className="mr-3" />,
-        roles: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
-        action: () => console.log('Help clicked')
-      },
-    ];
+    const baseMenu = [];
 
     const filteredMenu = baseMenu.filter(item => item.roles.includes(role));
 
@@ -129,22 +84,6 @@ export default function Dashboard() {
   // Role-based function buttons (only unique items not in sidebar)
   const getFunctionButtons = () => {
     const allButtons = [
-      { 
-        name: "Accounts", 
-        shortcut: "F2", 
-        icon: <FaFolderOpen />, 
-        action: () => navigate("/AccountsPage"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-blue-100 text-blue-600"
-      },
-      { 
-        name: "Financial Management", 
-        shortcut: "F3", 
-        icon: <FaChartLine />, 
-        action: () => navigate("/financial"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-emerald-100 text-emerald-600"
-      },
       { 
         name: "Production", 
         shortcut: "F7", 
@@ -186,12 +125,12 @@ export default function Dashboard() {
         color: "bg-teal-100 text-teal-600"
       },
       { 
-        name: "Employees", 
-        shortcut: "F12", 
-        icon: <FaUsers />, 
-        action: () => navigate("/employees"),
-        roles: ['Admin', 'General Manager'],
-        color: "bg-pink-100 text-pink-600"
+        name: "Bag & Food Purchase", 
+        shortcut: "F10", 
+        icon: <FaShoppingBag />, 
+        action: () => navigate("/bag-food-purchase"),
+        roles: ['Admin', 'General Manager', 'Production Manager', 'Warehouse Manager'],
+        color: "bg-yellow-100 text-yellow-600"
       },
     ];
 
@@ -315,32 +254,6 @@ export default function Dashboard() {
           <div className="p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('navigation.mainMenu')}</h3>
             <ul className="space-y-1">
-              {/* User Management - Admin and Manager only */}
-              {canSeeUserManagement && (
-                <li>
-                  <button
-                    onClick={() => navigate("/users")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaUserShield className="mr-3" />
-                    {t('navigation.userManagement')}
-                  </button>
-                </li>
-              )}
-
-              {/* Supplier Management - Admin and Manager only */}
-              {canSeeSupplierManagement && (
-                <li>
-                  <button
-                    onClick={() => navigate("/suppliers")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaUsers className="mr-3" />
-                    {t('navigation.supplierManagement')}
-                  </button>
-                </li>
-              )}
-
               {/* Gate Pass System - All roles */}
               {canAccessGatePass && (
               <li>
@@ -354,41 +267,15 @@ export default function Dashboard() {
               </li>
               )}
 
-              {/* Bag & Food Purchase Management - Admin, Manager */}
-              {canAccessBagFoodPurchase && (
-              <li>
-                <button
-                  onClick={() => navigate("/bag-food-purchase")}
-                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                >
-                  <FaShoppingBag className="mr-3" />
-                  {t('navigation.bagFoodPurchase')}
-                </button>
-              </li>
-              )}
-
-              {/* Reports Module - Admin and Manager only */}
-              {canSeeReports && (
+              {/* Financial Management - Admin and General Manager only */}
+              {(isAdmin() || isGeneralManager()) && (
                 <li>
                   <button
-                    onClick={() => navigate("/reports")}
+                    onClick={() => navigate("/financial")}
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
                     <FaChartLine className="mr-3" />
-                    {t('navigation.reportsModule')}
-                  </button>
-                </li>
-              )}
-
-              {/* Notifications & Utilities - Admin and Manager only */}
-              {canSeeNotifications && (
-                <li>
-                  <button
-                    onClick={() => navigate("/notifications")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaBell className="mr-3" />
-                    {t('navigation.notificationsUtilities')}
+                    {t('dashboard.quickActions.financialManagement')}
                   </button>
                 </li>
               )}
@@ -428,6 +315,32 @@ export default function Dashboard() {
                   </button>
                 </li>
               )}
+
+              {/* Supplier Management - Admin and Manager only */}
+              {canSeeSupplierManagement && (
+                <li>
+                  <button
+                    onClick={() => navigate("/suppliers")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                  >
+                    <FaUsers className="mr-3" />
+                    {t('navigation.supplierManagement')}
+                  </button>
+                </li>
+              )}
+
+              {/* Employees - Admin and General Manager only */}
+              {(isAdmin() || isGeneralManager()) && (
+                <li>
+                  <button
+                    onClick={() => navigate("/employees")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                  >
+                    <FaUsers className="mr-3" />
+                    {t('dashboard.quickActions.employees')}
+                  </button>
+                </li>
+              )}
               
               {mastersMenu.map((item, index) => (
                 <li key={index}>
@@ -444,6 +357,19 @@ export default function Dashboard() {
                   </button>
                 </li>
               ))}
+
+              {/* User Management - Admin and Manager only - Last */}
+              {canSeeUserManagement && (
+                <li>
+                  <button
+                    onClick={() => navigate("/users")}
+                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                  >
+                    <FaUserShield className="mr-3" />
+                    {t('navigation.userManagement')}
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
         </aside>
@@ -460,6 +386,34 @@ export default function Dashboard() {
               {`${t('dashboard.messages.accessIntro')} ${functionButtons.length} ${t('dashboard.messages.modulesWord')} ${t('dashboard.messages.basedOn')} ${translatedRoleName} ${t('dashboard.messages.roleWord')}.`}
             </p>
           </div>
+
+          {/* Notifications & Utilities - Above Stats */}
+          {canSeeNotifications && (
+            <div className="flex justify-end mb-4 w-full">
+              <button
+                onClick={() => navigate("/notifications")}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white rounded-lg shadow-sm hover:shadow-md hover:text-blue-600 hover:bg-blue-50 border border-gray-200 transition-all"
+              >
+                <FaBell className="text-lg" />
+                <span>{t('navigation.notificationsUtilities')}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Role-based Stats Overview */}
+          {stats.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 w-full">
+              {stats.map((stat, index) => (
+                <DashboardCard 
+                  key={index}
+                  title={stat.title} 
+                  value={stat.value} 
+                  icon={stat.icon}
+                  trend={stat.trend}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 mb-6 w-full">
@@ -483,66 +437,31 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* Role-based Stats Overview */}
-          {stats.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 w-full">
-              {stats.map((stat, index) => (
-                <DashboardCard 
-                  key={index}
-                  title={stat.title} 
-                  value={stat.value} 
-                  icon={stat.icon}
-                  trend={stat.trend}
-                />
-              ))}
+          {/* Reports Module - Prominent Button */}
+          {canSeeReports && (
+            <div className="mb-6 w-full">
+              <button
+                onClick={() => navigate("/reports")}
+                className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:from-blue-700 hover:to-indigo-700 transform hover:scale-[1.01]"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-white bg-opacity-20 rounded-full backdrop-blur-sm">
+                    <FaChartLine className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-lg font-bold">{t('navigation.reportsModule')}</h3>
+                    <p className="text-sm text-blue-100 mt-1">View detailed reports and analytics</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2 text-sm font-medium">
+                  <span>View Reports</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
             </div>
           )}
-
-          {/* Role-specific Information */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Role Capabilities */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                <FaUserShield className="h-5 w-5 mr-2 text-blue-600" />
-                {t('dashboard.sections.roleCapabilities')}
-              </h3>
-              <div className="space-y-2">
-                {roleCapabilities.length > 0 ? (
-                  roleCapabilities.map((capability, index) => (
-                    <p key={index} className="text-sm text-gray-600">✓ {capability}</p>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500">{capabilityFallback}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Actions Summary */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                <FaCog className="h-5 w-5 mr-2 text-green-600" />
-                {t('dashboard.sections.availableActions')}
-              </h3>
-              <div className="space-y-2">
-                {functionButtons.slice(0, 4).map((button, index) => {
-                  const translationKey = quickActionTranslationMap[button.name];
-                  const buttonLabel = translationKey ? t(translationKey) : button.name;
-
-                  return (
-                    <p key={index} className="text-sm text-gray-600 flex items-center">
-                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                      {buttonLabel} ({button.shortcut})
-                    </p>
-                  );
-                })}
-                {functionButtons.length > 4 && (
-                  <p className="text-sm text-gray-500 italic">
-                    {`${t('dashboard.sections.moreActionsPrefix')}${functionButtons.length - 4} ${t('dashboard.sections.moreActionsSuffix')}`}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
         </main>
       </div>
 
