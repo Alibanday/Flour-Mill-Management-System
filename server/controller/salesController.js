@@ -6,6 +6,7 @@ import Notification from "../model/Notification.js";
 import CustomerNew from "../model/CustomerNew.js";
 import GatePass from "../model/GatePass.js";
 import User from "../model/user.js";
+import { createSaleTransaction } from "../utils/financialUtils.js";
 
 // Create sale with real-time inventory integration
 export const createSale = async (req, res) => {
@@ -276,6 +277,20 @@ export const createSale = async (req, res) => {
       
       await sale.save();
       console.log('Sale saved successfully:', sale.invoiceNumber);
+      
+      // Create financial transaction for this sale
+      try {
+        const financialTransactions = await createSaleTransaction({
+          sale,
+          warehouse,
+          createdBy: req.user._id || req.user.id
+        });
+        console.log(`✅ Created ${financialTransactions.length} financial transaction(s) for sale ${sale.invoiceNumber}`);
+      } catch (financialError) {
+        // Log error but don't fail the sale creation
+        console.error('❌ Error creating financial transaction for sale:', financialError);
+        console.error('Financial error details:', financialError.message);
+      }
     } catch (saveError) {
       console.error('Error saving sale:', saveError);
       console.error('Save error details:', {

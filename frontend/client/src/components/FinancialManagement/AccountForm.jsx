@@ -3,14 +3,12 @@ import { FaSave, FaTimes, FaCalculator, FaBuilding } from 'react-icons/fa';
 
 export default function AccountForm({ editData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    accountNumber: '',
     accountName: '',
     accountType: 'Asset',
     category: 'Cash',
     description: '',
     openingBalance: 0,
-    currency: 'Rs.',
-    status: 'Active'
+    currency: 'PKR'
   });
 
   const [errors, setErrors] = useState({});
@@ -19,14 +17,12 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
   useEffect(() => {
     if (editData) {
       setFormData({
-        accountNumber: editData.accountNumber || '',
         accountName: editData.accountName || '',
         accountType: editData.accountType || 'Asset',
         category: editData.category || 'Cash',
         description: editData.description || '',
         openingBalance: editData.openingBalance || 0,
-        currency: editData.currency || 'Rs.',
-        status: editData.status || 'Active'
+        currency: editData.currency || 'PKR'
       });
     }
   }, [editData]);
@@ -47,9 +43,6 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.accountNumber.trim()) {
-      newErrors.accountNumber = 'Account number is required';
-    }
     if (!formData.accountName.trim()) {
       newErrors.accountName = 'Account name is required';
     }
@@ -124,44 +117,23 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Account Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Number *
-              </label>
-              <input
-                type="text"
-                name="accountNumber"
-                value={formData.accountNumber}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.accountNumber ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="ACC-001"
-              />
-              {errors.accountNumber && (
-                <p className="mt-1 text-sm text-red-600">{errors.accountNumber}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Name *
-              </label>
-              <input
-                type="text"
-                name="accountName"
-                value={formData.accountName}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.accountName ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="Cash Account"
-              />
-              {errors.accountName && (
-                <p className="mt-1 text-sm text-red-600">{errors.accountName}</p>
-              )}
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Account Name *
+            </label>
+            <input
+              type="text"
+              name="accountName"
+              value={formData.accountName}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.accountName ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Cash Account"
+            />
+            {errors.accountName && (
+              <p className="mt-1 text-sm text-red-600">{errors.accountName}</p>
+            )}
           </div>
 
           {/* Account Type and Category */}
@@ -236,25 +208,7 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="Rs.">Rs. (Rupees)</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="PKR">PKR (Rupees)</option>
               </select>
             </div>
           </div>

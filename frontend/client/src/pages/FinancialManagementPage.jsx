@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FaCalculator, FaMoneyBillWave, FaUsers, FaChartLine, FaPlus, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaCalculator, FaChartLine, FaPlus, FaSearch, FaFilter } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import AccountForm from '../components/FinancialManagement/AccountForm';
-import TransactionForm from '../components/FinancialManagement/TransactionForm';
-import SalaryForm from '../components/FinancialManagement/SalaryForm';
 import AccountList from '../components/FinancialManagement/AccountList';
-import TransactionList from '../components/FinancialManagement/TransactionList';
-import SalaryList from '../components/FinancialManagement/SalaryList';
 import FinancialDashboard from '../components/FinancialManagement/FinancialDashboard';
 
 export default function FinancialManagementPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAccountForm, setShowAccountForm] = useState(false);
-  const [showTransactionForm, setShowTransactionForm] = useState(false);
-  const [showSalaryForm, setShowSalaryForm] = useState(false);
   const [editData, setEditData] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +37,6 @@ export default function FinancialManagementPage() {
       case 'account':
         setShowAccountForm(true);
         break;
-      case 'transaction':
-        setShowTransactionForm(true);
-        break;
-      case 'salary':
-        setShowSalaryForm(true);
-        break;
       default:
         break;
     }
@@ -56,8 +44,6 @@ export default function FinancialManagementPage() {
 
   const handleFormClose = () => {
     setShowAccountForm(false);
-    setShowTransactionForm(false);
-    setShowSalaryForm(false);
     setEditData(null);
   };
 
@@ -68,9 +54,7 @@ export default function FinancialManagementPage() {
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: FaChartLine },
-    { id: 'accounts', label: 'Accounts', icon: FaCalculator },
-    { id: 'transactions', label: 'Transactions', icon: FaMoneyBillWave },
-    { id: 'salaries', label: 'Salaries', icon: FaUsers }
+    { id: 'accounts', label: 'Accounts', icon: FaCalculator }
   ];
 
   if (loading) {
@@ -90,7 +74,7 @@ export default function FinancialManagementPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Financial Management</h1>
               <p className="mt-1 text-sm text-gray-500">
-                Manage accounts, transactions, and employee salaries
+                Manage accounts and financial overview
               </p>
             </div>
             <div className="flex space-x-3">
@@ -101,24 +85,6 @@ export default function FinancialManagementPage() {
                 >
                   <FaPlus className="mr-2" />
                   New Account
-                </button>
-              )}
-              {activeTab === 'transactions' && (
-                <button
-                  onClick={() => setShowTransactionForm(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                  <FaPlus className="mr-2" />
-                  New Transaction
-                </button>
-              )}
-              {activeTab === 'salaries' && (
-                <button
-                  onClick={() => setShowSalaryForm(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                >
-                  <FaPlus className="mr-2" />
-                  Process Salary
                 </button>
               )}
             </div>
@@ -165,43 +131,11 @@ export default function FinancialManagementPage() {
             onRefresh={fetchAccounts}
           />
         )}
-        
-        {activeTab === 'transactions' && (
-          <TransactionList 
-            accounts={accounts}
-            onEdit={(data) => handleEdit(data, 'transaction')}
-          />
-        )}
-        
-        {activeTab === 'salaries' && (
-          <SalaryList 
-            accounts={accounts}
-            onEdit={(data) => handleEdit(data, 'salary')}
-          />
-        )}
       </div>
 
       {/* Forms */}
       {showAccountForm && (
         <AccountForm
-          editData={editData}
-          onSubmit={handleFormSubmit}
-          onCancel={handleFormClose}
-        />
-      )}
-
-      {showTransactionForm && (
-        <TransactionForm
-          accounts={accounts}
-          editData={editData}
-          onSubmit={handleFormSubmit}
-          onCancel={handleFormClose}
-        />
-      )}
-
-      {showSalaryForm && (
-        <SalaryForm
-          accounts={accounts}
           editData={editData}
           onSubmit={handleFormSubmit}
           onCancel={handleFormClose}

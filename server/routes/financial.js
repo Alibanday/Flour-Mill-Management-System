@@ -4,7 +4,11 @@ import Account from "../model/Account.js";
 import Transaction from "../model/Transaction.js";
 import Salary from "../model/Salary.js";
 import Employee from "../model/Employee.js";
+import Sale from "../model/Sale.js";
+import Purchase from "../model/Purchase.js";
+import BagPurchase from "../model/BagPurchase.js";
 import { protect, authorize } from "../middleware/auth.js";
+import { initializeDefaultAccounts } from "../utils/financialUtils.js";
 
 const router = express.Router();
 
@@ -66,7 +70,6 @@ router.get("/accounts/:id", protect, async (req, res) => {
 
 // Create new account
 router.post("/accounts", protect, authorize("Admin", "Manager"), [
-  body('accountNumber').notEmpty().withMessage('Account number is required'),
   body('accountName').notEmpty().withMessage('Account name is required'),
   body('accountType').isIn(['Asset', 'Liability', 'Equity', 'Revenue', 'Expense']).withMessage('Invalid account type'),
   body('category').notEmpty().withMessage('Category is required'),
@@ -78,8 +81,32 @@ router.post("/accounts", protect, authorize("Admin", "Manager"), [
       return res.status(400).json({ errors: errors.array() });
     }
     
+    // Auto-generate account number if not provided
+    let accountNumber = req.body.accountNumber;
+    if (!accountNumber) {
+      const count = await Account.countDocuments();
+      const categoryPrefix = (req.body.category || 'ACC').substring(0, 3).toUpperCase();
+      accountNumber = `ACC-${categoryPrefix}-${String(count + 1).padStart(4, '0')}`;
+      
+      // Ensure uniqueness
+      let isUnique = false;
+      let attempts = 0;
+      while (!isUnique && attempts < 10) {
+        const existing = await Account.findOne({ accountNumber });
+        if (!existing) {
+          isUnique = true;
+        } else {
+          const newCount = await Account.countDocuments();
+          accountNumber = `ACC-${categoryPrefix}-${String(newCount + 1).padStart(4, '0')}`;
+          attempts++;
+        }
+      }
+    }
+    
     const account = new Account({
       ...req.body,
+      accountNumber,
+      status: req.body.status || 'Active', // Default to Active if not provided
       createdBy: req.user.id
     });
     
@@ -515,6 +542,192 @@ router.get("/payables-receivables", protect, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Initialize default accounts
+router.post("/initialize-accounts", protect, authorize("Admin", "Manager"), async (req, res) => {
+  try {
+    const accounts = await initializeDefaultAccounts(req.user.id);
+    res.json({
+      success: true,
+      message: "Default accounts initialized successfully",
+      accounts
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Enhanced financial summary with comprehensive stats
+router.get("/dashboard", protect, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    // Date range query
+    let dateQuery = {};
+    if (startDate || endDate) {
+      dateQuery.transactionDate = {};
+      if (startDate) dateQuery.transactionDate.$gte = new Date(startDate);
+      if (endDate) dateQuery.transactionDate.$lte = new Date(endDate);
+    }
+
+    // Account balances
+    const accounts = await Account.find({ status: 'Active' })
+      .select('accountType category currentBalance accountName accountNumber');
+    
+    // Get all transactions for the period
+    const transactions = await Transaction.find(dateQuery)
+      .populate('debitAccount', 'accountNumber accountName category accountType')
+      .populate('creditAccount', 'accountNumber accountName category accountType')
+      .sort({ transactionDate: -1 });
+
+    // Recent transactions (last 10)
+    const recentTransactions = transactions.slice(0, 10);
+
+    // Calculate Cash in Hand (sum of all Cash accounts)
+    const cashAccounts = accounts.filter(acc => acc.category === 'Cash');
+    const cashInHand = cashAccounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+    // Calculate Bank Balance (sum of all Bank accounts)
+    const bankAccounts = accounts.filter(acc => acc.category === 'Bank');
+    const bankBalance = bankAccounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+    // Calculate Accounts Receivable (sum of all AR accounts)
+    const arAccounts = accounts.filter(acc => acc.category === 'Accounts Receivable');
+    const totalReceivables = arAccounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+    // Calculate Accounts Payable (sum of all AP accounts)
+    const apAccounts = accounts.filter(acc => acc.category === 'Accounts Payable');
+    const totalPayables = apAccounts.reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+    // Calculate Total Revenue (from Sales transactions)
+    const salesTransactions = transactions.filter(t => 
+      t.transactionType === 'Sale' && 
+      t.creditAccount?.category === 'Sales Revenue'
+    );
+    const totalRevenue = salesTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    // Calculate Total Expenses (from Purchase transactions)
+    const purchaseTransactions = transactions.filter(t => 
+      t.transactionType === 'Purchase' && 
+      t.debitAccount?.category === 'Purchase Expense'
+    );
+    const totalExpenses = purchaseTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    // Calculate Net Profit/Loss
+    const netProfit = totalRevenue - totalExpenses;
+
+    // Calculate totals by account type
+    const totalAssets = accounts
+      .filter(acc => acc.accountType === 'Asset')
+      .reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+    
+    const totalLiabilities = accounts
+      .filter(acc => acc.accountType === 'Liability')
+      .reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+    
+    const totalEquity = accounts
+      .filter(acc => acc.accountType === 'Equity')
+      .reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+    
+    const totalRevenueAccounts = accounts
+      .filter(acc => acc.accountType === 'Revenue')
+      .reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+    
+    const totalExpenseAccounts = accounts
+      .filter(acc => acc.accountType === 'Expense')
+      .reduce((sum, acc) => sum + (acc.currentBalance || 0), 0);
+
+    // Get unpaid sales (accounts receivable)
+    const unpaidSales = await Sale.find({
+      $or: [
+        { paymentStatus: 'Pending' },
+        { paymentStatus: 'Partial' },
+        { remainingAmount: { $gt: 0 } }
+      ]
+    })
+      .populate('customer', 'name')
+      .sort({ saleDate: -1 })
+      .limit(10);
+
+    // Get unpaid purchases (accounts payable)
+    const unpaidPurchases = await Purchase.find({
+      $or: [
+        { paymentStatus: 'Pending' },
+        { paymentStatus: 'Partial' },
+        { remainingAmount: { $gt: 0 } }
+      ]
+    })
+      .populate('supplier', 'name')
+      .sort({ purchaseDate: -1 })
+      .limit(10);
+
+    // Pending salaries
+    const pendingSalaries = await Salary.find({ paymentStatus: 'Pending' })
+      .populate({
+        path: 'employee',
+        select: 'firstName lastName email employeeId bankDetails'
+      })
+      .sort({ month: -1, year: -1 })
+      .limit(5);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          cashInHand,
+          bankBalance,
+          totalReceivables,
+          totalPayables,
+          totalRevenue,
+          totalExpenses,
+          netProfit,
+          totalAssets,
+          totalLiabilities,
+          totalEquity,
+          totalRevenueAccounts,
+          totalExpenseAccounts,
+          netWorth: totalAssets - totalLiabilities,
+          netIncome: totalRevenue - totalExpenses
+        },
+        accounts,
+        recentTransactions,
+        unpaidSales,
+        unpaidPurchases,
+        pendingSalaries,
+        accountBreakdown: {
+          cashAccounts: cashAccounts.map(acc => ({
+            accountName: acc.accountName,
+            accountNumber: acc.accountNumber,
+            balance: acc.currentBalance
+          })),
+          bankAccounts: bankAccounts.map(acc => ({
+            accountName: acc.accountName,
+            accountNumber: acc.accountNumber,
+            balance: acc.currentBalance
+          })),
+          arAccounts: arAccounts.map(acc => ({
+            accountName: acc.accountName,
+            accountNumber: acc.accountNumber,
+            balance: acc.currentBalance
+          })),
+          apAccounts: apAccounts.map(acc => ({
+            accountName: acc.accountName,
+            accountNumber: acc.accountNumber,
+            balance: acc.currentBalance
+          }))
+        },
+        lastUpdated: new Date()
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching financial dashboard data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching financial dashboard data",
+      error: error.message
+    });
   }
 });
 

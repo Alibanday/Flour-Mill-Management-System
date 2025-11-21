@@ -12,10 +12,25 @@ export default function FinancialDashboard({ onEdit }) {
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:7000/api/financial/summary`);
+      const response = await fetch(`http://localhost:7000/api/financial/dashboard`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       if (response.ok) {
-        const data = await response.json();
-        setFinancialData(data);
+        const result = await response.json();
+        if (result.success) {
+          setFinancialData(result.data);
+        } else {
+          setFinancialData(null);
+        }
+      } else {
+        // Fallback to old endpoint
+        const fallbackResponse = await fetch(`http://localhost:7000/api/financial/summary`);
+        if (fallbackResponse.ok) {
+          const data = await fallbackResponse.json();
+          setFinancialData(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching financial data:', error);
@@ -48,13 +63,13 @@ export default function FinancialDashboard({ onEdit }) {
     );
   }
 
-  const { summary, recentTransactions, pendingSalaries } = financialData;
+  const { summary, recentTransactions, pendingSalaries, unpaidSales, unpaidPurchases, accountBreakdown } = financialData || {};
 
   return (
     <div className="space-y-6">
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Assets */}
+        {/* Cash in Hand */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -63,15 +78,15 @@ export default function FinancialDashboard({ onEdit }) {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Assets</p>
+              <p className="text-sm font-medium text-gray-500">Cash in Hand</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(summary.totalAssets)}
+                {formatCurrency(summary?.cashInHand || 0)}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Net Worth */}
+        {/* Bank Balance */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -80,17 +95,15 @@ export default function FinancialDashboard({ onEdit }) {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Net Worth</p>
-              <p className={`text-2xl font-semibold ${
-                summary.netWorth >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {formatCurrency(summary.netWorth)}
+              <p className="text-sm font-medium text-gray-500">Bank Balance</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatCurrency(summary?.bankBalance || 0)}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Net Income */}
+        {/* Net Profit/Loss */}
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -99,11 +112,11 @@ export default function FinancialDashboard({ onEdit }) {
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Net Income</p>
+              <p className="text-sm font-medium text-gray-500">Net Profit/Loss</p>
               <p className={`text-2xl font-semibold ${
-                summary.netIncome >= 0 ? 'text-green-600' : 'text-red-600'
+                (summary?.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'
               }`}>
-                {formatCurrency(summary.netIncome)}
+                {formatCurrency(summary?.netProfit || 0)}
               </p>
             </div>
           </div>
@@ -120,7 +133,78 @@ export default function FinancialDashboard({ onEdit }) {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Pending Salaries</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {pendingSalaries.length}
+                {pendingSalaries?.length || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Revenue */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-emerald-100 rounded-md flex items-center justify-center">
+                <FaChartLine className="w-5 h-5 text-emerald-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Total Revenue</p>
+              <p className="text-2xl font-semibold text-emerald-600">
+                {formatCurrency(summary?.totalRevenue || 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Total Expenses */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-red-100 rounded-md flex items-center justify-center">
+                <FaExclamationTriangle className="w-5 h-5 text-red-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Total Expenses</p>
+              <p className="text-2xl font-semibold text-red-600">
+                {formatCurrency(summary?.totalExpenses || 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Accounts Receivable */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-purple-100 rounded-md flex items-center justify-center">
+                <FaMoneyBillWave className="w-5 h-5 text-purple-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Accounts Receivable</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatCurrency(summary?.totalReceivables || 0)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Accounts Payable */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-orange-100 rounded-md flex items-center justify-center">
+                <FaExclamationTriangle className="w-5 h-5 text-orange-600" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Accounts Payable</p>
+              <p className="text-2xl font-semibold text-gray-900">
+                {formatCurrency(summary?.totalPayables || 0)}
               </p>
             </div>
           </div>
@@ -131,30 +215,32 @@ export default function FinancialDashboard({ onEdit }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Account Balances */}
         <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Account Balances</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Financial Overview</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Total Revenue:</span>
+              <span className="text-sm text-gray-600">Total Assets:</span>
               <span className="text-sm font-medium text-green-600">
-                {formatCurrency(summary.totalRevenue)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Total Expenses:</span>
-              <span className="text-sm font-medium text-red-600">
-                {formatCurrency(summary.totalExpenses)}
+                {formatCurrency(summary?.totalAssets || 0)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Liabilities:</span>
-              <span className="text-sm font-medium text-orange-600">
-                {formatCurrency(summary.totalLiabilities)}
+              <span className="text-sm font-medium text-red-600">
+                {formatCurrency(summary?.totalLiabilities || 0)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Equity:</span>
               <span className="text-sm font-medium text-blue-600">
-                {formatCurrency(summary.totalEquity)}
+                {formatCurrency(summary?.totalEquity || 0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Net Worth:</span>
+              <span className={`text-sm font-medium ${
+                (summary?.netWorth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {formatCurrency(summary?.netWorth || 0)}
               </span>
             </div>
           </div>
@@ -211,7 +297,7 @@ export default function FinancialDashboard({ onEdit }) {
         {/* Recent Transactions */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Transactions</h3>
-          {recentTransactions.length > 0 ? (
+          {recentTransactions && recentTransactions.length > 0 ? (
             <div className="space-y-3">
               {recentTransactions.map((transaction) => (
                 <div key={transaction._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -240,7 +326,7 @@ export default function FinancialDashboard({ onEdit }) {
         {/* Pending Salaries */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Pending Salaries</h3>
-          {pendingSalaries.length > 0 ? (
+          {pendingSalaries && pendingSalaries.length > 0 ? (
             <div className="space-y-3">
               {pendingSalaries.map((salary) => (
                 <div key={salary._id} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
@@ -271,6 +357,69 @@ export default function FinancialDashboard({ onEdit }) {
           )}
         </div>
       </div>
+
+      {/* Unpaid Sales and Purchases */}
+      {(unpaidSales && unpaidSales.length > 0) || (unpaidPurchases && unpaidPurchases.length > 0) ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Unpaid Sales (Accounts Receivable) */}
+          {unpaidSales && unpaidSales.length > 0 && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Unpaid Sales (Accounts Receivable)</h3>
+              <div className="space-y-3">
+                {unpaidSales.slice(0, 5).map((sale) => (
+                  <div key={sale._id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {sale.invoiceNumber}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {sale.customer?.name || 'Customer'} - {new Date(sale.saleDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">
+                        {formatCurrency(sale.remainingAmount || sale.dueAmount || 0)}
+                      </p>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        {sale.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Unpaid Purchases (Accounts Payable) */}
+          {unpaidPurchases && unpaidPurchases.length > 0 && (
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Unpaid Purchases (Accounts Payable)</h3>
+              <div className="space-y-3">
+                {unpaidPurchases.slice(0, 5).map((purchase) => (
+                  <div key={purchase._id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {purchase.purchaseNumber}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {purchase.supplier?.name || 'Supplier'} - {new Date(purchase.purchaseDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium text-gray-900">
+                        {formatCurrency(purchase.remainingAmount || 0)}
+                      </p>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {purchase.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
