@@ -1,0 +1,8 @@
+Verification Failed: E11000 duplicate key error collection: flourmill_test.inventories index: product_1_warehouse_1 dup key: { product: ObjectId('6920a7d9df0342f8168d8881'), warehouse: ObjectId('6920a7d9df0342f8168d887c') }
+
+Stack: MongoServerError: E11000 duplicate key error collection: flourmill_test.inventories index: product_1_warehouse_1 dup key: { product: ObjectId('6920a7d9df0342f8168d8881'), warehouse: ObjectId('6920a7d9df0342f8168d887c') }
+    at InsertOneOperation.execute (C:\Users\malir\OneDrive\Desktop\FloorMillManagementSystem\server\node_modules\mongodb\lib\operations\insert.js:51:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async tryOperation (C:\Users\malir\OneDrive\Desktop\FloorMillManagementSystem\server\node_modules\mongodb\lib\operations\execute_operation.js:207:20)
+    at async executeOperation (C:\Users\malir\OneDrive\Desktop\FloorMillManagementSystem\server\node_modules\mongodb\lib\operations\execute_operation.js:75:16)
+    at async Collection.insertOne (C:\Users\malir\OneDrive\Desktop\FloorMillManagementSystem\server\node_modules\mongodb\lib\collection.js:157:16)

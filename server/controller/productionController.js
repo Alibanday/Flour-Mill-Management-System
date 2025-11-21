@@ -26,7 +26,7 @@ export const createProduction = async (req, res) => {
     // Form sends "warehouse" for source, so prioritize that
     const resolvedSourceWarehouse = warehouse || sourceWarehouse || req.body.sourceWarehouse || req.body.sourceWarehouseId;
     const resolvedDestinationWarehouse = destinationWarehouse || req.body.destinationWarehouse || req.body.destinationWarehouseId;
-    
+
     console.log("🔍 Resolved warehouses:", {
       sourceWarehouse: resolvedSourceWarehouse,
       destinationWarehouse: resolvedDestinationWarehouse,
@@ -86,7 +86,7 @@ export const createProduction = async (req, res) => {
     // Verify warehouses exist
     const sourceWarehouseExists = await Warehouse.findById(resolvedSourceWarehouse);
     const destWarehouseExists = await Warehouse.findById(resolvedDestinationWarehouse);
-    
+
     if (!sourceWarehouseExists || !destWarehouseExists) {
       return res.status(400).json({
         success: false,
@@ -98,7 +98,7 @@ export const createProduction = async (req, res) => {
     // Get ALL inventory items for this warehouse - same logic as warehouse detail page
     const mongoose = (await import("mongoose")).default;
     let warehouseIdForQuery = resolvedSourceWarehouse;
-    
+
     // Ensure warehouse ID is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(warehouseIdForQuery)) {
       return res.status(400).json({
@@ -106,7 +106,7 @@ export const createProduction = async (req, res) => {
         message: "Invalid warehouse ID format"
       });
     }
-    
+
     // Convert to ObjectId if it's a string (for consistent comparison)
     if (typeof warehouseIdForQuery === 'string') {
       warehouseIdForQuery = new mongoose.Types.ObjectId(warehouseIdForQuery);
@@ -114,34 +114,34 @@ export const createProduction = async (req, res) => {
 
     console.log(`🔍 Looking for wheat inventory in warehouse: ${warehouseIdForQuery} (type: ${typeof warehouseIdForQuery})`);
     console.log(`🔍 Also trying original resolvedSourceWarehouse: ${resolvedSourceWarehouse}`);
-    
+
     // Try multiple query formats to handle both ObjectId and string warehouse IDs
     // First try with the converted ObjectId
     let allInventoryItems = await Inventory.find({
       warehouse: warehouseIdForQuery
     })
-    .populate("product", "name code category subcategory unit");
-    
+      .populate("product", "name code category subcategory unit");
+
     // If no items found, try with the original value (might be string)
     if (allInventoryItems.length === 0 && resolvedSourceWarehouse !== warehouseIdForQuery.toString()) {
       console.log(`⚠️ No items found with ObjectId, trying with original value...`);
       allInventoryItems = await Inventory.find({
         warehouse: resolvedSourceWarehouse
       })
-      .populate("product", "name code category subcategory unit");
+        .populate("product", "name code category subcategory unit");
     }
-    
+
     // If still no items, try with string conversion
     if (allInventoryItems.length === 0) {
       console.log(`⚠️ No items found, trying with string conversion...`);
       allInventoryItems = await Inventory.find({
         warehouse: warehouseIdForQuery.toString()
       })
-      .populate("product", "name code category subcategory unit");
+        .populate("product", "name code category subcategory unit");
     }
 
     console.log(`📦 Found ${allInventoryItems.length} total inventory items in warehouse`);
-    
+
     // If no inventory items found at all, the warehouse might be wrong or empty
     if (allInventoryItems.length === 0) {
       console.log(`⚠️ No inventory items found in warehouse ${warehouseIdForQuery}. Checking if warehouse exists...`);
@@ -166,16 +166,16 @@ export const createProduction = async (req, res) => {
       const productName = item.name || item.product?.name || '';
       const category = item.category || item.product?.category || '';
       const subcategory = item.subcategory || item.product?.subcategory || '';
-      
+
       // Normalize all fields
       const normalizedName = productName.toLowerCase();
       const normalizedCategory = category?.toLowerCase() || '';
       const normalizedSubcategory = subcategory?.toLowerCase() || '';
-      
+
       // Check for wheat in multiple ways (very flexible)
       // Food purchases create items with category "Wheat Grain" or subcategory with wheat
-      const isWheat = 
-        normalizedCategory.includes('wheat') || 
+      const isWheat =
+        normalizedCategory.includes('wheat') ||
         normalizedName.includes('wheat') ||
         normalizedSubcategory.includes('wheat') ||
         normalizedCategory.includes('wheat grain') ||
@@ -186,15 +186,15 @@ export const createProduction = async (req, res) => {
         normalizedSubcategory === 'wheat' ||
         // Also check if it's a raw material with grain in name/subcategory
         (normalizedCategory === 'raw materials' && (normalizedName.includes('grain') || normalizedSubcategory.includes('grain')));
-      
+
       if (isWheat) {
         const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
         console.log(`🌾 Found wheat item: ${productName}, category: ${category}, subcategory: ${subcategory}, stock: ${stock} kg`);
       }
-      
+
       return isWheat;
     });
-    
+
     // If no wheat items found with strict detection, try even more lenient approach
     // Check if any items have "Raw Materials" category and might be wheat
     if (wheatItems.length === 0) {
@@ -203,20 +203,20 @@ export const createProduction = async (req, res) => {
         const category = (item.category || item.product?.category || '').toLowerCase();
         const subcategory = (item.subcategory || item.product?.subcategory || '').toLowerCase();
         const name = (item.name || item.product?.name || '').toLowerCase();
-        
+
         // Very lenient: Raw Materials category with grain-related terms
-        const isPossibleWheat = 
+        const isPossibleWheat =
           (category === 'raw materials' || category.includes('raw')) &&
           (subcategory.includes('grain') || name.includes('grain') || subcategory.includes('wheat') || name.includes('wheat'));
-        
+
         if (isPossibleWheat) {
           const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
           console.log(`🌾 Found possible wheat item (lenient): ${item.name || item.product?.name}, category: ${item.category || item.product?.category}, subcategory: ${item.subcategory || item.product?.subcategory}, stock: ${stock} kg`);
         }
-        
+
         return isPossibleWheat;
       });
-      
+
       if (lenientWheatItems.length > 0) {
         wheatItems.push(...lenientWheatItems);
         console.log(`✅ Added ${lenientWheatItems.length} wheat items via lenient detection`);
@@ -231,7 +231,7 @@ export const createProduction = async (req, res) => {
         const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
         return stock > 0;
       });
-      
+
       // Prepare debug info
       const debugInfo = {
         warehouseId: warehouseIdForQuery.toString(),
@@ -249,7 +249,7 @@ export const createProduction = async (req, res) => {
           normalizedSubcategory: (item.subcategory || item.product?.subcategory || '').toLowerCase()
         }))
       };
-      
+
       console.log(`❌ DEBUG INFO:`, JSON.stringify(debugInfo, null, 2));
       console.log(`⚠️ No wheat items found. Available inventory items in warehouse:`);
       allInventoryItems.forEach(item => {
@@ -259,35 +259,35 @@ export const createProduction = async (req, res) => {
         const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
         console.log(`  - Name: "${productName}", Category: "${category}", Subcategory: "${subcategory}", Stock: ${stock} kg`);
       });
-      
+
       // TEMPORARY WORKAROUND: If there are items with stock, check if any might be wheat
       // Try to find items that could be wheat based on stock and category
       if (itemsWithStock.length > 0) {
         console.log(`⚠️ WARNING: No wheat items found with standard detection. Checking all items with stock...`);
-        
+
         // Check all items with stock - if any have "Raw Materials" category or grain-related terms, use them
         const possibleWheatItems = itemsWithStock.filter(item => {
           const category = (item.category || item.product?.category || '').toLowerCase();
           const name = (item.name || item.product?.name || '').toLowerCase();
           const subcategory = (item.subcategory || item.product?.subcategory || '').toLowerCase();
-          
+
           // Very lenient: accept if it's raw materials or has grain/wheat in any field
-          const mightBeWheat = 
-            category.includes('raw') || 
+          const mightBeWheat =
+            category.includes('raw') ||
             category.includes('wheat') ||
             name.includes('wheat') ||
             name.includes('grain') ||
             subcategory.includes('wheat') ||
             subcategory.includes('grain');
-          
+
           if (mightBeWheat) {
             const stock = getInventoryStock(item);
             console.log(`🌾 Found possible wheat item: ${item.name || item.product?.name}, category: ${item.category || item.product?.category}, stock: ${stock} kg`);
           }
-          
+
           return mightBeWheat;
         });
-        
+
         if (possibleWheatItems.length > 0) {
           console.log(`✅ Using ${possibleWheatItems.length} possible wheat items`);
           wheatItems.push(...possibleWheatItems);
@@ -318,7 +318,7 @@ export const createProduction = async (req, res) => {
         message: `Insufficient wheat stock. Available: ${availableWheat} kg, Requested: ${parsedWheatQuantity} kg`
       });
     }
-    
+
     // Create production record - batch number will be auto-generated
     const calculatedWastage = sanitizeNumber(
       wastage?.quantity ??
@@ -352,42 +352,79 @@ export const createProduction = async (req, res) => {
     console.log("Starting real-time inventory integration for production...");
 
     // 1. Deduct wheat from source warehouse via stock movement
-    // Use the wheat item with the most stock (or first one if all have same stock)
-    const wheatItemToUse = wheatItems.reduce((max, item) => {
-      const maxStock = getInventoryStock(max);
-      const itemStock = getInventoryStock(item);
-      return itemStock > maxStock ? item : max;
-    }, wheatItems[0]);
+    // Split deduction across multiple inventory items if necessary
+    let remainingWheatNeeded = parsedWheatQuantity;
 
-    if (!wheatItemToUse) {
-      return res.status(400).json({
-        success: false,
-        message: "No wheat inventory item found for stock deduction"
-      });
-    }
-
-    const wheatStockOut = new Stock({
-      inventoryItem: wheatItemToUse._id,
-      movementType: 'out',
-      quantity: parsedWheatQuantity,
-      reason: `Production - ${production.batchNumber}`,
-      referenceNumber: `PROD-${production.batchNumber}`,
-      warehouse: resolvedSourceWarehouse,
-      createdBy: req.user._id || req.user.id
+    // Sort wheat items by stock (descending) to use largest piles first
+    // This helps reduce the number of small fragmented stock entries
+    const sortedWheatItems = [...wheatItems].sort((a, b) => {
+      const stockA = getInventoryStock(a);
+      const stockB = getInventoryStock(b);
+      return stockB - stockA;
     });
 
-    await wheatStockOut.save();
-    console.log(`✅ Deducted ${parsedWheatQuantity} kg of wheat from source warehouse (from inventory item: ${wheatItemToUse._id})`);
+    console.log(`Starting wheat deduction. Needed: ${remainingWheatNeeded}kg. Available items: ${sortedWheatItems.length}`);
+
+    for (const item of sortedWheatItems) {
+      if (remainingWheatNeeded <= 0) break;
+
+      const currentStock = getInventoryStock(item);
+      if (currentStock <= 0) continue;
+
+      // Calculate how much to take from this item
+      // Take up to the current stock amount, or just what's needed
+      const deductAmount = Math.min(currentStock, remainingWheatNeeded);
+
+      if (deductAmount > 0) {
+        const wheatStockOut = new Stock({
+          inventoryItem: item._id,
+          movementType: 'out',
+          quantity: deductAmount,
+          reason: `Production - ${production.batchNumber}`,
+          referenceNumber: `PROD-${production.batchNumber}`,
+          warehouse: resolvedSourceWarehouse,
+          createdBy: req.user._id || req.user.id
+        });
+
+        await wheatStockOut.save();
+
+        remainingWheatNeeded -= deductAmount;
+        console.log(`✅ Deducted ${deductAmount} kg of wheat from inventory item ${item._id} (Remaining needed: ${remainingWheatNeeded}kg)`);
+      }
+    }
+
+    // If we still need wheat after checking all items, it means there was a discrepancy
+    // between the initial check and the actual deduction (race condition or calculation error)
+    if (remainingWheatNeeded > 0.01) { // Use small epsilon for float comparison
+      console.warn(`⚠️ Could not deduct full wheat amount. Short by ${remainingWheatNeeded}kg. This might result in negative stock for the last item.`);
+
+      // Force deduct the remainder from the largest item (or the first one) to ensure accounting balances
+      // The Stock middleware might warn or error depending on configuration, but we need to record the usage
+      const fallbackItem = sortedWheatItems[0];
+      if (fallbackItem) {
+        const finalStockOut = new Stock({
+          inventoryItem: fallbackItem._id,
+          movementType: 'out',
+          quantity: remainingWheatNeeded,
+          reason: `Production - ${production.batchNumber} (Remainder)`,
+          referenceNumber: `PROD-${production.batchNumber}`,
+          warehouse: resolvedSourceWarehouse,
+          createdBy: req.user._id || req.user.id
+        });
+        await finalStockOut.save();
+        console.log(`✅ Force deducted remaining ${remainingWheatNeeded} kg from item ${fallbackItem._id}`);
+      }
+    }
 
     // 2. Add output products to destination warehouse
     for (const outputProduct of cleanedOutputProducts) {
       let productCatalogEntry = null;
-      
+
       // First try to find by productId if provided
       if (outputProduct.productId) {
         productCatalogEntry = await Product.findById(outputProduct.productId);
       }
-      
+
       // If not found by ID, try by name
       if (!productCatalogEntry && outputProduct.productName) {
         const productNameRegex = new RegExp(`^${outputProduct.productName}$`, "i");
@@ -512,7 +549,7 @@ export const getAllProductions = async (req, res) => {
 
     // Build filter object
     const filter = {};
-    
+
     if (search) {
       filter.$or = [
         { batchNumber: { $regex: search, $options: 'i' } },
@@ -520,12 +557,12 @@ export const getAllProductions = async (req, res) => {
         { productType: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     if (productName) filter.productName = productName;
     if (status) filter.status = status;
     if (warehouse) filter.warehouse = warehouse;
     if (quality) filter.quality = quality;
-    
+
     if (startDate || endDate) {
       filter.productionDate = {};
       if (startDate) filter.productionDate.$gte = new Date(startDate);
@@ -534,10 +571,10 @@ export const getAllProductions = async (req, res) => {
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Get total count for pagination
     const total = await Production.countDocuments(filter);
-    
+
     // Get production records with pagination
     const productions = await Production.find(filter)
       .populate('warehouse', 'name location')
@@ -618,7 +655,7 @@ export const updateProduction = async (req, res) => {
 
     // Check if batch number is being changed and if it already exists
     if (req.body.batchNumber && req.body.batchNumber !== production.batchNumber) {
-      const existingBatch = await Production.findOne({ 
+      const existingBatch = await Production.findOne({
         batchNumber: req.body.batchNumber,
         _id: { $ne: req.params.id }
       });
@@ -636,7 +673,7 @@ export const updateProduction = async (req, res) => {
       { ...req.body, updatedAt: new Date() },
       { new: true, runValidators: true }
     ).populate("warehouse", "name location")
-     .populate("addedBy", "firstName lastName");
+      .populate("addedBy", "firstName lastName");
 
     res.json({
       success: true,

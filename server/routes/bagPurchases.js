@@ -29,18 +29,18 @@ router.get("/", [
 
     // Build filter object
     const filter = {};
-    
+
     if (search) {
       filter.$or = [
         { purchaseNumber: { $regex: search, $options: 'i' } },
         { notes: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     if (supplier) filter.supplier = supplier;
     if (status) filter.status = status;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
-    
+
     if (startDate || endDate) {
       filter.purchaseDate = {};
       if (startDate) filter.purchaseDate.$gte = new Date(startDate);
@@ -49,10 +49,10 @@ router.get("/", [
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Get total count for pagination
     const total = await BagPurchase.countDocuments(filter);
-    
+
     // Get bag purchases with pagination
     const bagPurchases = await BagPurchase.find(filter)
       .populate('supplier', 'name contactPerson email phone')
@@ -105,7 +105,7 @@ router.get("/stats", [
       { $group: { _id: null, total: { $sum: "$dueAmount" } } }
     ]);
     const completedPurchases = await BagPurchase.countDocuments({ status: "Completed" });
-    
+
     const stats = {
       total: total || 0,
       totalValue: totalValue[0]?.total || 0,
@@ -201,25 +201,26 @@ router.post("/", [
     const allowedPaymentStatus = ["Pending", "Partial", "Paid"];
     const safeStatus = allowedStatus.includes(status) ? status : "Pending";
     const safePaymentStatus = allowedPaymentStatus.includes(paymentStatus) ? paymentStatus : "Pending";
-    
+
     // Validate warehouse
+    let warehouseId;
     if (!warehouse || !mongoose.Types.ObjectId.isValid(warehouse)) {
       // Try to get the first available warehouse as fallback
       const Warehouse = (await import("../model/wareHouse.js")).default;
       const firstWarehouse = await Warehouse.findOne({ status: 'Active' });
       if (firstWarehouse) {
         console.log('⚠️ No valid warehouse provided (bag purchase), using fallback:', firstWarehouse._id);
-        var warehouseId = firstWarehouse._id;
+        warehouseId = firstWarehouse._id;
       } else {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Valid warehouse ID is required" 
+        return res.status(400).json({
+          success: false,
+          message: "Valid warehouse ID is required"
         });
       }
     } else {
-      var warehouseId = new mongoose.Types.ObjectId(warehouse);
+      warehouseId = new mongoose.Types.ObjectId(warehouse);
     }
-    
+
     // Validate bags object
     if (!bags || typeof bags !== 'object' || Object.keys(bags).length === 0) {
       return res.status(400).json({
@@ -279,104 +280,112 @@ router.post("/", [
     await newPurchase.save();
 
     // Add stock movements for bags purchased
+    const stockErrors = [];
     try {
       const Product = (await import("../model/Product.js")).default;
       const Inventory = (await import("../model/inventory.js")).default;
       const Stock = (await import("../model/stock.js")).default;
-      
-      const warehouseId = newPurchase.warehouse;
-      
+
       // Process each product in the purchase
       let bagEntries = [];
-      
+
       // Handle Map structure
       if (bagsMap instanceof Map) {
         bagEntries = Array.from(bagsMap.entries());
-      } 
+      }
       // Handle object structure (fallback)
       else if (bagsMap && typeof bagsMap === 'object') {
         bagEntries = Object.entries(bagsMap);
       }
-      
+
       for (const [productName, bagData] of bagEntries) {
         if (bagData && bagData.quantity > 0) {
-          // Extract weight from unit (e.g., "20kg bags" -> 20)
-          const weightMatch = bagData.unit.match(/(\d+)kg/);
-          const weight = weightMatch ? parseFloat(weightMatch[1]) : null;
-          
-          // Step 1: Find Product in catalog by name
-          // productName is the full product name from catalog (e.g., "ATA", "MAIDA")
-          let product = await Product.findOne({
-            name: { $regex: new RegExp(`^${productName}$`, 'i') }
-          });
-          
-          // If product not found by exact name, try case-insensitive search
-          if (!product) {
-            product = await Product.findOne({
-              name: { $regex: new RegExp(productName, 'i') }
+          try {
+            // Extract weight from unit (e.g., "20kg bags" -> 20)
+            const weightMatch = bagData.unit.match(/(\d+)kg/);
+            const weight = weightMatch ? parseFloat(weightMatch[1]) : null;
+
+            // Step 1: Find Product in catalog by name
+            // productName is the full product name from catalog (e.g., "ATA", "MAIDA")
+            let product = await Product.findOne({
+              name: { $regex: new RegExp(`^${productName}$`, 'i') }
             });
-          }
-          
-          if (!product) {
-            console.error(`❌ Product not found in catalog: ${productName}`);
-            continue; // Skip this product if not found in catalog
-          }
-          
-          // Step 2: Validate weight category exists in product
-          if (weight && product.weightVariants && product.weightVariants.length > 0) {
-            const weightVariant = product.weightVariants.find(v => 
-              v.weight === weight && v.isActive !== false
-            );
-            if (!weightVariant) {
-              console.error(`❌ Weight category ${weight}kg not found for product ${product.name}`);
-              continue; // Skip this product if weight category not found
+
+            // If product not found by exact name, try case-insensitive search
+            if (!product) {
+              product = await Product.findOne({
+                name: { $regex: new RegExp(productName, 'i') }
+              });
             }
-          }
-            
-          
-          // Step 3: Find or create Inventory (Product + Warehouse)
-          let inventoryItem = await Inventory.findOne({
-            product: product._id,
-            warehouse: warehouseId
-          });
-          
-          if (!inventoryItem) {
-            inventoryItem = new Inventory({
+
+            if (!product) {
+              const errorMsg = `Product not found in catalog: ${productName}`;
+              console.error(`❌ ${errorMsg}`);
+              stockErrors.push(errorMsg);
+              continue; // Skip this product if not found in catalog
+            }
+
+            // Step 2: Validate weight category exists in product
+            if (weight && product.weightVariants && product.weightVariants.length > 0) {
+              const weightVariant = product.weightVariants.find(v =>
+                v.weight === weight && v.isActive !== false
+              );
+              if (!weightVariant) {
+                const errorMsg = `Weight category ${weight}kg not found for product ${product.name}`;
+                console.error(`❌ ${errorMsg}`);
+                stockErrors.push(errorMsg);
+                continue; // Skip this product if weight category not found
+              }
+            }
+
+
+            // Step 3: Find or create Inventory (Product + Warehouse)
+            let inventoryItem = await Inventory.findOne({
               product: product._id,
-              warehouse: warehouseId,
-              currentStock: 0, // Will be updated by stock movement
-              minimumStock: product.minimumStock || 10,
-              status: 'Active',
-              // Legacy fields for backward compatibility
-              name: product.name,
-              code: product.code,
-              category: product.category,
-              subcategory: product.subcategory,
-              weight: weight || product.weight || 0,
-              price: product.price || 0
+              warehouse: warehouseId
             });
-            await inventoryItem.save();
-            console.log(`✅ Created inventory record for ${product.name} in warehouse`);
+
+            if (!inventoryItem) {
+              inventoryItem = new Inventory({
+                product: product._id,
+                warehouse: warehouseId,
+                currentStock: 0, // Will be updated by stock movement
+                minimumStock: product.minimumStock || 10,
+                status: 'Active',
+                // Legacy fields for backward compatibility
+                name: product.name,
+                code: product.code,
+                category: product.category,
+                subcategory: product.subcategory,
+                weight: weight || product.weight || 0,
+                price: product.price || 0
+              });
+              await inventoryItem.save();
+              console.log(`✅ Created inventory record for ${product.name} in warehouse`);
+            }
+
+            // Step 4: Create stock in movement
+            const stockIn = new Stock({
+              inventoryItem: inventoryItem._id,
+              movementType: 'in',
+              quantity: bagData.quantity,
+              reason: `Bag Purchase - ${newPurchase.purchaseNumber}`,
+              referenceNumber: newPurchase.purchaseNumber,
+              warehouse: warehouseId,
+              createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
+            });
+
+            await stockIn.save();
+            console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${product.name} (${weight}kg) to warehouse`);
+          } catch (itemError) {
+            console.error(`❌ Error processing item ${productName}:`, itemError);
+            stockErrors.push(`Error processing ${productName}: ${itemError.message}`);
           }
-          
-          // Step 4: Create stock in movement
-          const stockIn = new Stock({
-            inventoryItem: inventoryItem._id,
-            movementType: 'in',
-            quantity: bagData.quantity,
-            reason: `Bag Purchase - ${newPurchase.purchaseNumber}`,
-            referenceNumber: newPurchase.purchaseNumber,
-            warehouse: warehouseId,
-            createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
-          });
-          
-          await stockIn.save();
-          console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${product.name} (${weight}kg) to warehouse`);
         }
       }
     } catch (stockError) {
       console.error("⚠️ Error adding stock to warehouse:", stockError);
-      // Don't fail the request if stock addition fails
+      stockErrors.push(`General stock error: ${stockError.message}`);
     }
 
     // Populate the response
@@ -386,8 +395,9 @@ router.post("/", [
 
     res.status(201).json({
       success: true,
-      message: "Bag purchase created successfully",
-      data: newPurchase
+      message: stockErrors.length > 0 ? "Bag purchase created but with stock errors" : "Bag purchase created successfully",
+      data: newPurchase,
+      stockErrors: stockErrors.length > 0 ? stockErrors : undefined
     });
   } catch (error) {
     console.error("Create bag purchase error:", error);
@@ -430,7 +440,7 @@ router.put("/:id", [
 
     // Find the existing purchase
     const existingPurchase = await BagPurchase.findById(req.params.id);
-    
+
     if (!existingPurchase) {
       return res.status(404).json({
         success: false,
@@ -447,13 +457,13 @@ router.put("/:id", [
 
     // Update bags Map if productType, quantity, and unitPrice are provided
     if (productType && quantity !== undefined && unitPrice !== undefined) {
-      const bags = existingPurchase.bags instanceof Map 
-        ? new Map(existingPurchase.bags) 
+      const bags = existingPurchase.bags instanceof Map
+        ? new Map(existingPurchase.bags)
         : new Map();
-      
+
       // Normalize product type to uppercase
       const normalizedProductType = productType.toUpperCase();
-      
+
       // Update or set the bag data for this product type
       const calculatedTotalPrice = parseFloat(totalPrice) || (parseFloat(quantity) * parseFloat(unitPrice));
       bags.set(normalizedProductType, {
@@ -462,7 +472,7 @@ router.put("/:id", [
         unitPrice: parseFloat(unitPrice) || 0,
         totalPrice: calculatedTotalPrice
       });
-      
+
       existingPurchase.bags = bags;
     }
 
@@ -505,7 +515,7 @@ router.put("/:id", [
       // Note: totalAmount will be recalculated in pre-save middleware based on bags
       const currentTotal = existingPurchase.totalAmount || 0;
       existingPurchase.dueAmount = Math.max(0, currentTotal - existingPurchase.paidAmount);
-      
+
       // Auto-update payment status based on paid amount ONLY if paymentStatus was not explicitly set
       if (paymentStatus === undefined) {
         if (existingPurchase.dueAmount <= 0 && existingPurchase.paidAmount > 0) {
@@ -593,4 +603,4 @@ router.delete("/:id", [
   }
 });
 
-export default router; 
+export default router;
