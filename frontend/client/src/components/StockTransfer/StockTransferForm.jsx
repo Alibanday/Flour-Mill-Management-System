@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useValidation } from '../../utils/validation';
 import FormField from '../UI/FormField';
 import api, { API_ENDPOINTS } from '../../services/api';
 
@@ -27,7 +26,37 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
     items: { required: true, minLength: 1 }
   };
 
-  const { validateField, validateForm } = useValidation(validationSchema);
+  const validateFieldValue = (field, value) => {
+    const rules = validationSchema[field];
+    if (!rules) return null;
+
+    if (rules.required) {
+      const isEmptyArray = Array.isArray(value) && value.length === 0;
+      const isEmptyString = typeof value === 'string' && value.trim() === '';
+      const isEmpty = value === null || value === undefined || value === '' || isEmptyArray || isEmptyString;
+      if (isEmpty) {
+        return 'This field is required';
+      }
+    }
+
+    if (rules.minLength && Array.isArray(value) && value.length < rules.minLength) {
+      return `Please add at least ${rules.minLength} item(s)`;
+    }
+
+    return null;
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    Object.keys(validationSchema).forEach(field => {
+      const error = validateFieldValue(field, formData[field]);
+      if (error) {
+        newErrors[field] = error;
+      }
+    });
+    setErrors(newErrors);
+    return newErrors;
+  };
 
   const mapInventoryItems = (items = []) => {
     return items
@@ -104,13 +133,11 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
   };
 
   const handleBlur = (field) => {
-    const error = validateField(field, formData);
-    if (error) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: error
-      }));
-    }
+    const error = validateFieldValue(field, formData[field]);
+    setErrors(prev => ({
+      ...prev,
+      [field]: error
+    }));
   };
 
   const addItem = () => {
@@ -155,9 +182,10 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const validationErrors = validateForm(formData);
+    if (loading) return;
+
+    const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
       return;
     }
 
@@ -379,8 +407,12 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
               </button>
               <button
                 type="submit"
-                disabled={loading || formData.items.length === 0}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                aria-disabled={loading}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  loading
+                    ? 'bg-blue-400 text-white cursor-not-allowed opacity-70'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
                 {loading ? 'Creating...' : 'Create Transfer'}
               </button>

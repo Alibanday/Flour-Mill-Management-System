@@ -87,29 +87,88 @@ router.get("/:id", authorize("'Admin'", "'Manager'", "'Employee'"), async (req, 
 // Create new stock transfer
 router.post("/create", [
   authorize("'Admin'", "'Manager'", "'Employee'"),
-  body('transferType').isIn(['Warehouse to Warehouse', 'Production to Warehouse', 'Warehouse to Production', 'Return Transfer', 'Adjustment']).withMessage('Invalid transfer type'),
   body('fromWarehouse').isMongoId().withMessage('Valid from warehouse ID is required'),
   body('toWarehouse').isMongoId().withMessage('Valid to warehouse ID is required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
   body('items.*.inventoryItem').isMongoId().withMessage('Valid inventory item ID is required'),
-  body('items.*.requestedQuantity').isNumeric().withMessage('Requested quantity must be a number'),
-  body('items.*.unitPrice').isNumeric().withMessage('Unit price must be a number'),
-  body('transferDetails.reason').notEmpty().withMessage('Transfer reason is required')
+  body('items.*.requestedQuantity').custom(value => {
+    const quantity = Number(value);
+    if (Number.isNaN(quantity)) {
+      throw new Error('Requested quantity must be a number');
+    }
+    if (quantity <= 0) {
+      throw new Error('Requested quantity must be greater than zero');
+    }
+    return true;
+  })
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      const firstError = errors.array()[0];
+      return res.status(400).json({ 
+        success: false, 
+        message: firstError?.msg || 'Invalid transfer data provided',
+        errors: errors.array() 
+      });
     }
     
-    // Validate stock availability
-    await StockTransfer.validateStockAvailability(req.body.fromWarehouse, req.body.items);
+    const { fromWarehouse, toWarehouse, items } = req.body;
+
+    // Enrich items with inventory defaults
+    const formattedItems = await Promise.all(items.map(async (item) => {
+      const inventory = await Inventory.findById(item.inventoryItem).populate('product');
+      if (!inventory) {
+        throw new Error('Inventory item not found');
+      }
+
+      const requestedQuantity = Number(item.requestedQuantity ?? item.quantity ?? 0);
+      if (Number.isNaN(requestedQuantity) || requestedQuantity <= 0) {
+        throw new Error(`Requested quantity must be greater than zero for ${inventory.name || 'selected item'}`);
+      }
+
+      const unitPrice = Number(item.unitPrice ?? inventory.price ?? 0);
+      const productName = item.productName || inventory.name || inventory.product?.name || 'Inventory Item';
+      const productCode = item.productCode || inventory.code || inventory.product?.code || 'N/A';
+      const unit = item.unit || inventory.unit || inventory.product?.unit || 'units';
+
+      return {
+        inventoryItem: item.inventoryItem,
+        productName,
+        productCode,
+        requestedQuantity,
+        actualQuantity: item.actualQuantity || 0,
+        unit,
+        unitPrice,
+        totalValue: unitPrice * requestedQuantity,
+        batchNumber: item.batchNumber || inventory.batchNumber,
+        expiryDate: item.expiryDate || inventory.expiryDate
+      };
+    }));
+
+    // Validate stock availability using enriched items
+    await StockTransfer.validateStockAvailability(fromWarehouse, formattedItems);
     
     // Generate transfer number
     const transferNumber = await StockTransfer.generateTransferNumber();
     
     const transferData = {
-      ...req.body,
+      fromWarehouse,
+      toWarehouse,
+      transferNumber,
+      transferType: req.body.transferType || 'Warehouse to Warehouse',
+      items: formattedItems,
+      transferDetails: {
+        transferDate: req.body.transferDetails?.transferDate || new Date(),
+        expectedDeliveryDate: req.body.transferDetails?.expectedDeliveryDate || req.body.expectedDate || null,
+        reason: req.body.transferDetails?.reason || req.body.reason || 'Stock transfer',
+        priority: req.body.transferDetails?.priority || 'Normal',
+        transportMethod: req.body.transferDetails?.transportMethod || 'Internal',
+        vehicleNumber: req.body.transferDetails?.vehicleNumber || '',
+        driverName: req.body.transferDetails?.driverName || '',
+        driverContact: req.body.transferDetails?.driverContact || ''
+      },
+      notes: req.body.notes || '',
       transferNumber,
       createdBy: req.user.id
     };
@@ -123,7 +182,10 @@ router.post("/create", [
       data: transfer
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error('Error creating stock transfer:', error);
+    const knownError = /stock|warehouse|quantity|Inventory item|transfer/i.test(error.message);
+    const statusCode = knownError ? 400 : 500;
+    res.status(statusCode).json({ success: false, message: error.message || 'Unable to create stock transfer' });
   }
 });
 

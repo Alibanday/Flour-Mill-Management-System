@@ -244,22 +244,35 @@ stockTransferSchema.statics.generateTransferNumber = async function() {
 };
 
 // Static method to validate stock availability
-stockTransferSchema.statics.validateStockAvailability = async function(warehouseId, items) {
-  const Stock = mongoose.model('Stock');
+stockTransferSchema.statics.validateStockAvailability = async function(warehouseId, items = []) {
+  if (!warehouseId) {
+    throw new Error('Source warehouse is required for stock validation');
+  }
+
   const Inventory = mongoose.model('Inventory');
-  
+  const sourceWarehouseId = warehouseId.toString();
+
   for (const item of items) {
-    const stock = await Stock.findOne({
-      warehouse: warehouseId,
-      inventoryItem: item.inventoryItem
-    });
-    
-    if (!stock || stock.quantity < item.requestedQuantity) {
-      const inventory = await Inventory.findById(item.inventoryItem);
-      throw new Error(`Insufficient stock for ${inventory?.name || 'Unknown Product'}. Available: ${stock?.quantity || 0}, Requested: ${item.requestedQuantity}`);
+    if (!item?.inventoryItem) {
+      throw new Error('Each transfer item must reference an inventory record');
+    }
+
+    const inventory = await Inventory.findById(item.inventoryItem).lean();
+    if (!inventory) {
+      throw new Error('Inventory item not found for transfer');
+    }
+
+    const inventoryWarehouseId = inventory.warehouse?.toString();
+    if (inventoryWarehouseId && inventoryWarehouseId !== sourceWarehouseId) {
+      throw new Error(`${inventory.name || 'Selected item'} is not stored in the chosen source warehouse`);
+    }
+
+    const availableStock = inventory.currentStock ?? inventory.weight ?? 0;
+    if (availableStock < item.requestedQuantity) {
+      throw new Error(`Insufficient stock for ${inventory.name || 'selected item'}. Available: ${availableStock}, Requested: ${item.requestedQuantity}`);
     }
   }
-  
+
   return true;
 };
 
