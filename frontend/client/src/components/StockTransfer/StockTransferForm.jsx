@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useValidation } from '../../utils/validation';
 import FormField from '../UI/FormField';
+import api, { API_ENDPOINTS } from '../../services/api';
 
 const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
   const [formData, setFormData] = useState({
     transferNumber: '',
     fromWarehouse: '',
     toWarehouse: '',
-    transferType: 'Internal',
-    priority: 'Normal',
     expectedDate: '',
     items: [],
     notes: '',
@@ -18,33 +17,81 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [availableItems, setAvailableItems] = useState([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryError, setInventoryError] = useState('');
 
   const validationSchema = {
     fromWarehouse: { required: true },
     toWarehouse: { required: true },
-    transferType: { required: true },
     expectedDate: { required: true },
     items: { required: true, minLength: 1 }
   };
 
   const { validateField, validateForm } = useValidation(validationSchema);
 
-  useEffect(() => {
-    // Filter available items based on selected warehouse
-    if (formData.fromWarehouse) {
-      const warehouseItems = inventory.filter(item => 
-        item.warehouse === formData.fromWarehouse && item.quantity > 0
-      );
-      setAvailableItems(warehouseItems);
-    } else {
-      setAvailableItems([]);
-    }
+  const mapInventoryItems = (items = []) => {
+    return items
+      .map(item => {
+        const quantity = item.currentStock ?? item.quantity ?? item.weight ?? 0;
+        const name = item.name || item.product?.name || item.productName || 'Unnamed Item';
+        const unit = item.unit || item.product?.unit || item.measurementUnit || 'units';
+        const warehouseId =
+          (typeof item.warehouse === 'object' ? item.warehouse?._id : item.warehouse) || formData.fromWarehouse;
+        const warehouseName =
+          (typeof item.warehouse === 'object' ? item.warehouse?.name : item.warehouseName) ||
+          warehouses.find(w => w._id === warehouseId)?.name;
+
+        return {
+          _id: item._id,
+          name,
+          quantity,
+          unit,
+          warehouseId,
+          warehouseName: warehouseName || 'Selected Warehouse'
+        };
+      })
+      .filter(item => item.quantity > 0);
+  };
+
+  const fallbackWarehouseItems = useMemo(() => {
+    if (!formData.fromWarehouse) return [];
+    return mapInventoryItems(
+      inventory.filter(item => item.warehouse === formData.fromWarehouse)
+    );
   }, [formData.fromWarehouse, inventory]);
+
+  useEffect(() => {
+    const fetchWarehouseInventory = async () => {
+      if (!formData.fromWarehouse) {
+        setAvailableItems([]);
+        return;
+      }
+      setInventoryError('');
+      setInventoryLoading(true);
+      try {
+        const response = await api.get(API_ENDPOINTS.INVENTORY.BY_WAREHOUSE(formData.fromWarehouse));
+        if (response.data?.success) {
+          setAvailableItems(mapInventoryItems(response.data.data || []));
+        } else {
+          throw new Error(response.data?.message || 'Failed to load inventory');
+        }
+      } catch (error) {
+        console.error('Error fetching warehouse inventory:', error);
+        setInventoryError('Unable to load live stock levels for this warehouse. Showing cached data instead.');
+        setAvailableItems(fallbackWarehouseItems);
+      } finally {
+        setInventoryLoading(false);
+      }
+    };
+
+    fetchWarehouseInventory();
+  }, [formData.fromWarehouse, fallbackWarehouseItems]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
+      ...(field === 'fromWarehouse' ? { items: [] } : {})
     }));
 
     // Clear error when user starts typing
@@ -156,19 +203,6 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
                   disabled
                 />
                 <FormField
-                  label="Transfer Type"
-                  type="select"
-                  value={formData.transferType}
-                  onChange={(value) => handleInputChange('transferType', value)}
-                  options={[
-                    { value: 'Internal', label: 'Internal Transfer' },
-                    { value: 'Emergency', label: 'Emergency Transfer' },
-                    { value: 'Replenishment', label: 'Replenishment' },
-                    { value: 'Consolidation', label: 'Consolidation' }
-                  ]}
-                  required
-                />
-                <FormField
                   label="From Warehouse"
                   type="select"
                   value={formData.fromWarehouse}
@@ -195,18 +229,6 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
                   required
                 />
                 <FormField
-                  label="Priority"
-                  type="select"
-                  value={formData.priority}
-                  onChange={(value) => handleInputChange('priority', value)}
-                  options={[
-                    { value: 'Low', label: 'Low' },
-                    { value: 'Normal', label: 'Normal' },
-                    { value: 'High', label: 'High' },
-                    { value: 'Urgent', label: 'Urgent' }
-                  ]}
-                />
-                <FormField
                   label="Expected Date"
                   type="date"
                   value={formData.expectedDate}
@@ -230,6 +252,12 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
                   Add Item
                 </button>
               </div>
+
+              {inventoryError && (
+                <div className="mb-3 p-3 rounded bg-yellow-50 border border-yellow-200 text-sm text-yellow-800">
+                  {inventoryError}
+                </div>
+              )}
 
               {formData.items.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -257,12 +285,21 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
                           <select
                             value={item.itemId}
                             onChange={(e) => handleItemSelect(index, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            disabled={!formData.fromWarehouse || inventoryLoading}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
                           >
-                            <option value="">Select Item</option>
+                            <option value="">
+                              {formData.fromWarehouse
+                                ? inventoryLoading
+                                  ? 'Loading items...'
+                                  : availableItems.length
+                                    ? 'Select Item'
+                                    : 'No stock available'
+                                : 'Select warehouse first'}
+                            </option>
                             {availableItems.map(availableItem => (
                               <option key={availableItem._id} value={availableItem._id}>
-                                {availableItem.name} (Available: {availableItem.quantity} {availableItem.unit})
+                                {availableItem.name} — Total: {availableItem.quantity} {availableItem.unit}
                               </option>
                             ))}
                           </select>

@@ -23,7 +23,10 @@ export const createEmployee = async (req, res) => {
       cnic,
       emergencyContact,
       bankDetails,
-      manager
+      manager,
+      employeeType,
+      dailyWageRate,
+      monthlyAllowedLeaves
     } = req.body;
 
     // Generate unique employee ID
@@ -69,6 +72,9 @@ export const createEmployee = async (req, res) => {
       emergencyContact,
       bankDetails,
       manager,
+      employeeType: employeeType || 'Regular',
+      dailyWageRate: employeeType === 'Daily Wage' ? (dailyWageRate || 0) : 0,
+      monthlyAllowedLeaves: monthlyAllowedLeaves || 0,
       createdBy: req.user._id
     });
 
@@ -81,8 +87,10 @@ export const createEmployee = async (req, res) => {
       { path: 'createdBy', select: 'firstName lastName' }
     ]);
 
-    // Generate automatic payroll for the new employee
-    await generateAutomaticPayroll(employee, req.user._id);
+    // Generate automatic payroll for the new employee (only for regular employees)
+    if (employee.employeeType === 'Regular') {
+      await generateAutomaticPayroll(employee, req.user._id);
+    }
 
     // Create notification for new employee
     await NotificationService.createNotification({
@@ -113,9 +121,22 @@ export const createEmployee = async (req, res) => {
   } catch (error) {
     console.error("Create employee error:", error);
     if (error.code === 11000) {
+      // Check which field caused the duplicate key error
+      const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : null;
+      let message = "Employee with this email or CNIC already exists";
+      
+      if (duplicateField === 'email') {
+        message = "An employee with this email address already exists";
+      } else if (duplicateField === 'cnic') {
+        message = "An employee with this CNIC already exists";
+      } else if (duplicateField === 'employeeId') {
+        message = "An employee with this ID already exists";
+      }
+      
       return res.status(400).json({
         success: false,
-        message: "Employee with this email or CNIC already exists"
+        message: message,
+        field: duplicateField
       });
     }
     res.status(500).json({
@@ -342,6 +363,25 @@ export const updateEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error("Update employee error:", error);
+    if (error.code === 11000) {
+      // Check which field caused the duplicate key error
+      const duplicateField = error.keyPattern ? Object.keys(error.keyPattern)[0] : null;
+      let message = "Employee with this email or CNIC already exists";
+      
+      if (duplicateField === 'email') {
+        message = "An employee with this email address already exists";
+      } else if (duplicateField === 'cnic') {
+        message = "An employee with this CNIC already exists";
+      } else if (duplicateField === 'employeeId') {
+        message = "An employee with this ID already exists";
+      }
+      
+      return res.status(400).json({
+        success: false,
+        message: message,
+        field: duplicateField
+      });
+    }
     res.status(500).json({
       success: false,
       message: "Error updating employee",

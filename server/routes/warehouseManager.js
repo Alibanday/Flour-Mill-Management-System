@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { protect } from '../middleware/authMiddleware.js';
 import Warehouse from '../model/wareHouse.js';
 import Inventory from '../model/inventory.js';
@@ -18,8 +19,15 @@ const isWarehouseManager = (req, res, next) => {
 // Get warehouse manager's assigned warehouse
 router.get('/warehouse', protect, isWarehouseManager, async (req, res) => {
   try {
-    const warehouse = await Warehouse.findOne({ manager: req.user._id })
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id })
       .populate('manager', 'firstName lastName email');
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      warehouse = await Warehouse.findById(req.user.warehouse)
+        .populate('manager', 'firstName lastName email');
+    }
 
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
@@ -35,30 +43,119 @@ router.get('/warehouse', protect, isWarehouseManager, async (req, res) => {
 // Get stock items for warehouse manager's assigned warehouse
 router.get('/stock', protect, isWarehouseManager, async (req, res) => {
   try {
-    // First get the warehouse assigned to this manager
-    const warehouse = await Warehouse.findOne({ manager: req.user._id });
+    console.log('🔍 Fetching stock for warehouse manager:', req.user._id);
+    console.log('📦 User warehouse field:', req.user.warehouse);
+    
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id });
+    console.log('🏭 Warehouse found via manager field:', warehouse ? warehouse._id : 'None');
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      console.log('🔄 Trying fallback: user.warehouse field');
+      warehouse = await Warehouse.findById(req.user.warehouse);
+      console.log('🏭 Warehouse found via user.warehouse field:', warehouse ? warehouse._id : 'None');
+    }
     
     if (!warehouse) {
+      console.error('❌ No warehouse found for manager:', req.user._id);
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
     }
 
+    console.log('✅ Using warehouse:', warehouse._id, warehouse.name);
+    console.log('🔍 Warehouse ID type:', typeof warehouse._id, warehouse._id.toString());
+    
     // Get inventory items for this warehouse
-    const stockItems = await Inventory.find({ warehouse: warehouse._id })
-      .select('name code category currentStock minimumStock unit status location cost')
+    // MongoDB should handle ObjectId comparison automatically, but we'll ensure it's correct
+    const warehouseId = warehouse._id;
+    
+    console.log('🔍 Searching for inventory with warehouse ID:', warehouseId);
+    
+    // First, try direct query (most common case)
+    let stockItems = await Inventory.find({ warehouse: warehouseId })
+      .select('name code category currentStock minimumStock unit status location cost warehouse')
       .sort({ name: 1 });
+    
+    console.log(`📊 Direct query found ${stockItems.length} items`);
+    
+    // If no items found, try with ObjectId conversion (in case of type mismatch)
+    if (stockItems.length === 0 && mongoose.Types.ObjectId.isValid(warehouseId)) {
+      console.log('🔄 Trying with ObjectId conversion...');
+      const warehouseObjectId = new mongoose.Types.ObjectId(warehouseId);
+      stockItems = await Inventory.find({ warehouse: warehouseObjectId })
+        .select('name code category currentStock minimumStock unit status location cost warehouse')
+        .sort({ name: 1 });
+      console.log(`📊 ObjectId query found ${stockItems.length} items`);
+    }
+    
+    // If still no items, try string comparison (in case warehouse is stored as string)
+    if (stockItems.length === 0) {
+      console.log('🔄 Trying with string comparison...');
+      stockItems = await Inventory.find({ warehouse: warehouseId.toString() })
+        .select('name code category currentStock minimumStock unit status location cost warehouse')
+        .sort({ name: 1 });
+      console.log(`📊 String query found ${stockItems.length} items`);
+    }
 
+    console.log(`✅ Found ${stockItems.length} stock items for warehouse ${warehouse._id}`);
+    
+    // Debug: Log first few items to see their warehouse field
+    if (stockItems.length > 0) {
+      console.log('📦 Sample stock items:');
+      stockItems.slice(0, 3).forEach((item, idx) => {
+        console.log(`  ${idx + 1}. ${item.name} - warehouse: ${item.warehouse} (type: ${typeof item.warehouse})`);
+      });
+    } else {
+      // If no items found, check if there are any inventory items at all
+      const totalInventory = await Inventory.countDocuments({});
+      const inventoryWithWarehouse = await Inventory.countDocuments({ warehouse: { $exists: true, $ne: null } });
+      console.log(`⚠️ No stock items found. Total inventory: ${totalInventory}, With warehouse: ${inventoryWithWarehouse}`);
+      
+      // Try to find any inventory items and log their warehouse IDs
+      const sampleItems = await Inventory.find({ warehouse: { $exists: true, $ne: null } })
+        .select('name warehouse')
+        .limit(5);
+      console.log('📋 Sample inventory items with warehouses:');
+      sampleItems.forEach(item => {
+        const itemWarehouseId = item.warehouse?.toString() || item.warehouse;
+        const targetWarehouseId = warehouseId.toString();
+        const match = itemWarehouseId === targetWarehouseId;
+        console.log(`  - ${item.name}: warehouse = ${itemWarehouseId} (type: ${typeof item.warehouse}) ${match ? '✅ MATCH' : '❌ NO MATCH'}`);
+      });
+      
+      // Also check if there are inventory items with this exact warehouse ID but stored differently
+      const allInventory = await Inventory.find({})
+        .select('name warehouse')
+        .limit(20);
+      console.log('🔍 Checking all inventory items for warehouse match:');
+      allInventory.forEach(item => {
+        if (item.warehouse) {
+          const itemWarehouseId = item.warehouse.toString();
+          const targetWarehouseId = warehouseId.toString();
+          if (itemWarehouseId === targetWarehouseId) {
+            console.log(`  ✅ MATCH FOUND: ${item.name} has warehouse ${itemWarehouseId}`);
+          }
+        }
+      });
+    }
+    
     res.json(stockItems);
   } catch (error) {
-    console.error('Error fetching stock items:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Error fetching stock items:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
 // Get damage reports for warehouse manager's assigned warehouse
 router.get('/damage-reports', protect, isWarehouseManager, async (req, res) => {
   try {
-    // First get the warehouse assigned to this manager
-    const warehouse = await Warehouse.findOne({ manager: req.user._id });
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id });
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      warehouse = await Warehouse.findById(req.user.warehouse);
+    }
     
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
@@ -91,8 +188,13 @@ router.post('/damage-reports', protect, isWarehouseManager, async (req, res) => 
       evidencePhotos
     } = req.body;
 
-    // First get the warehouse assigned to this manager
-    const warehouse = await Warehouse.findOne({ manager: req.user._id });
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id });
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      warehouse = await Warehouse.findById(req.user.warehouse);
+    }
     
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
@@ -150,8 +252,13 @@ router.put('/damage-reports/:id', protect, isWarehouseManager, async (req, res) 
     const { id } = req.params;
     const updateData = req.body;
 
-    // First get the warehouse assigned to this manager
-    const warehouse = await Warehouse.findOne({ manager: req.user._id });
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id });
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      warehouse = await Warehouse.findById(req.user.warehouse);
+    }
     
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
@@ -192,8 +299,13 @@ router.put('/damage-reports/:id', protect, isWarehouseManager, async (req, res) 
 // Get stock movement history for warehouse manager's assigned warehouse
 router.get('/stock-history', protect, isWarehouseManager, async (req, res) => {
   try {
-    // First get the warehouse assigned to this manager
-    const warehouse = await Warehouse.findOne({ manager: req.user._id });
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id });
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      warehouse = await Warehouse.findById(req.user.warehouse);
+    }
     
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
@@ -237,8 +349,13 @@ router.get('/stock-history', protect, isWarehouseManager, async (req, res) => {
 // Get warehouse statistics
 router.get('/statistics', protect, isWarehouseManager, async (req, res) => {
   try {
-    // First get the warehouse assigned to this manager
-    const warehouse = await Warehouse.findOne({ manager: req.user._id });
+    // First try: Get warehouse from manager field (warehouse.manager = user._id)
+    let warehouse = await Warehouse.findOne({ manager: req.user._id });
+    
+    // Fallback: If no warehouse found via manager field, try user's warehouse field
+    if (!warehouse && req.user.warehouse) {
+      warehouse = await Warehouse.findById(req.user.warehouse);
+    }
     
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });

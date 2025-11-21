@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FaPlus, FaUsers, FaExclamationTriangle, FaChartBar, FaSearch, 
@@ -52,6 +52,84 @@ export default function SupplierManagementPage() {
   }, []);
 
   useEffect(() => {
+    const calculateOutstandingBalances = async () => {
+      if (suppliers.length === 0 || activeTab !== 'outstanding') return;
+      
+      try {
+        setLoadingOutstanding(true);
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+
+        const balances = {};
+
+        // Fetch all purchases, bag purchases, and food purchases
+        const [purchasesRes, bagPurchasesRes, foodPurchasesRes] = await Promise.all([
+          fetch('http://localhost:7000/api/purchases?limit=10000', { headers }),
+          fetch('http://localhost:7000/api/bag-purchases?limit=10000', { headers }),
+          fetch('http://localhost:7000/api/food-purchases?limit=10000', { headers })
+        ]);
+
+        let allPurchases = [];
+        if (purchasesRes.ok) {
+          const purchasesData = await purchasesRes.json();
+          allPurchases = purchasesData.data || purchasesData.purchases || [];
+        }
+
+        let allBagPurchases = [];
+        if (bagPurchasesRes.ok) {
+          const bagPurchasesData = await bagPurchasesRes.json();
+          allBagPurchases = bagPurchasesData.data || bagPurchasesData.bagPurchases || [];
+        }
+
+        let allFoodPurchases = [];
+        if (foodPurchasesRes.ok) {
+          const foodPurchasesData = await foodPurchasesRes.json();
+          allFoodPurchases = foodPurchasesData.data || foodPurchasesData.foodPurchases || [];
+        }
+
+        // Calculate outstanding balance for each supplier
+        suppliers.forEach(supplier => {
+          // Regular purchases
+          const regularDue = allPurchases
+            .filter(p => p.supplier?.name === supplier.name || p.supplier?._id?.toString() === supplier._id?.toString())
+            .reduce((sum, p) => {
+              const total = parseFloat(p.totalAmount) || 0;
+              const paid = parseFloat(p.paidAmount) || 0;
+              return sum + Math.max(0, total - paid);
+            }, 0);
+
+          // Bag purchases
+          const bagDue = allBagPurchases
+            .filter(p => p.supplier?._id?.toString() === supplier._id?.toString() || p.supplier?.toString() === supplier._id?.toString())
+            .reduce((sum, p) => {
+              const total = parseFloat(p.totalAmount) || 0;
+              const paid = parseFloat(p.paidAmount) || 0;
+              return sum + Math.max(0, total - paid);
+            }, 0);
+
+          // Food purchases
+          const foodDue = allFoodPurchases
+            .filter(p => p.supplier?._id?.toString() === supplier._id?.toString() || p.supplier?.toString() === supplier._id?.toString())
+            .reduce((sum, p) => {
+              const total = parseFloat(p.totalAmount) || 0;
+              const paid = parseFloat(p.paidAmount) || 0;
+              return sum + Math.max(0, total - paid);
+            }, 0);
+
+          balances[supplier._id] = regularDue + bagDue + foodDue;
+        });
+
+        setSupplierOutstandingBalances(balances);
+      } catch (err) {
+        console.error('Failed to calculate outstanding balances:', err);
+      } finally {
+        setLoadingOutstanding(false);
+      }
+    };
+
     if (activeTab === 'outstanding') {
       calculateOutstandingBalances();
     }

@@ -98,6 +98,7 @@ export const API_ENDPOINTS = {
   INVENTORY: {
     CREATE: 'http://localhost:7000/api/inventory/create',
     GET_ALL: 'http://localhost:7000/api/inventory/all',
+    BY_WAREHOUSE: (id) => `http://localhost:7000/api/inventory/warehouse/${id}`,
     GET_BY_ID: (id) => `http://localhost:7000/api/inventory/${id}`,
     UPDATE: (id) => `http://localhost:7000/api/inventory/${id}`,
     DELETE: (id) => `http://localhost:7000/api/inventory/${id}`,

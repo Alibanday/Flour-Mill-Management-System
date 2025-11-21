@@ -19,13 +19,29 @@ const FormField = ({
   icon: Icon,
   ...props
 }) => {
-  const baseClasses = `
+  const getBaseClasses = () => `
     w-full px-3 py-2 border rounded-lg shadow-sm transition-colors
     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
     ${error && touched ? 'border-red-500 bg-red-50' : 'border-gray-300'}
     ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}
     ${Icon ? 'pl-10' : ''}
   `;
+
+  const handleValueChange = (event, override) => {
+    if (!onChange) return;
+    const target = event?.target;
+    let newValue = override;
+
+    if (typeof newValue === 'undefined' && target) {
+      if (target.type === 'checkbox') {
+        newValue = target.checked;
+      } else {
+        newValue = target.value;
+      }
+    }
+
+    onChange(newValue, event);
+  };
 
   const renderInput = () => {
     switch (type) {
@@ -34,12 +50,12 @@ const FormField = ({
           <textarea
             name={name}
             value={value}
-            onChange={onChange}
+            onChange={(e) => handleValueChange(e)}
             onBlur={onBlur}
             placeholder={placeholder}
             disabled={disabled}
             rows={rows}
-            className={`${baseClasses} resize-vertical`}
+            className={`${getBaseClasses()} resize-vertical`}
             {...props}
           />
         );
@@ -49,10 +65,10 @@ const FormField = ({
           <select
             name={name}
             value={value}
-            onChange={onChange}
+            onChange={(e) => handleValueChange(e)}
             onBlur={onBlur}
             disabled={disabled}
-            className={baseClasses}
+            className={getBaseClasses()}
             {...props}
           >
             <option value="">Select {label}</option>
@@ -71,7 +87,7 @@ const FormField = ({
               type="checkbox"
               name={name}
               checked={value}
-              onChange={onChange}
+              onChange={(e) => handleValueChange(e)}
               onBlur={onBlur}
               disabled={disabled}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -93,7 +109,7 @@ const FormField = ({
                   name={name}
                   value={option.value}
                   checked={value === option.value}
-                  onChange={onChange}
+                  onChange={(e) => handleValueChange(e, option.value)}
                   onBlur={onBlur}
                   disabled={disabled}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
@@ -112,11 +128,11 @@ const FormField = ({
             type={type}
             name={name}
             value={value}
-            onChange={onChange}
+            onChange={(e) => handleValueChange(e)}
             onBlur={onBlur}
             placeholder={placeholder}
             disabled={disabled}
-            className={baseClasses}
+            className={getBaseClasses()}
             {...props}
           />
         );

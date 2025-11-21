@@ -138,12 +138,10 @@ const ProductionCostPage = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Total Cost</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {new Intl.NumberFormat('en-PK', {
-                    style: 'currency',
-                    currency: 'PKR',
+                  Rs. {(summary.totalCost || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0
-                  }).format(summary.totalCost)}
+                  })}
                 </p>
               </div>
             </div>
@@ -159,12 +157,10 @@ const ProductionCostPage = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Average Daily Cost</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {new Intl.NumberFormat('en-PK', {
-                    style: 'currency',
-                    currency: 'PKR',
+                  Rs. {(summary.averageDailyCost || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0
-                  }).format(summary.averageDailyCost)}
+                  })}
                 </p>
               </div>
             </div>
@@ -180,12 +176,10 @@ const ProductionCostPage = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Highest Cost Day</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {new Intl.NumberFormat('en-PK', {
-                    style: 'currency',
-                    currency: 'PKR',
+                  Rs. {(summary.highestCostDay || 0).toLocaleString(undefined, {
                     minimumFractionDigits: 0,
                     maximumFractionDigits: 0
-                  }).format(summary.highestCostDay)}
+                  })}
                 </p>
               </div>
             </div>

@@ -13,6 +13,8 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
     hireDate: '',
     warehouse: '',
     monthlyAllowedLeaves: 0,
+    employeeType: 'Regular',
+    dailyWageRate: '',
     address: {
       street: '',
       city: '',
@@ -98,6 +100,8 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         hireDate: employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : '',
         warehouse: warehouseId,
         monthlyAllowedLeaves: employee.monthlyAllowedLeaves || 0,
+        employeeType: employee.employeeType || 'Regular',
+        dailyWageRate: employee.dailyWageRate ? String(employee.dailyWageRate) : '',
         address: {
           street: employee.address?.street || '',
           city: employee.address?.city || '',
@@ -198,9 +202,18 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         break;
       case 'salary':
         const salaryValue = parseFloat(value);
-        if (!value && value !== 0) error = 'Salary is required';
-        else if (isNaN(salaryValue) || salaryValue < 0) error = 'Salary must be a valid positive number';
-        else if (salaryValue < 10000) error = 'Salary must be at least 10,000';
+        if (formData.employeeType === 'Regular') {
+          if (!value && value !== 0) error = 'Salary is required';
+          else if (isNaN(salaryValue) || salaryValue < 0) error = 'Salary must be a valid positive number';
+          else if (salaryValue < 10000) error = 'Salary must be at least 10,000';
+        }
+        break;
+      case 'dailyWageRate':
+        if (formData.employeeType === 'Daily Wage') {
+          const wageRateValue = parseFloat(value);
+          if (!value && value !== 0) error = 'Daily wage rate is required';
+          else if (isNaN(wageRateValue) || wageRateValue < 0) error = 'Daily wage rate must be a valid positive number';
+        }
         break;
       case 'hireDate':
         if (!value) error = 'Hire date is required';
@@ -337,6 +350,8 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
         ...formData,
         salary: parseFloat(formData.salary) || 0, // Convert salary to number
         monthlyAllowedLeaves: parseInt(formData.monthlyAllowedLeaves) || 0, // Convert to integer
+        employeeType: formData.employeeType || 'Regular',
+        dailyWageRate: formData.employeeType === 'Daily Wage' ? (parseFloat(formData.dailyWageRate) || 0) : 0,
         cnic: formData.cnic && String(formData.cnic).trim() ? String(formData.cnic).trim() : null,
         emergencyContact: {
           name: formData.emergencyContact.name?.trim() || null,
@@ -821,6 +836,42 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
                 Number of leaves allowed per month (excess leaves will result in salary deduction)
               </p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Employee Type *
+              </label>
+              <select
+                name="employeeType"
+                value={formData.employeeType}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Regular">Regular Employee</option>
+                <option value="Daily Wage">Daily Wage Employee</option>
+              </select>
+            </div>
+
+            {formData.employeeType === 'Daily Wage' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Daily Wage Rate (Rs.) *
+                </label>
+                <input
+                  type="number"
+                  name="dailyWageRate"
+                  value={formData.dailyWageRate}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter daily wage rate"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Amount to be paid per day for daily wage employees
+                </p>
+              </div>
+            )}
           </div>
         </div>
 

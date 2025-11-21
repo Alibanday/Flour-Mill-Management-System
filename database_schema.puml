@@ -1,0 +1,624 @@
+@startuml FloorMillManagementSystem_Database_Schema
+
+!define PRIMARY_KEY(x) <b><color:red>PK:</color></b> x
+!define FOREIGN_KEY(x) <color:blue>FK:</color> x
+!define INDEX(x) <color:green>IDX:</color> x
+
+' Core User and Employee Management
+entity "User" as User {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  firstName : String
+  lastName : String
+  email : String <<unique>>
+  password : String
+  role : Enum [Admin, General Manager, Sales Manager, Production Manager, Warehouse Manager]
+  status : Enum [Active, Inactive]
+  warehouse : ObjectId <<FK>>
+  cnic : String
+  mobile : String
+  address : String
+  profileImage : String
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Employee" as Employee {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  employeeId : String <<unique>>
+  firstName : String
+  lastName : String
+  email : String <<unique>>
+  phone : String
+  department : Enum [Production, Warehouse, Sales, Finance, HR, IT, Maintenance]
+  position : String
+  hireDate : Date
+  salary : Number
+  employeeType : Enum [Regular, Daily Wage]
+  dailyWageRate : Number
+  monthlyAllowedLeaves : Number
+  status : Enum [active, inactive, terminated]
+  manager : ObjectId <<FK>>
+  warehouse : ObjectId <<FK>>
+  cnic : String <<unique>>
+  address : Object
+  emergencyContact : Object
+  bankDetails : Object
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "DailyWagePayment" as DailyWagePayment {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  paymentNumber : String <<unique>>
+  FOREIGN_KEY(employee) : ObjectId
+  paymentDate : Date
+  workDate : Date
+  amount : Number
+  hoursWorked : Number
+  wageRate : Number
+  paymentMethod : Enum [Cash, Bank Transfer, Cheque]
+  paymentStatus : Enum [Pending, Paid, Failed]
+  description : String
+  warehouse : ObjectId <<FK>>
+  createdBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Attendance" as Attendance {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  FOREIGN_KEY(employee) : ObjectId
+  date : Date
+  status : Enum [present, absent, late, half-day]
+  checkIn : DateTime
+  checkOut : DateTime
+  workingHours : Number
+  overtime : Number
+  notes : String
+  markedBy : ObjectId <<FK>>
+  updatedBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Salary" as Salary {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  salaryNumber : String <<unique>>
+  FOREIGN_KEY(employee) : ObjectId
+  month : Number
+  year : Number
+  basicSalary : Number
+  allowances : Number
+  deductions : Number
+  netSalary : Number
+  workingDays : Number
+  totalDays : Number
+  overtimeHours : Number
+  overtimeRate : Number
+  overtimeAmount : Number
+  paymentDate : Date
+  paymentMethod : Enum [Cash, Bank Transfer, Cheque]
+  paymentStatus : Enum [Pending, Paid, Failed]
+  salaryAccount : ObjectId <<FK>>
+  cashAccount : ObjectId <<FK>>
+  warehouse : ObjectId <<FK>>
+  processedBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Warehouse and Inventory Management
+entity "Warehouse" as Warehouse {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  warehouseNumber : String <<unique>>
+  name : String
+  location : String
+  status : Enum [Active, Inactive]
+  description : String
+  manager : ObjectId <<FK>>
+  capacity : Object
+  contact : Object
+  createdAt : DateTime
+}
+
+entity "Product" as Product {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  name : String
+  code : String <<unique>>
+  category : Enum [Raw Materials, Finished Goods, Packaging Materials]
+  subcategory : String
+  description : String
+  unit : String
+  weightVariants : Array
+  weight : Number
+  price : Number
+  purchasePrice : Number
+  minimumStock : Number
+  status : Enum [Active, Inactive, Discontinued]
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Inventory" as Inventory {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  FOREIGN_KEY(product) : ObjectId
+  FOREIGN_KEY(warehouse) : ObjectId
+  currentStock : Number
+  minimumStock : Number
+  status : Enum [Active, Inactive, Low Stock, Out of Stock, Discontinued]
+  name : String
+  code : String
+  category : String
+  subcategory : String
+  weight : Number
+  price : Number
+  lastUpdated : DateTime
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Stock" as Stock {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  FOREIGN_KEY(inventoryItem) : ObjectId
+  movementType : Enum [in, out]
+  quantity : Number
+  reason : String
+  referenceNumber : String
+  FOREIGN_KEY(warehouse) : ObjectId
+  createdBy : ObjectId <<FK>>
+  createdAt : DateTime
+}
+
+entity "StockTransfer" as StockTransfer {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  transferNumber : String <<unique>>
+  transferType : Enum [Warehouse to Warehouse, Production to Warehouse, Warehouse to Production, Return Transfer, Adjustment]
+  FOREIGN_KEY(fromWarehouse) : ObjectId
+  FOREIGN_KEY(toWarehouse) : ObjectId
+  items : Array
+  transferDetails : Object
+  status : Enum [Pending, In Transit, Completed, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  FOREIGN_KEY(approvedBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "DamageReport" as DamageReport {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  FOREIGN_KEY(inventoryItem) : ObjectId
+  FOREIGN_KEY(warehouse) : ObjectId
+  quantityDamaged : Number
+  reason : Enum [Water Damage, Fire Damage, Physical Damage, Expired, Contamination, Pest Damage, Temperature Damage, Handling Error, Transportation Damage, Other]
+  description : String
+  severity : Enum [Low, Medium, High, Critical]
+  status : Enum [Reported, Under Review, Approved, Rejected, Resolved]
+  estimatedLoss : Number
+  damageDate : Date
+  evidencePhotos : Array
+  FOREIGN_KEY(reportedBy) : ObjectId
+  FOREIGN_KEY(reviewedBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Supplier and Purchase Management
+entity "Supplier" as Supplier {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  supplierCode : String <<unique>>
+  name : String
+  contactPerson : String
+  email : String <<unique>>
+  phone : String
+  address : Object
+  supplierType : Enum [Government, Private]
+  businessType : Enum [Raw Materials, Packaging, Equipment, Services, Other]
+  taxNumber : String
+  creditLimit : Number
+  outstandingBalance : Number
+  warehouse : ObjectId <<FK>>
+  status : Enum [Active, Inactive]
+  createdBy : ObjectId <<FK>>
+  updatedBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Purchase" as Purchase {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  purchaseNumber : String <<unique>>
+  purchaseType : Enum [Bags, Food, Other]
+  FOREIGN_KEY(supplier) : ObjectId
+  purchaseDate : Date
+  items : Array
+  subtotal : Number
+  discount : Number
+  tax : Number
+  totalAmount : Number
+  paidAmount : Number
+  dueAmount : Number
+  paymentStatus : Enum [Pending, Partial, Paid]
+  paymentMethod : Enum [Cash, Bank Transfer, Check, Credit]
+  FOREIGN_KEY(warehouse) : ObjectId
+  status : Enum [Draft, Pending, Ordered, Received, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "BagPurchase" as BagPurchase {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  purchaseNumber : String <<unique>>
+  FOREIGN_KEY(supplier) : ObjectId
+  purchaseDate : Date
+  bags : Map
+  totalQuantity : Number
+  subtotal : Number
+  tax : Number
+  discount : Number
+  totalAmount : Number
+  paidAmount : Number
+  dueAmount : Number
+  paymentStatus : Enum [Pending, Partial, Paid]
+  paymentMethod : Enum [Cash, Bank Transfer, Check, Credit]
+  FOREIGN_KEY(warehouse) : ObjectId
+  status : Enum [Draft, Pending, Approved, Completed, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "FoodPurchase" as FoodPurchase {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  purchaseNumber : String <<unique>>
+  FOREIGN_KEY(supplier) : ObjectId
+  purchaseDate : Date
+  foodItems : Array
+  totalQuantity : Number
+  subtotal : Number
+  tax : Number
+  discount : Number
+  totalAmount : Number
+  paidAmount : Number
+  dueAmount : Number
+  paymentStatus : Enum [Pending, Partial, Paid]
+  paymentMethod : Enum [Cash, Bank Transfer, Check, Credit]
+  FOREIGN_KEY(warehouse) : ObjectId
+  status : Enum [Draft, Pending, Approved, Completed, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Customer and Sales Management
+entity "Customer" as Customer {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  customerNumber : String <<unique>>
+  name : String
+  email : String <<unique>>
+  phone : String
+  address : Object
+  customerType : Enum [New, Regular, Premium, VIP]
+  creditLimit : Number
+  creditUsed : Number
+  outstandingBalance : Number
+  status : Enum [Active, Inactive]
+  FOREIGN_KEY(warehouse) : ObjectId
+  createdBy : ObjectId <<FK>>
+  updatedBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "CustomerNew" as CustomerNew {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  customerId : String
+  customerNumber : String <<unique>>
+  firstName : String
+  lastName : String
+  email : String <<unique>>
+  phone : String
+  businessName : String
+  businessType : Enum [Individual, Retailer, Wholesaler, Restaurant, Bakery, Distributor, Other]
+  customerType : Enum [New, Regular, Premium, VIP]
+  creditLimit : Number
+  creditUsed : Number
+  outstandingBalance : Number
+  address : Object
+  status : Enum [Active, Inactive]
+  FOREIGN_KEY(warehouse) : ObjectId
+  createdBy : ObjectId <<FK>>
+  updatedBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Sale" as Sale {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  invoiceNumber : String <<unique>>
+  customer : Object
+  saleDate : Date
+  items : Array
+  subtotal : Number
+  discount : Number
+  tax : Number
+  totalAmount : Number
+  paidAmount : Number
+  dueAmount : Number
+  paymentStatus : Enum [Pending, Partial, Paid]
+  paymentMethod : Enum [Cash, Bank Transfer, Check, Credit]
+  FOREIGN_KEY(warehouse) : ObjectId
+  status : Enum [Draft, Pending, Completed, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "BagSale" as BagSale {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  saleNumber : String <<unique>>
+  FOREIGN_KEY(customer) : ObjectId
+  saleDate : Date
+  bags : Map
+  totalQuantity : Number
+  subtotal : Number
+  tax : Number
+  discount : Number
+  totalAmount : Number
+  paidAmount : Number
+  dueAmount : Number
+  paymentStatus : Enum [Pending, Partial, Paid]
+  FOREIGN_KEY(warehouse) : ObjectId
+  status : Enum [Draft, Pending, Completed, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Production Management
+entity "Production" as Production {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  batchNumber : String <<unique>>
+  FOREIGN_KEY(sourceWarehouse) : ObjectId
+  wheatQuantity : Number
+  outputProducts : Array
+  FOREIGN_KEY(destinationWarehouse) : ObjectId
+  productionDate : Date
+  status : Enum [Draft, In Progress, Completed, Quality Check, Approved, Cancelled]
+  qualityCheck : Object
+  FOREIGN_KEY(createdBy) : ObjectId
+  FOREIGN_KEY(approvedBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Repacking" as Repacking {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  repackingNumber : String <<unique>>
+  batchNumber : String
+  sourceProduct : Object
+  targetProducts : Array
+  FOREIGN_KEY(warehouse) : ObjectId
+  repackingDetails : Object
+  costInfo : Object
+  qualityCheck : Object
+  status : Enum [Pending, In Progress, Completed, Quality Check Pending, Cancelled]
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Financial Management
+entity "Account" as Account {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  accountNumber : String <<unique>>
+  accountName : String
+  accountType : Enum [Asset, Liability, Equity, Revenue, Expense]
+  category : Enum [Cash, Bank, Accounts Receivable, Accounts Payable, Inventory, Equipment, Salary Expense, Purchase Expense, Sales Revenue, Other]
+  description : String
+  openingBalance : Number
+  currentBalance : Number
+  currency : Enum [PKR, USD, EUR]
+  status : Enum [Active, Inactive]
+  FOREIGN_KEY(warehouse) : ObjectId
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Transaction" as Transaction {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  transactionNumber : String <<unique>>
+  transactionDate : Date
+  transactionType : Enum [Payment, Receipt, Purchase, Sale, Salary, Transfer, Adjustment, Other]
+  reference : String
+  description : String
+  amount : Number
+  currency : Enum [PKR, USD, EUR]
+  FOREIGN_KEY(debitAccount) : ObjectId
+  FOREIGN_KEY(creditAccount) : ObjectId
+  FOREIGN_KEY(relatedSale) : ObjectId
+  FOREIGN_KEY(relatedPurchase) : ObjectId
+  FOREIGN_KEY(relatedUser) : ObjectId
+  paymentMethod : Enum [Cash, Bank Transfer, Cheque, Credit Card, Other]
+  paymentStatus : Enum [Pending, Completed, Failed, Cancelled]
+  isPayable : Boolean
+  isReceivable : Boolean
+  dueDate : Date
+  FOREIGN_KEY(warehouse) : ObjectId
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "FinancialTransaction" as FinancialTransaction {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  transactionType : Enum [income, expense, transfer, adjustment]
+  category : Enum [sales, purchases, salaries, utilities, maintenance, other]
+  amount : Number
+  description : String
+  date : Date
+  FOREIGN_KEY(account) : ObjectId
+  reference : String
+  FOREIGN_KEY(createdBy) : ObjectId
+  status : Enum [pending, completed, cancelled]
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Gate Pass and System
+entity "GatePass" as GatePass {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  gatePassNumber : String <<unique>>
+  type : Enum [Person, Vehicle, Material, Equipment, Visitor]
+  purpose : String
+  issuedTo : Object
+  items : Array
+  vehicle : Object
+  validFrom : Date
+  validUntil : Date
+  status : Enum [Active, Used, Expired, Cancelled]
+  FOREIGN_KEY(warehouse) : ObjectId
+  FOREIGN_KEY(issuedBy) : ObjectId
+  FOREIGN_KEY(relatedPurchase) : ObjectId
+  FOREIGN_KEY(relatedSale) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Notification" as Notification {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  type : Enum [low_stock, pending_payment, restock_reminder, payment_due, inventory_alert, system_maintenance, user_activity, warehouse_transfer, production_alert, financial_alert, production, sales, purchase, inventory, stock, warehouse, system]
+  title : String
+  message : String
+  priority : Enum [low, medium, high, critical]
+  status : Enum [unread, read, acknowledged, resolved]
+  FOREIGN_KEY(recipient) : ObjectId
+  FOREIGN_KEY(user) : ObjectId
+  relatedEntity : String
+  entityId : ObjectId
+  data : Object
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "SystemConfig" as SystemConfig {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  key : String <<unique>>
+  value : Object
+  description : String
+  category : String
+  updatedBy : ObjectId <<FK>>
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+entity "Report" as Report {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  reportType : String
+  title : String
+  data : Object
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+}
+
+entity "ReportTemplate" as ReportTemplate {
+  PRIMARY_KEY(_id) : ObjectId
+  --
+  name : String
+  templateType : String
+  template : Object
+  FOREIGN_KEY(createdBy) : ObjectId
+  createdAt : DateTime
+  updatedAt : DateTime
+}
+
+' Relationships
+User ||--o{ Employee : "manages"
+User ||--o{ Warehouse : "manages"
+User ||--o{ Account : "creates"
+User ||--o{ Transaction : "creates"
+User ||--o{ Notification : "receives"
+User ||--o{ SystemConfig : "updates"
+
+Warehouse ||--o{ User : "has manager"
+Warehouse ||--o{ Employee : "assigns"
+Warehouse ||--o{ Inventory : "contains"
+Warehouse ||--o{ Stock : "tracks"
+Warehouse ||--o{ Purchase : "receives"
+Warehouse ||--o{ BagPurchase : "receives"
+Warehouse ||--o{ FoodPurchase : "receives"
+Warehouse ||--o{ Sale : "ships from"
+Warehouse ||--o{ Production : "source/destination"
+Warehouse ||--o{ StockTransfer : "from/to"
+Warehouse ||--o{ DamageReport : "reports"
+Warehouse ||--o{ GatePass : "issues"
+Warehouse ||--o{ Supplier : "assigned"
+Warehouse ||--o{ Customer : "serves"
+Warehouse ||--o{ Account : "belongs to"
+
+Employee ||--o{ Attendance : "has"
+Employee ||--o{ Salary : "receives"
+Employee ||--o{ DailyWagePayment : "receives"
+Employee ||--o{ Employee : "manages (self-ref)"
+
+Product ||--o{ Inventory : "catalog"
+Product ||--o{ Sale : "sold as"
+
+Inventory ||--o{ Stock : "movements"
+Inventory ||--o{ Sale : "items"
+Inventory ||--o{ StockTransfer : "transferred"
+Inventory ||--o{ DamageReport : "reported"
+Inventory ||--o{ Repacking : "source/target"
+
+Supplier ||--o{ Purchase : "supplies"
+Supplier ||--o{ BagPurchase : "supplies"
+Supplier ||--o{ FoodPurchase : "supplies"
+
+Customer ||--o{ Sale : "purchases"
+CustomerNew ||--o{ Sale : "purchases"
+CustomerNew ||--o{ BagSale : "purchases"
+
+Sale ||--o{ Transaction : "generates"
+Purchase ||--o{ Transaction : "generates"
+BagPurchase ||--o{ GatePass : "generates"
+FoodPurchase ||--o{ GatePass : "generates"
+Sale ||--o{ GatePass : "generates"
+
+Production ||--o{ Stock : "creates"
+Repacking ||--o{ Stock : "creates"
+
+Account ||--o{ Transaction : "debit/credit"
+Account ||--o{ FinancialTransaction : "records"
+Account ||--o{ Salary : "pays from"
+
+@enduml
+

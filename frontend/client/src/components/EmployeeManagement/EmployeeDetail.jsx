@@ -151,12 +151,11 @@ export default function EmployeeDetail({ employeeId, onClose, onEdit }) {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    const value = Number(amount) || 0;
+    return `Rs. ${value.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount || 0);
+    })}`;
   };
 
   const formatDate = (date) => {

@@ -173,7 +173,7 @@ export default function EmployeeDashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-blue-600">
-                    {dept.avgSalary ? `PKR ${Math.round(dept.avgSalary).toLocaleString()}` : 'N/A'}
+                    {dept.avgSalary ? `Rs. ${Math.round(dept.avgSalary).toLocaleString()}` : 'N/A'}
                   </p>
                   <p className="text-xs text-gray-500">Avg Salary</p>
                 </div>
@@ -219,25 +219,25 @@ export default function EmployeeDashboard() {
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600">Average Salary</p>
               <p className="text-xl font-bold text-gray-900">
-                {stats.salaryStats.avgSalary ? `PKR ${Math.round(stats.salaryStats.avgSalary).toLocaleString()}` : 'N/A'}
+                {stats.salaryStats.avgSalary ? `Rs. ${Math.round(stats.salaryStats.avgSalary).toLocaleString()}` : 'N/A'}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600">Minimum Salary</p>
               <p className="text-xl font-bold text-gray-900">
-                {stats.salaryStats.minSalary ? `PKR ${Math.round(stats.salaryStats.minSalary).toLocaleString()}` : 'N/A'}
+                {stats.salaryStats.minSalary ? `Rs. ${Math.round(stats.salaryStats.minSalary).toLocaleString()}` : 'N/A'}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600">Maximum Salary</p>
               <p className="text-xl font-bold text-gray-900">
-                {stats.salaryStats.maxSalary ? `PKR ${Math.round(stats.salaryStats.maxSalary).toLocaleString()}` : 'N/A'}
+                {stats.salaryStats.maxSalary ? `Rs. ${Math.round(stats.salaryStats.maxSalary).toLocaleString()}` : 'N/A'}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600">Total Payroll</p>
               <p className="text-xl font-bold text-gray-900">
-                {stats.salaryStats.totalSalary ? `PKR ${Math.round(stats.salaryStats.totalSalary).toLocaleString()}` : 'N/A'}
+                {stats.salaryStats.totalSalary ? `Rs. ${Math.round(stats.salaryStats.totalSalary).toLocaleString()}` : 'N/A'}
               </p>
             </div>
           </div>

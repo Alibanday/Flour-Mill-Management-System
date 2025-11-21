@@ -9,7 +9,7 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
     category: 'Cash',
     description: '',
     openingBalance: 0,
-    currency: 'PKR',
+    currency: 'Rs.',
     status: 'Active'
   });
 
@@ -25,7 +25,7 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
         category: editData.category || 'Cash',
         description: editData.description || '',
         openingBalance: editData.openingBalance || 0,
-        currency: editData.currency || 'PKR',
+        currency: editData.currency || 'Rs.',
         status: editData.status || 'Active'
       });
     }
@@ -236,9 +236,7 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="PKR">PKR (Pakistani Rupee)</option>
-                <option value="USD">USD (US Dollar)</option>
-                <option value="EUR">EUR (Euro)</option>
+                <option value="Rs.">Rs. (Rupees)</option>
               </select>
             </div>
           </div>

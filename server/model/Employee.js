@@ -60,6 +60,16 @@ const employeeSchema = new mongoose.Schema({
     enum: ['active', 'inactive', 'terminated'],
     default: 'active'
   },
+  employeeType: {
+    type: String,
+    enum: ['Regular', 'Daily Wage'],
+    default: 'Regular'
+  },
+  dailyWageRate: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
   manager: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Employee'

@@ -261,7 +261,7 @@ const InventoryForm = ({ inventory = null, onSave, onCancel, mode = 'create' }) 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price (PKR per item) *
+                Price (Rs. per item) *
               </label>
               <input
                 type="number"

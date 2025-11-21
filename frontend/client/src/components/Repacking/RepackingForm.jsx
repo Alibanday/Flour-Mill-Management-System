@@ -372,7 +372,7 @@ const RepackingForm = ({ repacking, inventory, onSubmit, onClose }) => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
-                  label="Labor Cost (PKR)"
+                  label="Labor Cost (Rs.)"
                   type="number"
                   value={formData.costInfo.laborCost}
                   onChange={(value) => handleInputChange('costInfo.laborCost', parseFloat(value) || 0)}
@@ -380,7 +380,7 @@ const RepackingForm = ({ repacking, inventory, onSubmit, onClose }) => {
                   step="0.01"
                 />
                 <FormField
-                  label="Material Cost (PKR)"
+                  label="Material Cost (Rs.)"
                   type="number"
                   value={formData.costInfo.materialCost}
                   onChange={(value) => handleInputChange('costInfo.materialCost', parseFloat(value) || 0)}
@@ -388,7 +388,7 @@ const RepackingForm = ({ repacking, inventory, onSubmit, onClose }) => {
                   step="0.01"
                 />
                 <FormField
-                  label="Total Cost (PKR)"
+                  label="Total Cost (Rs.)"
                   type="number"
                   value={formData.costInfo.totalCost}
                   onChange={(value) => handleInputChange('costInfo.totalCost', parseFloat(value) || 0)}

@@ -524,7 +524,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                           </option>
                           {weightVariants.map((variant) => (
                             <option key={variant.weight} value={variant.weight}>
-                              {variant.weight}kg - PKR {variant.price.toLocaleString()}
+                              {variant.weight}kg - Rs. {variant.price.toLocaleString()}
                             </option>
                           ))}
                         </select>
@@ -550,7 +550,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                       {/* Unit Price (Read-only) */}
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Unit Price (PKR)
+                          Unit Price (Rs.)
                         </label>
                         <input
                           type="number"
@@ -563,7 +563,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                       {/* Total (Read-only) */}
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Total (PKR)
+                          Total (Rs.)
                         </label>
                         <input
                           type="number"
@@ -583,7 +583,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
               <div className="flex justify-end">
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Grand Total:</p>
-                  <p className="text-2xl font-bold text-gray-900">PKR {grandTotal.toFixed(2)}</p>
+                  <p className="text-2xl font-bold text-gray-900">Rs. {grandTotal.toFixed(2)}</p>
                 </div>
               </div>
             </div>

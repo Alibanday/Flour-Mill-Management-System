@@ -223,7 +223,7 @@ const RealTimeDashboard = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Value:</span>
-              <span className="font-semibold">PKR {dashboardData.inventory.totalValue.toLocaleString()}</span>
+              <span className="font-semibold">Rs. {dashboardData.inventory.totalValue.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Low Stock:</span>
@@ -281,7 +281,7 @@ const RealTimeDashboard = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Cost:</span>
-              <span className="font-semibold">PKR {dashboardData.production.totalCost.toLocaleString()}</span>
+              <span className="font-semibold">Rs. {dashboardData.production.totalCost.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -302,7 +302,7 @@ const RealTimeDashboard = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Revenue:</span>
-              <span className="font-semibold">PKR {dashboardData.sales.totalRevenue.toLocaleString()}</span>
+              <span className="font-semibold">Rs. {dashboardData.sales.totalRevenue.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Pending Payments:</span>
@@ -327,7 +327,7 @@ const RealTimeDashboard = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Total Amount:</span>
-              <span className="font-semibold">PKR {dashboardData.purchase.totalAmount.toLocaleString()}</span>
+              <span className="font-semibold">Rs. {dashboardData.purchase.totalAmount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Pending Orders:</span>

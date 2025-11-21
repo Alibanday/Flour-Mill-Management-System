@@ -6,7 +6,7 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
     transactionType: 'Payment',
     description: '',
     amount: 0,
-    currency: 'PKR',
+    currency: 'Rs.',
     debitAccount: '',
     creditAccount: '',
     paymentMethod: 'Cash',
@@ -26,7 +26,7 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
         transactionType: editData.transactionType || 'Payment',
         description: editData.description || '',
         amount: editData.amount || 0,
-        currency: editData.currency || 'PKR',
+        currency: editData.currency || 'Rs.',
         debitAccount: editData.debitAccount || '',
         creditAccount: editData.creditAccount || '',
         paymentMethod: editData.paymentMethod || 'Cash',
@@ -348,9 +348,7 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="PKR">PKR (Pakistani Rupee)</option>
-                <option value="USD">USD (US Dollar)</option>
-                <option value="EUR">EUR (Euro)</option>
+                <option value="Rs.">Rs. (Rupees)</option>
               </select>
             </div>
           </div>

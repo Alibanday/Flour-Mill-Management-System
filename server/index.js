@@ -27,6 +27,7 @@ import repackingRoutes from "./routes/repacking.js";
 import productionCostRoutes from "./routes/productionCosts.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import warehouseManagerRoutes from "./routes/warehouseManager.js";
+import dailyWagePaymentRoutes from "./routes/dailyWagePayments.js";
 import fileUpload from "express-fileupload";
 import connectWithRetry from "./config/database.js";
 import NotificationService from "./services/notificationService.js";
@@ -84,6 +85,7 @@ app.use("/api/repacking", repackingRoutes);
 app.use("/api/production-costs", productionCostRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/warehouse-manager", warehouseManagerRoutes);
+app.use("/api/daily-wage-payments", dailyWagePaymentRoutes);
         
         // Health check endpoint
 app.get("/api/health", (_, res) => {

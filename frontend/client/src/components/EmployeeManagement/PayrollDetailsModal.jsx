@@ -15,11 +15,11 @@ export default function PayrollDetailsModal({ payroll, onClose }) {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return '$0';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    const value = Number(amount) || 0;
+    return `Rs. ${value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
   };
 
   const getStatusColor = (status) => {

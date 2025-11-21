@@ -9,6 +9,7 @@ import EmployeeDashboard from '../components/EmployeeManagement/EmployeeDashboar
 import EmployeeReports from '../components/EmployeeManagement/EmployeeReports';
 import AttendanceManagement from '../components/EmployeeManagement/AttendanceManagement';
 import PayrollManagement from '../components/EmployeeManagement/PayrollManagement';
+import DailyPayments from '../components/EmployeeManagement/DailyPayments';
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
@@ -53,6 +54,7 @@ export default function EmployeesPage() {
     { id: 'employees', name: 'Employees', icon: <FaUsers className="mr-2" /> },
     { id: 'attendance', name: 'Attendance', icon: <FaClock className="mr-2" /> },
     { id: 'payroll', name: 'Payroll', icon: <FaMoneyBillWave className="mr-2" /> },
+    { id: 'daily-payments', name: 'Daily Payments', icon: <FaMoneyBillWave className="mr-2" /> },
     { id: 'reports', name: 'Reports', icon: <FaList className="mr-2" /> }
   ];
 
@@ -195,6 +197,9 @@ export default function EmployeesPage() {
             )}
             {activeTab === 'payroll' && (
               <PayrollManagement />
+            )}
+            {activeTab === 'daily-payments' && (
+              <DailyPayments />
             )}
             {activeTab === 'reports' && (
               <EmployeeReports />

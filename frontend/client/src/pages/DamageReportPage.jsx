@@ -390,7 +390,7 @@ export default function DamageReportPage() {
                   placeholder="Enter estimated loss amount"
                 />
                 <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-lg text-gray-600">
-                  PKR
+                  Rs.
                 </span>
               </div>
             </div>

@@ -334,7 +334,7 @@ export default function EmployeeReports() {
                           {item.count}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {item.avgSalary ? `PKR ${Math.round(item.avgSalary).toLocaleString()}` : 'N/A'}
+                          {item.avgSalary ? `Rs. ${Math.round(item.avgSalary).toLocaleString()}` : 'N/A'}
                         </td>
                       </>
                     )}
@@ -347,7 +347,7 @@ export default function EmployeeReports() {
                           {item.department}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          PKR {item.salary?.toLocaleString()}
+                          Rs. {item.salary?.toLocaleString()}
                         </td>
                       </>
                     )}

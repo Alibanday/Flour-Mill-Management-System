@@ -52,10 +52,11 @@ const WarehouseDetail = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR'
-    }).format(amount);
+    const value = Number(amount) || 0;
+    return `Rs. ${value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
   };
 
   if (loading) {

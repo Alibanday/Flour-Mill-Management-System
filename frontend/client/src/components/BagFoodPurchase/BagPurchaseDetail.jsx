@@ -301,10 +301,10 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                     Quantity
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit Price (PKR)
+                    Unit Price (Rs.)
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Price (PKR)
+                    Total Price (Rs.)
                   </th>
                 </tr>
               </thead>

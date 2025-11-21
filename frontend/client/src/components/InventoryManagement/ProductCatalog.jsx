@@ -347,7 +347,7 @@ const ProductCatalog = ({ onClose }) => {
                               <span className="font-semibold text-gray-900">
                                 {variant.price ? variant.price.toLocaleString() : '0'}
                               </span>
-                              <span className="text-gray-500">PKR</span>
+                              <span className="text-gray-500">Rs.</span>
                             </div>
                           ))}
                         </div>
@@ -357,7 +357,7 @@ const ProductCatalog = ({ onClose }) => {
                           <span className="text-sm font-bold text-gray-900">
                             {item.price.toLocaleString()}
                           </span>
-                          <span className="text-xs text-gray-500">PKR</span>
+                          <span className="text-xs text-gray-500">Rs.</span>
                           {item.weight && (
                             <span className="text-xs text-gray-400">({item.weight}kg)</span>
                           )}

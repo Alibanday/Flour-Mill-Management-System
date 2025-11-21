@@ -239,7 +239,7 @@ const InventoryPage = () => {
                       <div>
                         <p className="text-sm opacity-90">Total Value</p>
                         <p className="text-2xl font-bold">
-                          PKR {(stats.totalValue || 0).toLocaleString()}
+                          Rs. {(stats.totalValue || 0).toLocaleString()}
                         </p>
                       </div>
                       <FaCheckCircle className="text-3xl opacity-80" />

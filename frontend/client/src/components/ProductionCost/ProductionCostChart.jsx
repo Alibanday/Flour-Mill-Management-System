@@ -23,12 +23,11 @@ ChartJS.register(
 
 const ProductionCostChart = ({ data, loading }) => {
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-PK', {
-      style: 'currency',
-      currency: 'PKR',
+    const value = Number(amount) || 0;
+    return `Rs. ${value.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
+    })}`;
   };
 
   const chartData = {

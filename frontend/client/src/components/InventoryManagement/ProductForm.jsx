@@ -450,7 +450,7 @@ const ProductForm = ({ product = null, onSave, onCancel, mode = 'create' }) => {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
                       <FaDollarSign className="inline mr-1" />
-                      Price (PKR) <span className="text-red-500">*</span>
+                      Price (Rs.) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
