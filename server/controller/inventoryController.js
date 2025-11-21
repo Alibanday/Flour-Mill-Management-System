@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Inventory from "../model/inventory.js";
 
 // Create new inventory item
@@ -717,38 +718,76 @@ export const updateInventoryStatus = async (req, res) => {
 // Get inventory by category and status
 export const getInventoryByWarehouse = async (req, res) => {
   try {
-    const { category, status, search } = req.query;
-    
-    // Build filter
-    const filter = {};
-    
+    const { warehouseId } = req.params;
+    const { category, status, search, includeSummary } = req.query;
+
+    if (!warehouseId || !mongoose.Types.ObjectId.isValid(warehouseId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid warehouseId is required"
+      });
+    }
+
+    const filter = { warehouse: warehouseId };
+
     if (category && category !== 'all') {
       filter.category = category;
     }
-    
+
     if (status && status !== 'all') {
       filter.status = status;
     }
-    
+
     if (search) {
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
         { code: { $regex: search, $options: 'i' } }
       ];
     }
-    
-    const inventory = await Inventory.find(filter)
-      .sort({ createdAt: -1 });
-    
+
+    const inventoryItems = await Inventory.find(filter)
+      .populate('product', 'name code category unit minimumStock')
+      .sort({ name: 1 });
+
+    const items = inventoryItems.map(item => ({
+      _id: item._id,
+      name: item.name || item.product?.name,
+      code: item.code || item.product?.code,
+      category: item.category || item.product?.category,
+      currentStock: item.currentStock ?? item.weight ?? 0,
+      minimumStock: item.minimumStock ?? item.product?.minimumStock ?? 0,
+      unit: item.unit || item.product?.unit || 'units',
+      status: item.status,
+      product: item.product,
+      warehouse: item.warehouse
+    }));
+
+    let summary = null;
+    if (includeSummary === 'true') {
+      const totalQuantity = items.reduce((sum, item) => sum + (item.currentStock || 0), 0);
+      const groupedCategories = items.reduce((acc, item) => {
+        const key = item.category || 'Uncategorized';
+        acc[key] = (acc[key] || 0) + (item.currentStock || 0);
+        return acc;
+      }, {});
+
+      summary = {
+        totalItems: items.length,
+        totalQuantity,
+        categories: groupedCategories
+      };
+    }
+
     res.json({
       success: true,
-      data: inventory
+      data: items,
+      summary
     });
   } catch (error) {
-    console.error("Get inventory by category error:", error);
+    console.error("Get inventory by warehouse error:", error);
     res.status(500).json({
       success: false,
-      message: "Error fetching inventory by category",
+      message: "Error fetching inventory by warehouse",
       error: error.message
     });
   }

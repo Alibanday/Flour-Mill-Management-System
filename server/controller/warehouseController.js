@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Warehouse from "../model/wareHouse.js";
 import User from "../model/user.js";
 import { isOfflineModeEnabled, mockDatabase } from "../config/offline-mode.js";
@@ -581,6 +582,7 @@ export const getWarehouseInventoryDetails = async (req, res) => {
     const BagPurchase = (await import("../model/BagPurchase.js")).default;
     const FoodPurchase = (await import("../model/FoodPurchase.js")).default;
     const Production = (await import("../model/Production.js")).default;
+    const Inventory = (await import("../model/inventory.js")).default;
     
     // Get warehouse
     const warehouse = await Warehouse.findById(warehouseId);
@@ -615,57 +617,58 @@ export const getWarehouseInventoryDetails = async (req, res) => {
       status: { $in: ['In Progress', 'Completed', 'Quality Check', 'Approved'] }
     }).sort({ productionDate: -1 });
     
-    // Calculate bags inventory from purchases
+    // Calculate bags inventory - purchase history kept for reference only
+    // Actual stock comes from Inventory collection (centralized table)
     const bagsInventory = {
-      ata: { totalBags: 0, bags: [] },
-      maida: { totalBags: 0, bags: [] },
-      suji: { totalBags: 0, bags: [] },
-      fine: { totalBags: 0, bags: [] }
+      ata: { totalBags: 0, currentStock: 0, bags: [] },
+      maida: { totalBags: 0, currentStock: 0, bags: [] },
+      suji: { totalBags: 0, currentStock: 0, bags: [] },
+      fine: { totalBags: 0, currentStock: 0, bags: [] }
     };
     
-    // Process regular purchases (with ata, maida, suji, fine structure)
+    // Process regular purchases (for history/reference only, not for totals)
     purchases.forEach(purchase => {
       if (purchase.purchaseType === 'Bags' || purchase.purchaseType === 'Other') {
         if (purchase.bags?.ata?.quantity > 0) {
-          bagsInventory.ata.totalBags += purchase.bags.ata.quantity;
           bagsInventory.ata.bags.push({
             purchaseNumber: purchase.purchaseNumber,
             quantity: purchase.bags.ata.quantity,
             unit: purchase.bags.ata.unit,
-            date: purchase.purchaseDate
+            date: purchase.purchaseDate,
+            type: 'Purchase History'
           });
         }
         if (purchase.bags?.maida?.quantity > 0) {
-          bagsInventory.maida.totalBags += purchase.bags.maida.quantity;
           bagsInventory.maida.bags.push({
             purchaseNumber: purchase.purchaseNumber,
             quantity: purchase.bags.maida.quantity,
             unit: purchase.bags.maida.unit,
-            date: purchase.purchaseDate
+            date: purchase.purchaseDate,
+            type: 'Purchase History'
           });
         }
         if (purchase.bags?.suji?.quantity > 0) {
-          bagsInventory.suji.totalBags += purchase.bags.suji.quantity;
           bagsInventory.suji.bags.push({
             purchaseNumber: purchase.purchaseNumber,
             quantity: purchase.bags.suji.quantity,
             unit: purchase.bags.suji.unit,
-            date: purchase.purchaseDate
+            date: purchase.purchaseDate,
+            type: 'Purchase History'
           });
         }
         if (purchase.bags?.fine?.quantity > 0) {
-          bagsInventory.fine.totalBags += purchase.bags.fine.quantity;
           bagsInventory.fine.bags.push({
             purchaseNumber: purchase.purchaseNumber,
             quantity: purchase.bags.fine.quantity,
             unit: purchase.bags.fine.unit,
-            date: purchase.purchaseDate
+            date: purchase.purchaseDate,
+            type: 'Purchase History'
           });
         }
       }
     });
     
-    // Process bag purchases (with Map structure)
+    // Process bag purchases (for history/reference only)
     bagPurchases.forEach(purchase => {
       if (purchase.bags) {
         // Handle Map structure
@@ -680,12 +683,12 @@ export const getWarehouseInventoryDetails = async (req, res) => {
             else if (typeLower.includes('fine')) inventoryType = 'fine';
             
             if (bagData && bagData.quantity > 0) {
-              bagsInventory[inventoryType].totalBags += bagData.quantity;
               bagsInventory[inventoryType].bags.push({
                 purchaseNumber: purchase.purchaseNumber,
                 quantity: bagData.quantity,
                 unit: bagData.unit,
-                date: purchase.purchaseDate
+                date: purchase.purchaseDate,
+                type: 'Purchase History'
               });
             }
           });
@@ -703,12 +706,12 @@ export const getWarehouseInventoryDetails = async (req, res) => {
             else if (typeLower.includes('fine')) inventoryType = 'fine';
             
             if (bagData && bagData.quantity > 0) {
-              bagsInventory[inventoryType].totalBags += bagData.quantity;
               bagsInventory[inventoryType].bags.push({
                 purchaseNumber: purchase.purchaseNumber,
                 quantity: bagData.quantity,
                 unit: bagData.unit,
-                date: purchase.purchaseDate
+                date: purchase.purchaseDate,
+                type: 'Purchase History'
               });
             }
           });
@@ -716,39 +719,41 @@ export const getWarehouseInventoryDetails = async (req, res) => {
       }
     });
     
-    // Calculate wheat inventory from purchases
+    // Calculate wheat inventory - prioritize live inventory from Inventory collection
+    // Purchase history is kept for reference but actual stock comes from Inventory
     const wheatInventory = {
       totalWheat: 0,
-      wheat: []
+      currentStock: 0, // This will be set from live inventory
+      wheat: [] // Purchase history for reference
     };
     
-    // Process regular purchases for wheat
+    // Process regular purchases for wheat (for history/reference only)
     purchases.forEach(purchase => {
       if ((purchase.purchaseType === 'Food' || purchase.purchaseType === 'Other') && purchase.food?.wheat?.quantity > 0) {
-        wheatInventory.totalWheat += purchase.food.wheat.quantity;
         wheatInventory.wheat.push({
           purchaseNumber: purchase.purchaseNumber,
           quantity: purchase.food.wheat.quantity,
           unit: purchase.food.wheat.unit,
           date: purchase.purchaseDate,
           source: purchase.food.wheat.source,
-          quality: purchase.food.wheat.quality
+          quality: purchase.food.wheat.quality,
+          type: 'Purchase History'
         });
       }
     });
     
-    // Process food purchases
+    // Process food purchases (for history/reference only)
     foodPurchases.forEach(purchase => {
       if (purchase.foodItems && purchase.foodItems.length > 0) {
         purchase.foodItems.forEach(foodItem => {
-          wheatInventory.totalWheat += foodItem.quantity;
           wheatInventory.wheat.push({
             purchaseNumber: purchase.purchaseNumber,
             quantity: foodItem.quantity,
             unit: foodItem.unit,
             date: purchase.purchaseDate,
             source: 'Private',
-            quality: foodItem.quality || 'Standard'
+            quality: foodItem.quality || 'Standard',
+            type: 'Purchase History'
           });
         });
       }
@@ -783,62 +788,123 @@ export const getWarehouseInventoryDetails = async (req, res) => {
       });
     });
     
-    // Get actual stock levels from Stock movements
-    const Stock = (await import("../model/stock.js")).default;
-    const Inventory = (await import("../model/inventory.js")).default;
-    
-    // Get all stock movements for this warehouse
-    const stockMovements = await Stock.find({ warehouse: warehouseId })
-      .populate('inventoryItem')
-      .sort({ createdAt: -1 });
-    
-    // Calculate actual inventory by aggregating stock movements
-    const actualInventory = {};
-    
-    stockMovements.forEach(movement => {
-      if (!movement.inventoryItem) return;
-      
-      const productId = movement.inventoryItem._id.toString();
-      const productName = movement.inventoryItem.name || 'Unknown';
-      
-      if (!actualInventory[productId]) {
-        actualInventory[productId] = {
-          productId,
-          productName,
-          unit: movement.inventoryItem.unit || 'kg',
-          category: movement.inventoryItem.category || 'Unknown',
-          currentStock: 0,
-          movements: []
+    // Pull live inventory from Inventory collection
+    const inventoryItems = await Inventory.find({ warehouse: warehouseId })
+      .populate('product', 'name code category unit minimumStock')
+      .sort({ updatedAt: -1 });
+
+    const bagTypes = ['ata', 'maida', 'suji', 'fine'];
+    const liveBags = bagTypes.reduce((acc, type) => {
+      acc[type] = { total: 0, entries: [] };
+      return acc;
+    }, {});
+    const liveWheat = { total: 0, entries: [] };
+
+    const actualInventoryArray = inventoryItems
+      .map(item => {
+        const quantity = item.currentStock ?? item.weight ?? 0;
+        return {
+          productId: item._id.toString(),
+          productName: item.name || item.product?.name || 'Inventory Item',
+          unit: item.unit || item.product?.unit || 'units',
+          category: item.category || item.product?.category || 'Uncategorized',
+          currentStock: quantity,
+          minimumStock: item.minimumStock ?? item.product?.minimumStock ?? 0,
+          updatedAt: item.updatedAt || item.createdAt
         };
-      }
-      
-      // Aggregate stock movements
-      if (movement.movementType === 'in') {
-        actualInventory[productId].currentStock += movement.quantity;
-      } else if (movement.movementType === 'out') {
-        actualInventory[productId].currentStock -= movement.quantity;
-      }
-      
-      // Store movement details
-      actualInventory[productId].movements.push({
-        type: movement.movementType,
-        quantity: movement.quantity,
-        reason: movement.reason,
-        referenceNumber: movement.referenceNumber,
-        date: movement.createdAt
-      });
-    });
-    
-    // Convert to array and filter out products with 0 stock
-    const actualInventoryArray = Object.values(actualInventory)
+      })
       .filter(item => item.currentStock > 0)
       .sort((a, b) => b.currentStock - a.currentStock);
+
+    actualInventoryArray.forEach(item => {
+      const normalizedName = item.productName.toLowerCase();
+      const normalizedCategory = item.category?.toLowerCase() || '';
+      const record = {
+        purchaseNumber: 'Current Stock',
+        quantity: item.currentStock,
+        unit: item.unit,
+        date: item.updatedAt
+      };
+      
+      bagTypes.forEach(type => {
+        if (normalizedName.includes(type) || normalizedCategory.includes(type)) {
+          liveBags[type].total += item.currentStock;
+          liveBags[type].entries.push(record);
+        }
+      });
+
+      if (normalizedCategory.includes('wheat') || normalizedName.includes('wheat')) {
+        liveWheat.total += item.currentStock;
+        liveWheat.entries.push({
+          ...record,
+          source: 'Inventory',
+          quality: 'Current'
+        });
+      }
+    });
+
+    // ALWAYS use live inventory as the source of truth for bags
+    // Purchase history is kept for reference but actual stock comes from Inventory collection
+    bagTypes.forEach(type => {
+      if (liveBags[type].total > 0) {
+        // Use live inventory as the actual current stock
+        bagsInventory[type].currentStock = liveBags[type].total;
+        bagsInventory[type].totalBags = liveBags[type].total; // This is the actual available stock
+        // Add live inventory entries at the top (most important)
+        bagsInventory[type].bags = [
+          ...liveBags[type].entries.map(entry => ({
+            ...entry,
+            type: 'Current Stock',
+            source: 'Inventory'
+          })),
+          ...(bagsInventory[type].bags || [])
+        ];
+      } else {
+        // If no live inventory, set to 0 (don't show purchase history as available stock)
+        bagsInventory[type].currentStock = 0;
+        bagsInventory[type].totalBags = 0;
+        // Still show purchase history for reference, but mark it clearly
+        bagsInventory[type].bags = (bagsInventory[type].bags || []).map(item => ({
+          ...item,
+          type: item.type || 'Purchase History (Not Available)'
+        }));
+      }
+    });
+
+    // ALWAYS use live inventory as the source of truth for current stock
+    // Purchase history is kept for reference but actual stock comes from Inventory collection
+    if (liveWheat.total > 0) {
+      // Use live inventory as the actual current stock
+      wheatInventory.currentStock = liveWheat.total;
+      wheatInventory.totalWheat = liveWheat.total; // This is the actual available stock
+      
+      // Add live inventory entries at the top (most important)
+      wheatInventory.wheat = [
+        ...liveWheat.entries.map(entry => ({
+          ...entry,
+          type: 'Current Stock',
+          source: 'Inventory'
+        })),
+        ...(wheatInventory.wheat || [])
+      ];
+    } else {
+      // If no live inventory, set to 0 (don't show purchase history as available stock)
+      wheatInventory.currentStock = 0;
+      wheatInventory.totalWheat = 0;
+      // Still show purchase history for reference, but mark it clearly
+      wheatInventory.wheat = (wheatInventory.wheat || []).map(item => ({
+        ...item,
+        type: 'Purchase History (Not Available)'
+      }));
+    }
     
-    // Calculate totals
-    const totalBags = bagsInventory.ata.totalBags + bagsInventory.maida.totalBags + 
-                      bagsInventory.suji.totalBags + bagsInventory.fine.totalBags;
+    // Calculate totals from actual current stock (centralized Inventory table)
+    // Use currentStock which comes from Inventory collection, not purchase history
+    const totalBags = bagsInventory.ata.currentStock + bagsInventory.maida.currentStock + 
+                      bagsInventory.suji.currentStock + bagsInventory.fine.currentStock;
     
-    const totalWheat = wheatInventory.totalWheat;
+    // Use currentStock if available (from Inventory), otherwise totalWheat (which should be currentStock)
+    const totalWheat = wheatInventory.currentStock || wheatInventory.totalWheat || 0;
     const totalProductionProducts = productionInventory.products.length;
     
     // Calculate actual stock totals
@@ -846,8 +912,8 @@ export const getWarehouseInventoryDetails = async (req, res) => {
       totalItems: actualInventoryArray.length,
       totalQuantity: actualInventoryArray.reduce((sum, item) => sum + item.currentStock, 0),
       totalValue: actualInventoryArray.reduce((sum, item) => {
-        const inventoryItem = stockMovements.find(m => m.inventoryItem?._id?.toString() === item.productId)?.inventoryItem;
-        const price = inventoryItem?.cost?.purchasePrice || 0;
+        const inventoryItem = inventoryItems.find(inv => inv._id.toString() === item.productId);
+        const price = inventoryItem?.price || 0;
         return sum + (item.currentStock * price);
       }, 0)
     };

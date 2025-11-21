@@ -138,27 +138,59 @@ router.post("/", [
 ], async (req, res) => {
   try {
     // Debug: Log the incoming request data
-    console.log('📥 Food purchase request received:', {
-      body: req.body,
-      productType: req.body.productType,
-      quantity: req.body.quantity,
-      unit: req.body.unit,
-      supplier: req.body.supplier
-    });
+    console.log('📥 Food purchase request received:');
+    console.log('  - Full body:', JSON.stringify(req.body, null, 2));
+    console.log('  - Supplier:', req.body.supplier, typeof req.body.supplier);
+    console.log('  - ProductType:', req.body.productType);
+    console.log('  - Quantity:', req.body.quantity, typeof req.body.quantity);
+    console.log('  - UnitPrice:', req.body.unitPrice, typeof req.body.unitPrice);
+    console.log('  - Warehouse:', req.body.warehouse);
 
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Food purchase validation errors:', errors.array());
+      console.error('❌ Food purchase validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: "Validation failed",
         errors: errors.array()
       });
     }
+    
+    console.log('✅ Validation passed');
 
     // Map flat structure to nested structure expected by model
-    const { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, paidAmount, notes, unit, expectedDeliveryDate, purchaseType, warehouse } = req.body;
+    let { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, paidAmount, notes, unit, expectedDeliveryDate, purchaseType, warehouse } = req.body;
+    
+    // Normalize paymentStatus to valid enum values
+    // Map 'Paid' to 'Completed' if needed
+    if (paymentStatus === 'Paid') {
+      paymentStatus = 'Completed';
+      console.log('⚠️ Payment status "Paid" mapped to "Completed"');
+    }
+    
+    // Ensure paymentStatus is one of the valid enum values
+    const validPaymentStatuses = ['Pending', 'Partial', 'Completed'];
+    if (!validPaymentStatuses.includes(paymentStatus)) {
+      console.log(`⚠️ Invalid paymentStatus "${paymentStatus}", defaulting to "Pending"`);
+      paymentStatus = 'Pending';
+    }
+    
+    console.log('📋 Extracted fields:');
+    console.log('  - Supplier:', supplier, typeof supplier);
+    console.log('  - ProductType:', productType);
+    console.log('  - Quantity:', quantity, typeof quantity);
+    console.log('  - UnitPrice:', unitPrice, typeof unitPrice);
+    console.log('  - Warehouse:', warehouse);
+    
+    // Validate supplier
+    if (!supplier || (typeof supplier === 'string' && supplier.trim() === '')) {
+      console.error('❌ Supplier is missing or empty');
+      return res.status(400).json({
+        success: false,
+        message: "Supplier is required"
+      });
+    }
     
     // Validate warehouse
     if (!warehouse || !mongoose.Types.ObjectId.isValid(warehouse)) {
@@ -169,6 +201,7 @@ router.post("/", [
         console.log('⚠️ No valid warehouse provided (food purchase), using fallback:', firstWarehouse._id);
         var warehouseId = firstWarehouse._id;
       } else {
+        console.error('❌ No warehouse found and no valid warehouse ID provided');
         return res.status(400).json({ 
           success: false, 
           message: "Valid warehouse ID is required" 
@@ -176,6 +209,7 @@ router.post("/", [
       }
     } else {
       var warehouseId = new mongoose.Types.ObjectId(warehouse);
+      console.log('✅ Using provided warehouse:', warehouseId);
     }
     
     // Create the foodItems array with the single item
@@ -201,16 +235,54 @@ router.post("/", [
       const year = new Date().getFullYear();
       const month = String(new Date().getMonth() + 1).padStart(2, '0');
       const day = String(new Date().getDate()).padStart(2, '0');
-      generatedPurchaseNumber = `FP-${year}${month}${day}-${String(count + 1).padStart(4, '0')}`;
+      const sequence = String(count + 1).padStart(4, '0');
+      generatedPurchaseNumber = `FP-${year}${month}${day}-${sequence}`;
+      
+      // Check if this purchase number already exists (race condition protection)
+      const existing = await FoodPurchase.findOne({ purchaseNumber: generatedPurchaseNumber });
+      if (existing) {
+        // If exists, append timestamp to make it unique
+        generatedPurchaseNumber = `FP-${year}${month}${day}-${sequence}-${Date.now()}`;
+      }
+      
+      console.log('📝 Generated purchase number:', generatedPurchaseNumber);
     } catch (error) {
+      console.error('⚠️ Error generating purchase number, using fallback:', error.message);
       // Fallback to timestamp-based number if database query fails
       generatedPurchaseNumber = `FP-${Date.now()}`;
     }
 
+    // Validate supplier ID
+    let supplierId;
+    if (mongoose.isValidObjectId(supplier)) {
+      supplierId = new mongoose.Types.ObjectId(supplier);
+      console.log('✅ Valid supplier ID:', supplierId);
+    } else {
+      console.error('❌ Invalid supplier ID:', supplier);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid supplier ID provided"
+      });
+    }
+    
+    // Validate user ID
+    let userId;
+    if (req.user && req.user._id && mongoose.isValidObjectId(req.user._id)) {
+      userId = new mongoose.Types.ObjectId(req.user._id);
+    } else if (req.user && req.user.id && mongoose.isValidObjectId(req.user.id)) {
+      userId = new mongoose.Types.ObjectId(req.user.id);
+    } else {
+      console.error('❌ Invalid user ID in request:', req.user);
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user authentication"
+      });
+    }
+    
     // Create food purchase document
     const foodPurchaseData = {
       purchaseNumber: generatedPurchaseNumber, // Explicitly set purchase number
-      supplier: mongoose.isValidObjectId(supplier) ? new mongoose.Types.ObjectId(supplier) : new mongoose.Types.ObjectId("507f1f77bcf86cd799439011"),
+      supplier: supplierId,
       foodItems,
       totalQuantity: parseFloat(quantity) || 0,
       subtotal: calculatedTotalPrice,
@@ -226,12 +298,21 @@ router.post("/", [
       deliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : undefined,
       notes: notes || "",
       warehouse: warehouseId,
-      createdBy: new mongoose.Types.ObjectId(req.user._id || req.user.id || "507f1f77bcf86cd799439011")
+      createdBy: userId
     };
+    
+    console.log('📦 Food purchase data to save:', JSON.stringify({
+      ...foodPurchaseData,
+      supplier: supplierId.toString(),
+      warehouse: warehouseId.toString(),
+      createdBy: userId.toString()
+    }, null, 2));
 
     try {
+      console.log('💾 Attempting to save food purchase to database...');
       const newPurchase = new FoodPurchase(foodPurchaseData);
       await newPurchase.save();
+      console.log('✅ Food purchase saved to database:', newPurchase._id);
 
       // Add food stock to selected warehouse
       try {
@@ -242,7 +323,6 @@ router.post("/", [
         
         // Process each food item in the purchase
         for (const foodItem of foodItems) {
-          // Step 1: Find or create Product in catalog
           let product = await Product.findOne({
             name: { $regex: new RegExp(`^${foodItem.name}$`, 'i') },
             category: foodItem.category || 'Raw Materials',
@@ -256,7 +336,7 @@ router.post("/", [
               subcategory: productType,
               description: `${foodItem.name} - ${productType}`,
               unit: foodItem.unit || 'kg',
-              price: 0, // Will be set from sales
+              price: 0,
               purchasePrice: foodItem.unitPrice || 0,
               minimumStock: 10,
               status: 'Active'
@@ -265,7 +345,6 @@ router.post("/", [
             console.log(`✅ Created product in catalog: ${foodItem.name}`);
           }
           
-          // Step 2: Find or create Inventory (Product + Warehouse)
           let inventoryItem = await Inventory.findOne({
             product: product._id,
             warehouse: warehouseId
@@ -275,20 +354,25 @@ router.post("/", [
             inventoryItem = new Inventory({
               product: product._id,
               warehouse: warehouseId,
-              currentStock: 0, // Will be updated by stock movement
+              currentStock: 0,
               minimumStock: product.minimumStock || 10,
               status: 'Active',
-              // Legacy fields for backward compatibility
               name: product.name,
               code: product.code,
               category: product.category,
-              subcategory: product.subcategory
+              subcategory: product.subcategory,
+              unit: product.unit,
+              price: product.purchasePrice
             });
-            await inventoryItem.save();
-            console.log(`✅ Created inventory record for ${foodItem.name} in warehouse`);
           }
           
-          // Step 3: Create stock in movement
+          inventoryItem.currentStock = (inventoryItem.currentStock ?? 0) + foodItem.quantity;
+          inventoryItem.status = inventoryItem.currentStock === 0
+            ? 'Out of Stock'
+            : (inventoryItem.minimumStock && inventoryItem.currentStock <= inventoryItem.minimumStock ? 'Low Stock' : 'Active');
+          inventoryItem.lastUpdated = new Date();
+          await inventoryItem.save();
+          
           const stockIn = new Stock({
             inventoryItem: inventoryItem._id,
             movementType: 'in',
@@ -304,33 +388,47 @@ router.post("/", [
         }
       } catch (stockError) {
         console.error("⚠️ Error adding stock to warehouse:", stockError);
-        // Don't fail the request if stock addition fails
+        // Don't fail the request if stock addition fails, but log it
       }
 
       // Populate the response
       await newPurchase.populate('supplier', 'name contactPerson email phone');
       await newPurchase.populate('createdBy', 'firstName lastName');
 
+      console.log('✅ Food purchase created successfully, sending response');
       res.status(201).json({
         success: true,
         message: "Food purchase created successfully",
         data: newPurchase
       });
     } catch (dbError) {
-      console.log('🔄 Database operation failed, trying fallback:', dbError.message);
-      console.log('📦 Food purchase data that failed:', JSON.stringify(foodPurchaseData, null, 2));
+      console.error('❌ Database operation failed:');
+      console.error('  - Error message:', dbError.message);
+      console.error('  - Error name:', dbError.name);
+      console.error('  - Error code:', dbError.code);
+      console.error('  - Error stack:', dbError.stack);
+      console.error('📦 Food purchase data that failed:', JSON.stringify(foodPurchaseData, null, 2));
       
-      // Return success response even if database save fails
-      res.status(201).json({
-        success: true,
-        message: "Food purchase created successfully (offline mode)",
-        data: {
-          ...foodPurchaseData,
-          _id: `temp-${Date.now()}`,
-          purchaseNumber: foodPurchaseData.purchaseNumber || `FP-${Date.now()}`,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
+      // Check for specific error types
+      let errorMessage = "Failed to save food purchase to database";
+      if (dbError.code === 11000) {
+        // Duplicate key error
+        errorMessage = `Duplicate purchase number: ${generatedPurchaseNumber}. Please try again.`;
+      } else if (dbError.name === 'ValidationError') {
+        // Mongoose validation error
+        const validationErrors = Object.values(dbError.errors || {}).map(err => err.message).join(', ');
+        errorMessage = `Validation error: ${validationErrors}`;
+      } else {
+        errorMessage = dbError.message || errorMessage;
+      }
+      
+      // Return error response - don't pretend it succeeded
+      res.status(500).json({
+        success: false,
+        message: errorMessage,
+        error: dbError.message,
+        errorCode: dbError.code,
+        errorName: dbError.name
       });
     }
   } catch (error) {

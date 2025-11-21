@@ -8,6 +8,7 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
     wheatQuantity: '', // Quantity in kg
     productionDate: new Date().toISOString().split('T')[0],
     outputProducts: [{ // Multiple output products
+      productId: '',
       productName: '',
       weight: '',
       quantity: '',
@@ -23,32 +24,39 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inventoryItems, setInventoryItems] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [currentWheatStock, setCurrentWheatStock] = useState(0);
 
-  // Fetch inventory items when component mounts
+  // Fetch products from catalog when component mounts
   useEffect(() => {
-    const fetchInventoryItems = async () => {
+    const fetchProducts = async () => {
+      setProductsLoading(true);
       try {
-        const response = await fetch('http://localhost:7000/api/inventory', {
+        const response = await fetch('http://localhost:7000/api/products', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         if (response.ok) {
           const data = await response.json();
-          // Filter for finished goods (Bags)
-          const bagItems = (data.data || []).filter(item => 
-            item.category === 'Finished Goods' && item.subcategory === 'Bags'
+          const allProducts = data.data || data || [];
+          // Filter for finished goods (production output products)
+          const finishedGoods = allProducts.filter(product => 
+            product.status === 'Active' && 
+            (product.category === 'Finished Goods' || product.category === 'Packaging Materials')
           );
-          setInventoryItems(bagItems);
+          setProducts(finishedGoods);
         }
       } catch (error) {
-        console.error('Error fetching inventory items:', error);
+        console.error('Error fetching products:', error);
+        setProducts([]);
+      } finally {
+        setProductsLoading(false);
       }
     };
 
-    fetchInventoryItems();
+    fetchProducts();
   }, []);
 
   // Fetch wheat stock when warehouse is selected
@@ -60,31 +68,61 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
 
   const fetchWheatStock = async (warehouseId) => {
     try {
-      // Find wheat stock from Stock movements for this warehouse
-      const response = await fetch('http://localhost:7000/api/stocks', {
+      // Use the same endpoint as warehouse detail page to get accurate wheat stock
+      const response = await fetch(`http://localhost:7000/api/warehouses/${warehouseId}/inventory`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       if (response.ok) {
         const data = await response.json();
-        // Filter for wheat stock in this warehouse
-        const wheatStocks = (data.data || []).filter(stock => {
-          return stock.warehouse === warehouseId && 
-                 stock.inventoryItem?.subcategory === 'Wheat';
-        });
-        
-        // Calculate total wheat stock from movements
-        let totalStock = 0;
-        wheatStocks.forEach(stock => {
-          if (stock.movementType === 'in') {
-            totalStock += stock.quantity;
-          } else if (stock.movementType === 'out') {
-            totalStock -= stock.quantity;
+        if (data.success && data.data && data.data.inventory) {
+          const inventory = data.data.inventory;
+          const wheatInventory = inventory.wheat || {};
+          
+          // Get wheat stock from the inventory object (same as warehouse detail page)
+          // It uses currentStock if available, otherwise totalWheat
+          const wheatStock = wheatInventory.currentStock !== undefined 
+            ? wheatInventory.currentStock 
+            : (wheatInventory.totalWheat || 0);
+          
+          setCurrentWheatStock(wheatStock);
+        } else {
+          // Fallback: fetch from inventory API and calculate manually
+          const inventoryResponse = await fetch(`http://localhost:7000/api/inventory?warehouse=${warehouseId}&limit=1000`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          
+          if (inventoryResponse.ok) {
+            const inventoryData = await inventoryResponse.json();
+            const inventoryItems = inventoryData.data || [];
+            
+            // Filter for wheat items - match the exact logic from warehouse controller
+            let totalStock = 0;
+            inventoryItems.forEach(item => {
+              const normalizedCategory = (item.category || item.product?.category || '').toLowerCase();
+              const normalizedName = (item.name || item.product?.name || '').toLowerCase();
+              const normalizedSubcategory = (item.subcategory || item.product?.subcategory || '').toLowerCase();
+              
+              // Check if it's wheat (same logic as warehouse controller)
+              if (normalizedCategory.includes('wheat') || 
+                  normalizedName.includes('wheat') ||
+                  normalizedSubcategory.includes('wheat')) {
+                const stock = item.currentStock !== undefined ? item.currentStock : (item.weight || 0);
+                totalStock += stock;
+              }
+            });
+            
+            setCurrentWheatStock(totalStock);
+          } else {
+            setCurrentWheatStock(0);
           }
-        });
-        
-        setCurrentWheatStock(totalStock);
+        }
+      } else {
+        console.error('Failed to fetch warehouse inventory:', response.status);
+        setCurrentWheatStock(0);
       }
     } catch (error) {
       console.error('Error fetching wheat stock:', error);
@@ -149,6 +187,7 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
     setFormData(prev => ({
       ...prev,
       outputProducts: [...prev.outputProducts, {
+        productId: '',
         productName: '',
         weight: '',
         quantity: '',
@@ -184,11 +223,11 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
     }
 
     formData.outputProducts.forEach((product, index) => {
-      if (!product.productName) {
-        newErrors[`outputProduct_${index}_productName`] = 'Product name is required';
+      if (!product.productId && !product.productName) {
+        newErrors[`outputProduct_${index}_productName`] = 'Product is required';
       }
       if (!product.weight || parseFloat(product.weight) <= 0) {
-        newErrors[`outputProduct_${index}_weight`] = 'Weight is required';
+        newErrors[`outputProduct_${index}_weight`] = 'Weight category is required';
       }
       if (!product.quantity || parseFloat(product.quantity) <= 0) {
         newErrors[`outputProduct_${index}_quantity`] = 'Quantity is required';
@@ -221,28 +260,39 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
     }
   };
 
-  // Get selected product details for weight
-  const getSelectedProduct = (productName) => {
-    return inventoryItems.find(item => item.name === productName);
+  // Get selected product from catalog
+  const getSelectedProduct = (productId) => {
+    return products.find(p => p._id === productId);
   };
 
-  // Auto-set weight when product is selected
-  const handleProductSelect = (index, productName) => {
-    const product = getSelectedProduct(productName);
-    if (product) {
-      handleOutputProductChange(index, 'productName', productName);
-      // Set weight from selected product
-      handleOutputProductChange(index, 'weight', product.weight);
+  // Get weight variants for a product
+  const getWeightVariants = (productId) => {
+    const product = getSelectedProduct(productId);
+    if (product && product.weightVariants && product.weightVariants.length > 0) {
+      return product.weightVariants.filter(v => v.isActive !== false);
     }
+    // Fallback to legacy weight field if no variants
+    if (product && product.weight) {
+      return [{ weight: product.weight, price: product.price || 0, unit: product.unit || 'kg', isActive: true }];
+    }
+    return [];
   };
 
-  // Get available weight options for selected product
-  const getAvailableWeights = (productName) => {
-    if (!productName) return [];
-    const product = getSelectedProduct(productName);
-    if (!product) return [];
-    // Return the specific weight for this product
-    return [product.weight];
+  // Handle product selection
+  const handleProductSelect = (index, productId) => {
+    const product = getSelectedProduct(productId);
+    if (product) {
+      handleOutputProductChange(index, 'productId', productId);
+      handleOutputProductChange(index, 'productName', product.name);
+      
+      // Auto-select first weight variant if available
+      const variants = getWeightVariants(productId);
+      if (variants.length > 0) {
+        handleOutputProductChange(index, 'weight', variants[0].weight);
+      } else if (product.weight) {
+        handleOutputProductChange(index, 'weight', product.weight);
+      }
+    }
   };
 
   return (
@@ -349,22 +399,23 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
           {formData.outputProducts.map((product, index) => (
             <div key={index} className="mb-4 p-4 bg-white rounded-lg border border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Product Name */}
+                {/* Product Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Name *
+                    Product *
                   </label>
                   <select
-                    value={product.productName}
+                    value={product.productId || ''}
                     onChange={(e) => handleProductSelect(index, e.target.value)}
+                    disabled={productsLoading}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                       errors[`outputProduct_${index}_productName`] ? 'border-red-500' : 'border-gray-300'
-                    }`}
+                    } ${productsLoading ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   >
-                    <option value="">Select Product</option>
-                    {inventoryItems.map(item => (
-                      <option key={item._id} value={item.name}>
-                        {item.name} ({item.weight} kg)
+                    <option value="">{productsLoading ? 'Loading products...' : 'Select Product'}</option>
+                    {products.map(p => (
+                      <option key={p._id} value={p._id}>
+                        {p.name} {p.code ? `(${p.code})` : ''}
                       </option>
                     ))}
                   </select>
@@ -373,22 +424,30 @@ export default function ProductionForm({ onSubmit, onCancel, editData = null, wa
                   )}
                 </div>
 
-                {/* Weight */}
+                {/* Weight Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Weight (kg per unit) *
+                    Weight Category (kg) *
                   </label>
-                  {product.productName ? (
+                  {product.productId ? (
                     <select
-                      value={product.weight}
+                      value={product.weight || ''}
                       onChange={(e) => handleOutputProductChange(index, 'weight', e.target.value)}
+                      disabled={!product.productId}
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[`outputProduct_${index}_weight`] ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      } ${!product.productId ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     >
-                      {getAvailableWeights(product.productName).map(weight => (
-                        <option key={weight} value={weight}>
-                          {weight} kg
+                      <option value="">
+                        {!product.productId 
+                          ? 'Select product first' 
+                          : getWeightVariants(product.productId).length === 0 
+                          ? 'No weight categories' 
+                          : 'Select weight'}
+                      </option>
+                      {getWeightVariants(product.productId).map((variant) => (
+                        <option key={variant.weight} value={variant.weight}>
+                          {variant.weight} kg
                         </option>
                       ))}
                     </select>

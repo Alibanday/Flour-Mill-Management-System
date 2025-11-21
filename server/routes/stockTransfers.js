@@ -71,20 +71,6 @@ const processReceiveInventory = async (transfer, receivedItems, userId, receiptN
 
     if (!destinationInventory) {
       if (skipInventoryCreation) {
-        const sourceAvailable = sourceInventory?.currentStock ?? sourceInventory?.weight ?? 0;
-        if (sourceInventory) {
-          const newStockLevel = Math.max(0, sourceAvailable - actualQuantity);
-          await Inventory.findByIdAndUpdate(
-            sourceInventory._id,
-            {
-              currentStock: newStockLevel,
-              status: newStockLevel === 0
-                ? 'Out of Stock'
-                : (sourceInventory.minimumStock && newStockLevel <= sourceInventory.minimumStock ? 'Low Stock' : 'Active'),
-              lastUpdated: new Date()
-            }
-          );
-        }
         continue;
       }
       
@@ -337,7 +323,7 @@ router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
       autoReceivedItems,
       req.user.id,
       'Auto receive after approval',
-      true
+      false
     );
         
     res.json({

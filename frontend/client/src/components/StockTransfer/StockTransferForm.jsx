@@ -82,13 +82,6 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
       .filter(item => item.quantity > 0);
   };
 
-  const fallbackWarehouseItems = useMemo(() => {
-    if (!formData.fromWarehouse) return [];
-    return mapInventoryItems(
-      inventory.filter(item => item.warehouse === formData.fromWarehouse)
-    );
-  }, [formData.fromWarehouse, inventory]);
-
   useEffect(() => {
     const fetchWarehouseInventory = async () => {
       if (!formData.fromWarehouse) {
@@ -98,31 +91,29 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
       setInventoryError('');
       setInventoryLoading(true);
       try {
-        const response = await api.get(API_ENDPOINTS.INVENTORY.BY_WAREHOUSE(formData.fromWarehouse));
+        const response = await api.get(API_ENDPOINTS.INVENTORY.BY_WAREHOUSE(formData.fromWarehouse), {
+          params: { includeSummary: true }
+        });
         if (response.data?.success) {
           const mapped = mapInventoryItems(response.data.data || []);
-          const filtered = mapped.filter(item => {
-            if (!item.warehouseId) return true;
-            return item.warehouseId === formData.fromWarehouse;
-          });
-          if (!filtered.length && mapped.length) {
-            setInventoryError('No stock in the selected warehouse for these items. Showing only matching items.');
+          if (!mapped.length) {
+            setInventoryError('No available stock in the selected warehouse.');
           }
-          setAvailableItems(filtered);
+          setAvailableItems(mapped);
         } else {
           throw new Error(response.data?.message || 'Failed to load inventory');
         }
       } catch (error) {
         console.error('Error fetching warehouse inventory:', error);
-        setInventoryError('Unable to load live stock levels for this warehouse. Showing cached data instead.');
-        setAvailableItems(fallbackWarehouseItems);
+        setInventoryError('Unable to load live stock levels for this warehouse.');
+        setAvailableItems([]);
       } finally {
         setInventoryLoading(false);
       }
     };
 
     fetchWarehouseInventory();
-  }, [formData.fromWarehouse, fallbackWarehouseItems]);
+  }, [formData.fromWarehouse]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({

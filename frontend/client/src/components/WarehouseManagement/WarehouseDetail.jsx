@@ -156,9 +156,11 @@ const WarehouseDetail = () => {
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500">Total Wheat</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.totalWheat || 0}</p>
-              <p className="text-xs text-gray-500">tons</p>
+              <p className="text-sm text-gray-500">Current Wheat Stock</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {(wheatInventory.currentStock || wheatInventory.totalWheat || 0).toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500">kg (from Inventory)</p>
             </div>
             <FaSeedling className="h-8 w-8 text-amber-600" />
           </div>
@@ -275,31 +277,45 @@ const WarehouseDetail = () => {
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Wheat Inventory Details</h3>
               
-              {wheatInventory.totalWheat > 0 ? (
+              {(wheatInventory.currentStock > 0 || wheatInventory.totalWheat > 0) ? (
                 <div className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-md font-semibold text-gray-900">Total Wheat</h4>
+                    <h4 className="text-md font-semibold text-gray-900">Current Wheat Stock</h4>
                     <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
-                      {wheatInventory.totalWheat} tons
+                      {(wheatInventory.currentStock || wheatInventory.totalWheat || 0).toFixed(2)} kg
                     </span>
                   </div>
+                  <p className="text-xs text-gray-500 mb-3">
+                    This is the actual current stock from the centralized inventory system, reflecting all purchases, sales, production, and transfers.
+                  </p>
                   {wheatInventory.wheat && wheatInventory.wheat.length > 0 && (
                     <div className="space-y-2">
+                      <div className="text-xs font-semibold text-gray-700 mb-2">Stock Details:</div>
                       {wheatInventory.wheat.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div key={index} className={`flex items-center justify-between py-2 border-b last:border-0 ${
+                          item.type === 'Current Stock' ? 'bg-green-50' : ''
+                        }`}>
                           <div>
                             <p className="text-sm text-gray-900">
                               {item.quantity} {item.unit}
                             </p>
                             <p className="text-xs text-gray-500">
-                              From: {item.purchaseNumber} • {formatDate(item.date)}
+                              {item.type === 'Current Stock' 
+                                ? `Current Stock from Inventory • ${formatDate(item.date)}`
+                                : `From: ${item.purchaseNumber} • ${formatDate(item.date)}`
+                              }
                             </p>
                             {item.source && (
                               <p className="text-xs text-blue-600">
-                                Source: {item.source} • Quality: {item.quality}
+                                Source: {item.source} {item.quality ? `• Quality: ${item.quality}` : ''}
                               </p>
                             )}
                           </div>
+                          {item.type === 'Current Stock' && (
+                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                              Live
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>

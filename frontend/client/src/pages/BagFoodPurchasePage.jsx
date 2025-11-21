@@ -79,16 +79,24 @@ export default function BagFoodPurchasePage() {
   const fetchFoodPurchases = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:7000/api/food-purchases', {
+      // Fetch all food purchases without pagination limit
+      const response = await fetch('http://localhost:7000/api/food-purchases?limit=1000', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       if (response.ok) {
         const data = await response.json();
+        console.log('📦 Fetched food purchases:', data);
+        console.log('📦 Food purchases count:', data.data?.length || 0);
         setFoodPurchases(data.data || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch food purchases:', errorData);
+        setError(errorData.message || 'Failed to fetch food purchases');
       }
     } catch (err) {
+      console.error('❌ Error fetching food purchases:', err);
       setError('Failed to fetch food purchases');
     } finally {
       setLoading(false);
@@ -168,11 +176,14 @@ export default function BagFoodPurchasePage() {
 
   const handleSaveFoodPurchase = async (purchaseData) => {
     try {
+      console.log('💾 Saving food purchase with data:', purchaseData);
       const url = editingItem 
         ? `http://localhost:7000/api/food-purchases/${editingItem._id}`
         : 'http://localhost:7000/api/food-purchases';
       
       const method = editingItem ? 'PUT' : 'POST';
+      
+      console.log(`📤 Making ${method} request to:`, url);
       
       const response = await fetch(url, {
         method,
@@ -183,16 +194,30 @@ export default function BagFoodPurchasePage() {
         body: JSON.stringify(purchaseData)
       });
 
-      if (response.ok) {
+      console.log('📥 Response status:', response.status, response.ok);
+
+      const result = await response.json();
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response data:', JSON.stringify(result, null, 2));
+
+      if (response.ok && result.success) {
+        console.log('✅ Food purchase saved successfully:', result);
+        // Refresh the list immediately
         await fetchFoodPurchases();
         await fetchStats();
         setShowForm(false);
         setEditingItem(null);
+        return result;
       } else {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to save purchase');
+        console.error('❌ Error saving food purchase - Full error object:', result);
+        console.error('❌ Error message:', result.message);
+        console.error('❌ Error details:', result.error);
+        console.error('❌ Error errors:', result.errors);
+        const errorMessage = result.message || result.error || (result.errors && result.errors.length > 0 ? result.errors.map(e => e.msg || e.message).join(', ') : 'Failed to save purchase');
+        throw new Error(errorMessage);
       }
     } catch (err) {
+      console.error('❌ Exception saving food purchase:', err);
       throw err;
     }
   };

@@ -108,6 +108,23 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
       const paidAmount = parseFloat(value) || 0;
       const totalPrice = parseFloat(newFormData.totalPrice) || 0;
       newFormData.remainingAmount = totalPrice - paidAmount;
+      
+      // Auto-update payment status based on paid amount
+      if (paidAmount === 0) {
+        newFormData.paymentStatus = 'Pending';
+      } else if (paidAmount >= totalPrice) {
+        newFormData.paymentStatus = 'Completed';
+      } else {
+        newFormData.paymentStatus = 'Partial';
+      }
+    }
+    
+    // Auto-update payment status when payment status changes manually
+    if (name === 'paymentStatus' && value === 'Completed') {
+      // If marked as completed, set paid amount to total price
+      const totalPrice = parseFloat(newFormData.totalPrice) || 0;
+      newFormData.paidAmount = totalPrice;
+      newFormData.remainingAmount = 0;
     }
     
     setFormData(newFormData);
@@ -119,9 +136,12 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
     setError(null);
 
     try {
-      await onSave(formData);
+      console.log('📝 FoodPurchaseForm: Submitting form data:', formData);
+      const result = await onSave(formData);
+      console.log('✅ FoodPurchaseForm: Save successful, result:', result);
       onClose();
     } catch (err) {
+      console.error('❌ FoodPurchaseForm: Save failed:', err);
       setError(err.message || 'Failed to save purchase');
     } finally {
       setLoading(false);
@@ -321,7 +341,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
               >
                 <option value="Pending">Pending</option>
                 <option value="Partial">Partial</option>
-                <option value="Paid">Paid</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
 

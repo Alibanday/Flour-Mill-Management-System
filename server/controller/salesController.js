@@ -353,17 +353,13 @@ export const createSale = async (req, res) => {
       console.log(`Deducted ${item.quantity} units of ${item.productName} for sale`);
       
       // Note: Stock middleware automatically updates Inventory.currentStock
-      // The direct update below is kept for backward compatibility with legacy weight field
-      const updatedInventory = await Inventory.findByIdAndUpdate(
-        item.product,
-        { 
-          $inc: { 
-            currentStock: -item.quantity,
-            weight: -item.quantity // Legacy field
-          } 
-        },
-        { new: true }
-      );
+      // Fetch the updated inventory to check stock levels for notifications
+      const updatedInventory = await Inventory.findById(item.product);
+      
+      if (!updatedInventory) {
+        console.error(`Inventory item ${item.product} not found after stock movement`);
+        continue;
+      }
       
       console.log(`Updated ${item.productName} stock: ${updatedInventory.currentStock || updatedInventory.weight}`);
       
