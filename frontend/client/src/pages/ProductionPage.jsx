@@ -340,7 +340,7 @@ export default function ProductionPage() {
           transferDate: new Date(),
           expectedDeliveryDate: transferData.expectedDate,
           reason: transferData.reason,
-          priority: 'Normal'
+          priority: 'Medium'
         },
         items: transferData.items.map(item => ({
           inventoryItem: item.itemId,

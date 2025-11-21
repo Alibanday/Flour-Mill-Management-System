@@ -14,6 +14,116 @@ router.use(protect);
 // STOCK TRANSFER ROUTES (FR 12)
 // ========================================
 
+const processDispatchInventory = async (transfer, userId, notes = 'Auto-dispatch after approval') => {
+  await transfer.dispatchTransfer(userId, notes);
+
+  for (const item of transfer.items) {
+    const inventory = await Inventory.findById(item.inventoryItem);
+    if (inventory) {
+      const currentStock = inventory.currentStock ?? inventory.weight ?? 0;
+      const newStockLevel = Math.max(0, currentStock - item.requestedQuantity);
+      inventory.currentStock = newStockLevel;
+      inventory.status = newStockLevel === 0
+        ? 'Out of Stock'
+        : (inventory.minimumStock && newStockLevel <= inventory.minimumStock ? 'Low Stock' : 'Active');
+      inventory.lastUpdated = new Date();
+      await inventory.save();
+    }
+
+    await Stock.create({
+      inventoryItem: item.inventoryItem,
+      warehouse: transfer.fromWarehouse,
+      movementType: 'out',
+      quantity: item.requestedQuantity,
+      reason: `Stock transfer to ${transfer.toWarehouse}`,
+      referenceNumber: transfer.transferNumber,
+      createdBy: userId
+    });
+  }
+
+  return transfer;
+};
+
+const processReceiveInventory = async (transfer, receivedItems, userId, receiptNotes, skipInventoryCreation = false) => {
+  await transfer.receiveTransfer(userId, receivedItems, receiptNotes);
+
+  for (const receivedItem of receivedItems) {
+    const actualQuantity = Number(receivedItem.actualQuantity ?? 0);
+    if (!actualQuantity || actualQuantity <= 0) continue;
+
+    const sourceInventory = await Inventory.findById(receivedItem.inventoryItem).lean();
+
+    let destinationInventory = null;
+    if (sourceInventory?.product) {
+      destinationInventory = await Inventory.findOne({
+        warehouse: transfer.toWarehouse,
+        product: sourceInventory.product
+      });
+    }
+
+    if (!destinationInventory) {
+      destinationInventory = await Inventory.findOne({
+        warehouse: transfer.toWarehouse,
+        name: sourceInventory?.name,
+        code: sourceInventory?.code
+      });
+    }
+
+    if (!destinationInventory) {
+      if (skipInventoryCreation) {
+        const sourceAvailable = sourceInventory?.currentStock ?? sourceInventory?.weight ?? 0;
+        if (sourceInventory) {
+          const newStockLevel = Math.max(0, sourceAvailable - actualQuantity);
+          await Inventory.findByIdAndUpdate(
+            sourceInventory._id,
+            {
+              currentStock: newStockLevel,
+              status: newStockLevel === 0
+                ? 'Out of Stock'
+                : (sourceInventory.minimumStock && newStockLevel <= sourceInventory.minimumStock ? 'Low Stock' : 'Active'),
+              lastUpdated: new Date()
+            }
+          );
+        }
+        continue;
+      }
+      
+      destinationInventory = new Inventory({
+        product: sourceInventory?.product,
+        warehouse: transfer.toWarehouse,
+        name: sourceInventory?.name || 'Transferred Item',
+        code: sourceInventory?.code,
+        category: sourceInventory?.category,
+        unit: sourceInventory?.unit,
+        currentStock: 0,
+        minimumStock: sourceInventory?.minimumStock || 0,
+        status: 'Active',
+        price: sourceInventory?.price || 0
+      });
+    }
+
+    const currentStock = destinationInventory.currentStock ?? destinationInventory.weight ?? 0;
+    destinationInventory.currentStock = currentStock + actualQuantity;
+    destinationInventory.status = destinationInventory.minimumStock && destinationInventory.currentStock <= destinationInventory.minimumStock
+      ? 'Low Stock'
+      : 'Active';
+    destinationInventory.lastUpdated = new Date();
+    await destinationInventory.save();
+
+    await Stock.create({
+      inventoryItem: destinationInventory._id,
+      warehouse: transfer.toWarehouse,
+      movementType: 'in',
+      quantity: actualQuantity,
+      reason: `Stock transfer ${transfer.transferNumber} receipt`,
+      referenceNumber: transfer.transferNumber,
+      createdBy: userId
+    });
+  }
+
+  return transfer;
+};
+
 // Get all stock transfers
 router.get("/all", authorize("'Admin'", "'Manager'", "'Employee'"), async (req, res) => {
   try {
@@ -162,7 +272,7 @@ router.post("/create", [
         transferDate: req.body.transferDetails?.transferDate || new Date(),
         expectedDeliveryDate: req.body.transferDetails?.expectedDeliveryDate || req.body.expectedDate || null,
         reason: req.body.transferDetails?.reason || req.body.reason || 'Stock transfer',
-        priority: req.body.transferDetails?.priority || 'Normal',
+        priority: req.body.transferDetails?.priority || 'Medium',
         transportMethod: req.body.transferDetails?.transportMethod || 'Internal',
         vehicleNumber: req.body.transferDetails?.vehicleNumber || '',
         driverName: req.body.transferDetails?.driverName || '',
@@ -215,10 +325,24 @@ router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
     await StockTransfer.validateStockAvailability(transfer.fromWarehouse, transfer.items);
     
     await transfer.approveTransfer(req.user.id, req.body.approvalNotes);
+    await processDispatchInventory(transfer, req.user.id, req.body.approvalNotes || 'Auto dispatch after approval');
     
+    const autoReceivedItems = transfer.items.map(item => ({
+      inventoryItem: item.inventoryItem,
+      actualQuantity: item.requestedQuantity
+    }));
+    
+    await processReceiveInventory(
+      transfer,
+      autoReceivedItems,
+      req.user.id,
+      'Auto receive after approval',
+      true
+    );
+        
     res.json({
       success: true,
-      message: 'Transfer approved successfully',
+      message: 'Transfer approved and stock moved successfully',
       data: transfer
     });
   } catch (error) {
@@ -248,19 +372,7 @@ router.patch("/:id/dispatch", authorize("'Admin'", "'Manager'", "'Employee'"), [
       });
     }
     
-    await transfer.dispatchTransfer(req.user.id, req.body.dispatchNotes);
-    
-    // Update stock in source warehouse
-    for (const item of transfer.items) {
-      await Stock.findOneAndUpdate(
-        { 
-          warehouse: transfer.fromWarehouse, 
-          inventoryItem: item.inventoryItem 
-        },
-        { $inc: { quantity: -item.requestedQuantity } },
-        { new: true }
-      );
-    }
+    await processDispatchInventory(transfer, req.user.id, req.body.dispatchNotes);
     
     res.json({
       success: true,
@@ -297,30 +409,7 @@ router.patch("/:id/receive", authorize("'Admin'", "'Manager'", "'Employee'"), [
       });
     }
     
-    await transfer.receiveTransfer(req.user.id, req.body.receivedItems, req.body.receiptNotes);
-    
-    // Update stock in destination warehouse
-    for (const receivedItem of req.body.receivedItems) {
-      const existingStock = await Stock.findOne({
-        warehouse: transfer.toWarehouse,
-        inventoryItem: receivedItem.inventoryItem
-      });
-      
-      if (existingStock) {
-        existingStock.quantity += receivedItem.actualQuantity;
-        await existingStock.save();
-      } else {
-        const inventory = await Inventory.findById(receivedItem.inventoryItem);
-        const newStock = new Stock({
-          warehouse: transfer.toWarehouse,
-          inventoryItem: receivedItem.inventoryItem,
-          quantity: receivedItem.actualQuantity,
-          unit: inventory.unit,
-          createdBy: req.user.id
-        });
-        await newStock.save();
-      }
-    }
+    await processReceiveInventory(transfer, req.body.receivedItems, req.user.id, req.body.receiptNotes);
     
     res.json({
       success: true,

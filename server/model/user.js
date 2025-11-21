@@ -21,7 +21,11 @@ const UserSchema = new mongoose.Schema({
   // Additional fields:
   cnic: { type: String },
   education: { type: String },
-  address: { type: String },
+  address: { type: String, default: "" },
+  city: { type: String },
+  state: { type: String },
+  zipCode: { type: String },
+  phone: { type: String },
   mobile: { type: String },
   bankAccount: { type: String },
   guardianName: { type: String },

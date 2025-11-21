@@ -100,7 +100,15 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
       try {
         const response = await api.get(API_ENDPOINTS.INVENTORY.BY_WAREHOUSE(formData.fromWarehouse));
         if (response.data?.success) {
-          setAvailableItems(mapInventoryItems(response.data.data || []));
+          const mapped = mapInventoryItems(response.data.data || []);
+          const filtered = mapped.filter(item => {
+            if (!item.warehouseId) return true;
+            return item.warehouseId === formData.fromWarehouse;
+          });
+          if (!filtered.length && mapped.length) {
+            setInventoryError('No stock in the selected warehouse for these items. Showing only matching items.');
+          }
+          setAvailableItems(filtered);
         } else {
           throw new Error(response.data?.message || 'Failed to load inventory');
         }
@@ -191,7 +199,16 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
 
     setLoading(true);
     try {
-      await onSubmit(formData);
+      const normalizedItems = formData.items.map((item) => ({
+        ...item,
+        quantity: Number(item.quantity),
+        requestedQuantity: Number(item.quantity),
+        actualQuantity: Number(item.actualQuantity ?? 0),
+        unitPrice: Number(item.unitPrice ?? 0),
+        inventoryItem: item.itemId || item.inventoryItem
+      }));
+
+      await onSubmit({ ...formData, items: normalizedItems });
     } catch (error) {
       console.error('Form submission error:', error);
     } finally {

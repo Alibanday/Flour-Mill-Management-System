@@ -9,19 +9,91 @@ cloudinary.config({
   api_secret: '7Psdvk7EDDmj2W4dTrW7Sz_53FE',
 });
 
+const getProfileImageFile = (files) => {
+  if (!files) return null;
+  return files.profileImage || files.profilePicture || files.avatar || null;
+};
+
+const parseBoolean = (value) => {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    return ['true', '1', 'yes', 'on', 'active'].includes(value.toLowerCase());
+  }
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+  return Boolean(value);
+};
+
+const normalizeUserPayload = (payload = {}) => {
+  const normalized = { ...payload };
+  const trimIfString = (val) => (typeof val === 'string' ? val.trim() : val);
+
+  [
+    'firstName',
+    'lastName',
+    'email',
+    'cnic',
+    'address',
+    'city',
+    'state',
+    'zipCode',
+    'education',
+    'bankAccount',
+    'guardianName',
+    'guardianContact'
+  ].forEach((field) => {
+    if (field in normalized) {
+      normalized[field] = trimIfString(normalized[field]);
+    }
+  });
+
+  if ('phone' in normalized) {
+    normalized.phone = trimIfString(normalized.phone);
+  }
+
+  if ('mobile' in normalized) {
+    normalized.mobile = trimIfString(normalized.mobile);
+  }
+
+  if (!normalized.mobile && normalized.phone) {
+    normalized.mobile = normalized.phone;
+  }
+
+  if (!normalized.phone && normalized.mobile) {
+    normalized.phone = normalized.mobile;
+  }
+
+  if ('isActive' in normalized) {
+    const isActiveValue = parseBoolean(normalized.isActive);
+    normalized.status = isActiveValue ? 'Active' : 'Inactive';
+    normalized.isActive = isActiveValue;
+  }
+
+  // Ensure optional string fields default to empty string instead of undefined/null
+  ['address', 'city', 'state', 'zipCode'].forEach((field) => {
+    if (normalized[field] === undefined) {
+      normalized[field] = '';
+    }
+  });
+
+  return normalized;
+};
+
 export const createUser = async (req, res) => {
   try {
     let profileUrl = "";
 
-    if (req.files?.profileImage) {
-      const result = await cloudinary.uploader.upload(req.files.profileImage.tempFilePath, {
+    const profileFile = getProfileImageFile(req.files);
+    if (profileFile) {
+      const result = await cloudinary.uploader.upload(profileFile.tempFilePath, {
         folder: "profiles",
       });
       profileUrl = result.secure_url;
     }
 
     // Hash password before saving
-    const userData = { ...req.body, profileImage: profileUrl };
+    const userData = normalizeUserPayload({ ...req.body, profileImage: profileUrl });
     if (userData.password) {
       const salt = await bcrypt.genSalt(10);
       userData.password = await bcrypt.hash(userData.password, salt);
@@ -94,10 +166,11 @@ export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const updatedData = { ...req.body };
+    const updatedData = normalizeUserPayload({ ...req.body });
 
-    if (req.files?.profileImage) {
-      const result = await cloudinary.uploader.upload(req.files.profileImage.tempFilePath, {
+    const profileFile = getProfileImageFile(req.files);
+    if (profileFile) {
+      const result = await cloudinary.uploader.upload(profileFile.tempFilePath, {
         folder: "profiles",
       });
       updatedData.profileImage = result.secure_url;
@@ -107,6 +180,8 @@ export const updateUser = async (req, res) => {
     if (updatedData.password) {
       const salt = await bcrypt.genSalt(10);
       updatedData.password = await bcrypt.hash(updatedData.password, salt);
+    } else {
+      delete updatedData.password;
     }
 
     const user = await User.findByIdAndUpdate(id, updatedData, { new: true, runValidators: true });

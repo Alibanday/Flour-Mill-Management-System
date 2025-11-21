@@ -22,6 +22,7 @@ import SystemConfigPage from './pages/SystemConfigPage';
 import LanguageTestPage from './pages/LanguageTestPage';
 import CustomerManagementPage from './pages/CustomerManagementPage';
 import StockTransferPage from './pages/StockTransferPage';
+import StockTransferDetailPage from './pages/StockTransferDetailPage';
 import RepackingPage from './pages/RepackingPage';
 import ProductionCostPage from './pages/ProductionCostPage';
 import StockPage from './pages/StockPage';
@@ -222,6 +223,14 @@ function App() {
               <StockTransferPage />
             </EmployeeRoute>
           } 
+        />
+        <Route
+          path="/stock-transfers/:id"
+          element={
+            <EmployeeRoute>
+              <StockTransferDetailPage />
+            </EmployeeRoute>
+          }
         />
 
         {/* Repacking - Admin, General Manager, and Production Manager */}

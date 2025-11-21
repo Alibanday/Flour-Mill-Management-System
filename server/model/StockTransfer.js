@@ -250,6 +250,7 @@ stockTransferSchema.statics.validateStockAvailability = async function(warehouse
   }
 
   const Inventory = mongoose.model('Inventory');
+  const Stock = mongoose.model('Stock');
   const sourceWarehouseId = warehouseId.toString();
 
   for (const item of items) {
@@ -258,18 +259,33 @@ stockTransferSchema.statics.validateStockAvailability = async function(warehouse
     }
 
     const inventory = await Inventory.findById(item.inventoryItem).lean();
-    if (!inventory) {
+    const stockMovements = await Stock.find({
+      warehouse: warehouseId,
+      inventoryItem: item.inventoryItem
+    }).lean();
+
+    if (!inventory && stockMovements.length === 0) {
       throw new Error('Inventory item not found for transfer');
     }
 
-    const inventoryWarehouseId = inventory.warehouse?.toString();
-    if (inventoryWarehouseId && inventoryWarehouseId !== sourceWarehouseId) {
-      throw new Error(`${inventory.name || 'Selected item'} is not stored in the chosen source warehouse`);
+    const inventoryWarehouseId = inventory?.warehouse?.toString();
+    if (inventoryWarehouseId && inventoryWarehouseId !== sourceWarehouseId && stockMovements.length === 0) {
+      throw new Error(`${inventory?.name || 'Selected item'} is not stored in the chosen source warehouse`);
     }
 
-    const availableStock = inventory.currentStock ?? inventory.weight ?? 0;
+    const inventoryAvailable = inventory ? (inventory.currentStock ?? inventory.weight ?? 0) : 0;
+    const stockAvailable = stockMovements.reduce((total, movement) => {
+      if (movement.movementType === 'out') {
+        return total - (movement.quantity || 0);
+      }
+      return total + (movement.quantity || 0);
+    }, 0);
+
+    const availableStock = stockAvailable > 0 ? stockAvailable : inventoryAvailable;
+
     if (availableStock < item.requestedQuantity) {
-      throw new Error(`Insufficient stock for ${inventory.name || 'selected item'}. Available: ${availableStock}, Requested: ${item.requestedQuantity}`);
+      const itemName = inventory?.name || stockMovements[0]?.productName || 'selected item';
+      throw new Error(`Insufficient stock for ${itemName}. Available: ${availableStock}, Requested: ${item.requestedQuantity}`);
     }
   }
 

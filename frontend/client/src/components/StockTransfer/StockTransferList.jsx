@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaEye } from 'react-icons/fa';
 import { format } from 'date-fns';
 
 const StockTransferList = ({
@@ -16,6 +18,7 @@ const StockTransferList = ({
   onPageChange,
   hasPermission
 }) => {
+  const navigate = useNavigate();
   const [showActionModal, setShowActionModal] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState(null);
   const [actionType, setActionType] = useState('');
@@ -58,8 +61,8 @@ const StockTransferList = ({
     const statusClasses = {
       Pending: 'bg-yellow-100 text-yellow-800',
       Approved: 'bg-blue-100 text-blue-800',
-      Dispatched: 'bg-purple-100 text-purple-800',
-      Received: 'bg-green-100 text-green-800',
+      'In Transit': 'bg-purple-100 text-purple-800',
+      Delivered: 'bg-green-100 text-green-800',
       Completed: 'bg-green-100 text-green-800',
       Cancelled: 'bg-red-100 text-red-800'
     };
@@ -73,6 +76,7 @@ const StockTransferList = ({
   const getPriorityBadge = (priority) => {
     const priorityClasses = {
       Low: 'bg-gray-100 text-gray-800',
+      Medium: 'bg-blue-100 text-blue-800',
       Normal: 'bg-blue-100 text-blue-800',
       High: 'bg-orange-100 text-orange-800',
       Urgent: 'bg-red-100 text-red-800'
@@ -96,15 +100,7 @@ const StockTransferList = ({
       actions.push({ type: 'approve', label: 'Approve', color: 'text-green-600 hover:text-green-900' });
     }
     
-    if (transfer.status === 'Approved' && hasPermission(['Admin', 'Manager', 'Employee'])) {
-      actions.push({ type: 'dispatch', label: 'Dispatch', color: 'text-blue-600 hover:text-blue-900' });
-    }
-    
-    if (transfer.status === 'Dispatched' && hasPermission(['Admin', 'Manager', 'Employee'])) {
-      actions.push({ type: 'receive', label: 'Receive', color: 'text-purple-600 hover:text-purple-900' });
-    }
-    
-    if (transfer.status === 'Received' && hasPermission(['Admin', 'Manager'])) {
+    if (transfer.status === 'Delivered' && hasPermission(['Admin', 'Manager'])) {
       actions.push({ type: 'complete', label: 'Complete', color: 'text-green-600 hover:text-green-900' });
     }
     
@@ -271,7 +267,14 @@ const StockTransferList = ({
                     {transfer.expectedDate ? format(new Date(transfer.expectedDate), 'MMM dd, yyyy') : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-3">
+                      <button
+                        onClick={() => navigate(`/stock-transfers/${transfer._id}`)}
+                        className="text-blue-600 hover:text-blue-900 inline-flex items-center space-x-1"
+                      >
+                        <FaEye />
+                        <span>View</span>
+                      </button>
                       {getAvailableActions(transfer).map((action, index) => (
                         <button
                           key={index}

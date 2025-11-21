@@ -27,12 +27,15 @@ export default function UserForm({ user = null, onCancel, onSave }) {
   // Note: Cross-field validation (password matching) is handled in handleSubmit
   const validationSchema = {
     ...validationSchemas.user,
+    address: {
+      minLength: (value) => {
+        if (!value || value.trim() === '') return null;
+        return value.trim().length < 5 ? 'Address must be at least 5 characters' : null;
+      }
+    },
     confirmPassword: {
       // Only validate if password is provided
-      required: (value) => {
-        // This will be checked in handleSubmit based on current formData
-        return null; // Skip here, validate in submit
-      }
+      required: () => null
     },
     password: {
       // Make password optional when editing (only required when creating new user)
@@ -43,7 +46,7 @@ export default function UserForm({ user = null, onCancel, onSave }) {
       }
     },
     role: {
-      required: (value) => !value ? 'Role is required' : null
+      required: (value) => (!value ? 'Role is required' : null)
     }
   };
 
@@ -293,22 +296,26 @@ export default function UserForm({ user = null, onCancel, onSave }) {
 
       // Append all form fields
       Object.keys(formData).forEach(key => {
-        if (key === 'profilePicture' && formData[key]) {
+        const rawValue = formData[key];
+        const value = typeof rawValue === 'string' ? rawValue.trim() : rawValue;
+
+        if (key === 'profilePicture' && value) {
           // backend expects profilePicture
-          formDataToSend.append('profilePicture', formData[key]);
+          formDataToSend.append('profilePicture', value);
         } else if (key === 'phone') {
-          // Backend expects 'phone' field
-          formDataToSend.append('phone', formData[key]);
+          // Backend expects both phone & mobile aliases
+          formDataToSend.append('phone', value);
+          formDataToSend.append('mobile', value);
         } else if (key === 'isActive') {
           // Backend might expect status or isActive
-          formDataToSend.append('isActive', formData[key]);
+          formDataToSend.append('isActive', value);
         } else if (key === 'password') {
           // Only send password if it's provided (for edit mode)
-          if (formData[key] && formData[key].trim() !== '') {
-            formDataToSend.append('password', formData[key]);
+          if (value && value !== '') {
+            formDataToSend.append('password', value);
           }
         } else if (key !== 'profilePicture' && key !== 'confirmPassword' && key !== 'password') {
-          formDataToSend.append(key, formData[key]);
+          formDataToSend.append(key, value ?? '');
         }
       });
 
