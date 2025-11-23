@@ -29,18 +29,18 @@ router.get("/", [
 
     // Build filter object
     const filter = {};
-    
+
     if (search) {
       filter.$or = [
         { purchaseNumber: { $regex: search, $options: 'i' } },
         { notes: { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     if (supplier) filter.supplier = supplier;
     if (status) filter.status = status;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
-    
+
     if (startDate || endDate) {
       filter.purchaseDate = {};
       if (startDate) filter.purchaseDate.$gte = new Date(startDate);
@@ -49,10 +49,10 @@ router.get("/", [
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Get total count for pagination
     const total = await FoodPurchase.countDocuments(filter);
-    
+
     // Get food purchases with pagination
     const foodPurchases = await FoodPurchase.find(filter)
       .populate('supplier', 'name contactPerson email phone')
@@ -104,7 +104,7 @@ router.get("/stats", [
       { $group: { _id: null, total: { $sum: "$dueAmount" } } }
     ]);
     const completedPurchases = await FoodPurchase.countDocuments({ status: "Completed" });
-    
+
     const stats = {
       total: total || 0,
       totalValue: totalValue[0]?.total || 0,
@@ -156,33 +156,33 @@ router.post("/", [
         errors: errors.array()
       });
     }
-    
+
     console.log('✅ Validation passed');
 
     // Map flat structure to nested structure expected by model
     let { productType, quantity, unitPrice, totalPrice, supplier, purchaseDate, status, paymentStatus, paidAmount, notes, unit, expectedDeliveryDate, purchaseType, warehouse } = req.body;
-    
+
     // Normalize paymentStatus to valid enum values
     // Map 'Paid' to 'Completed' if needed
     if (paymentStatus === 'Paid') {
       paymentStatus = 'Completed';
       console.log('⚠️ Payment status "Paid" mapped to "Completed"');
     }
-    
+
     // Ensure paymentStatus is one of the valid enum values
     const validPaymentStatuses = ['Pending', 'Partial', 'Completed'];
     if (!validPaymentStatuses.includes(paymentStatus)) {
       console.log(`⚠️ Invalid paymentStatus "${paymentStatus}", defaulting to "Pending"`);
       paymentStatus = 'Pending';
     }
-    
+
     console.log('📋 Extracted fields:');
     console.log('  - Supplier:', supplier, typeof supplier);
     console.log('  - ProductType:', productType);
     console.log('  - Quantity:', quantity, typeof quantity);
     console.log('  - UnitPrice:', unitPrice, typeof unitPrice);
     console.log('  - Warehouse:', warehouse);
-    
+
     // Validate supplier
     if (!supplier || (typeof supplier === 'string' && supplier.trim() === '')) {
       console.error('❌ Supplier is missing or empty');
@@ -191,7 +191,7 @@ router.post("/", [
         message: "Supplier is required"
       });
     }
-    
+
     // Validate warehouse
     if (!warehouse || !mongoose.Types.ObjectId.isValid(warehouse)) {
       // Try to get the first available warehouse as fallback
@@ -202,16 +202,16 @@ router.post("/", [
         var warehouseId = firstWarehouse._id;
       } else {
         console.error('❌ No warehouse found and no valid warehouse ID provided');
-        return res.status(400).json({ 
-          success: false, 
-          message: "Valid warehouse ID is required" 
+        return res.status(400).json({
+          success: false,
+          message: "Valid warehouse ID is required"
         });
       }
     } else {
       var warehouseId = new mongoose.Types.ObjectId(warehouse);
       console.log('✅ Using provided warehouse:', warehouseId);
     }
-    
+
     // Create the foodItems array with the single item
     const foodItems = [{
       name: productType || "Wheat",
@@ -237,14 +237,14 @@ router.post("/", [
       const day = String(new Date().getDate()).padStart(2, '0');
       const sequence = String(count + 1).padStart(4, '0');
       generatedPurchaseNumber = `FP-${year}${month}${day}-${sequence}`;
-      
+
       // Check if this purchase number already exists (race condition protection)
       const existing = await FoodPurchase.findOne({ purchaseNumber: generatedPurchaseNumber });
       if (existing) {
         // If exists, append timestamp to make it unique
         generatedPurchaseNumber = `FP-${year}${month}${day}-${sequence}-${Date.now()}`;
       }
-      
+
       console.log('📝 Generated purchase number:', generatedPurchaseNumber);
     } catch (error) {
       console.error('⚠️ Error generating purchase number, using fallback:', error.message);
@@ -264,7 +264,7 @@ router.post("/", [
         message: "Invalid supplier ID provided"
       });
     }
-    
+
     // Validate user ID
     let userId;
     if (req.user && req.user._id && mongoose.isValidObjectId(req.user._id)) {
@@ -278,7 +278,7 @@ router.post("/", [
         message: "Invalid user authentication"
       });
     }
-    
+
     // Create food purchase document
     const foodPurchaseData = {
       purchaseNumber: generatedPurchaseNumber, // Explicitly set purchase number
@@ -300,7 +300,7 @@ router.post("/", [
       warehouse: warehouseId,
       createdBy: userId
     };
-    
+
     console.log('📦 Food purchase data to save:', JSON.stringify({
       ...foodPurchaseData,
       supplier: supplierId.toString(),
@@ -320,7 +320,7 @@ router.post("/", [
         const Product = (await import("../model/Product.js")).default;
         const Inventory = (await import("../model/inventory.js")).default;
         const Stock = (await import("../model/stock.js")).default;
-        
+
         // Process each food item in the purchase
         for (const foodItem of foodItems) {
           let product = await Product.findOne({
@@ -328,7 +328,7 @@ router.post("/", [
             category: foodItem.category || 'Raw Materials',
             subcategory: productType
           });
-          
+
           if (!product) {
             product = new Product({
               name: foodItem.name,
@@ -344,12 +344,12 @@ router.post("/", [
             await product.save();
             console.log(`✅ Created product in catalog: ${foodItem.name}`);
           }
-          
+
           let inventoryItem = await Inventory.findOne({
             product: product._id,
             warehouse: warehouseId
           });
-          
+
           if (!inventoryItem) {
             inventoryItem = new Inventory({
               product: product._id,
@@ -364,15 +364,11 @@ router.post("/", [
               unit: product.unit,
               price: product.purchasePrice
             });
+            await inventoryItem.save();
+            console.log(`✅ Created new inventory item for ${product.name}`);
           }
-          
-          inventoryItem.currentStock = (inventoryItem.currentStock ?? 0) + foodItem.quantity;
-          inventoryItem.status = inventoryItem.currentStock === 0
-            ? 'Out of Stock'
-            : (inventoryItem.minimumStock && inventoryItem.currentStock <= inventoryItem.minimumStock ? 'Low Stock' : 'Active');
-          inventoryItem.lastUpdated = new Date();
-          await inventoryItem.save();
-          
+
+          // Create Stock movement - the Stock model's pre-save middleware will update inventory automatically
           const stockIn = new Stock({
             inventoryItem: inventoryItem._id,
             movementType: 'in',
@@ -382,7 +378,7 @@ router.post("/", [
             warehouse: warehouseId,
             createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
           });
-          
+
           await stockIn.save();
           console.log(`✅ Added ${foodItem.quantity} ${foodItem.unit} of ${foodItem.name} to warehouse`);
         }
@@ -408,7 +404,7 @@ router.post("/", [
       console.error('  - Error code:', dbError.code);
       console.error('  - Error stack:', dbError.stack);
       console.error('📦 Food purchase data that failed:', JSON.stringify(foodPurchaseData, null, 2));
-      
+
       // Check for specific error types
       let errorMessage = "Failed to save food purchase to database";
       if (dbError.code === 11000) {
@@ -421,7 +417,7 @@ router.post("/", [
       } else {
         errorMessage = dbError.message || errorMessage;
       }
-      
+
       // Return error response - don't pretend it succeeded
       res.status(500).json({
         success: false,
@@ -470,7 +466,7 @@ router.put("/:id", [
       _id: req.params.id,
       ...req.body,
       totalPrice: req.body.quantity ? req.body.quantity * (req.body.unitPrice || 0) : 0,
-        updatedAt: new Date()
+      updatedAt: new Date()
     };
 
     res.json({
@@ -516,4 +512,4 @@ router.delete("/:id", [
   }
 });
 
-export default router; 
+export default router;
