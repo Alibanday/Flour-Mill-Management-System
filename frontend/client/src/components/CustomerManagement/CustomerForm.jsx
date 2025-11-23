@@ -11,11 +11,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
     businessName: '',
     businessType: 'Individual',
     businessRegistrationNumber: '',
-    customerType: 'New',
     creditLimit: 0,
-    paymentTerms: 'Cash',
-    preferredPaymentMethod: 'Cash',
-    status: 'Active',
     notes: '',
     address: {
       street: '',
@@ -41,34 +37,30 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
         businessName: customer.businessName || '',
         businessType: customer.businessType || 'Individual',
         businessRegistrationNumber: customer.businessRegistrationNumber || '',
-        customerType: customer.customerType || 'New',
         creditLimit: customer.creditLimit || 0,
-        paymentTerms: customer.paymentTerms || 'Cash',
-        preferredPaymentMethod: customer.preferredPaymentMethod || 'Cash',
-        status: customer.status || 'Active',
         notes: customer.notes || '',
-        address: customer.address && typeof customer.address === 'object' 
+        address: customer.address && typeof customer.address === 'object'
           ? {
-              street: customer.address.street || '',
-              city: customer.address.city || '',
-              state: customer.address.state || '',
-              zipCode: customer.address.zipCode || '',
-              country: customer.address.country || 'Pakistan'
-            }
+            street: customer.address.street || '',
+            city: customer.address.city || '',
+            state: customer.address.state || '',
+            zipCode: customer.address.zipCode || '',
+            country: customer.address.country || 'Pakistan'
+          }
           : {
-              street: '',
-              city: '',
-              state: '',
-              zipCode: '',
-              country: 'Pakistan'
-            }
+            street: '',
+            city: '',
+            state: '',
+            zipCode: '',
+            country: 'Pakistan'
+          }
       });
     }
   }, [customer]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -105,9 +97,8 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
       newErrors.lastName = 'Last name is required';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    // Email is optional, but if provided, must be valid
+    if (formData.email.trim() && !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email is invalid';
     }
 
@@ -121,7 +112,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -131,12 +122,12 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
 
     try {
       const token = localStorage.getItem('token');
-      const url = customer 
+      const url = customer
         ? `http://localhost:7000/api/customers/${customer._id}`
         : 'http://localhost:7000/api/customers/create';
-      
+
       const method = customer ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -148,7 +139,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        
+
         // Handle field-specific errors
         if (errorData.field === 'email') {
           setErrors({ email: errorData.message });
@@ -159,7 +150,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         alert(customer ? 'Customer updated successfully!' : 'Customer added successfully!');
         onSuccess();
@@ -235,9 +226,8 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
                 name="firstName"
                 value={formData.firstName}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.firstName ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.firstName ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="Enter first name"
               />
               {errors.firstName && (
@@ -254,9 +244,8 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.lastName ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.lastName ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="Enter last name"
               />
               {errors.lastName && (
@@ -266,16 +255,15 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
+                Email
               </label>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="Enter email address"
               />
               {errors.email && (
@@ -292,9 +280,8 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.phone ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="Enter phone number"
               />
               {errors.phone && (
@@ -343,7 +330,7 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
                 <option value="Individual">Individual</option>
                 <option value="Retailer">Retailer</option>
                 <option value="Wholesaler">Wholesaler</option>
-                <option value="Restaurant">Restaurant</option>
+                <option value="Retailer">Retailer</option>
                 <option value="Bakery">Bakery</option>
                 <option value="Distributor">Distributor</option>
                 <option value="Other">Other</option>
@@ -366,23 +353,6 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Type
-              </label>
-              <select
-                name="customerType"
-                value={formData.customerType}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="New">New</option>
-                <option value="Regular">Regular</option>
-                <option value="Premium">Premium</option>
-                <option value="VIP">VIP</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Credit Limit (Rs.)
               </label>
               <input
@@ -395,58 +365,6 @@ export default function CustomerForm({ customer, onClose, onSuccess }) {
                 min="0"
                 step="0.01"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Terms
-              </label>
-              <select
-                name="paymentTerms"
-                value={formData.paymentTerms}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Cash">Cash</option>
-                <option value="Credit">Credit</option>
-                <option value="Net 15">Net 15</option>
-                <option value="Net 30">Net 30</option>
-                <option value="Net 60">Net 60</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Preferred Payment Method
-              </label>
-              <select
-                name="preferredPaymentMethod"
-                value={formData.preferredPaymentMethod}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Suspended">Suspended</option>
-              </select>
             </div>
           </div>
         </div>

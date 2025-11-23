@@ -42,14 +42,16 @@ export default function WheatSalesPage() {
             }
             if (productsRes.ok) {
                 const productsData = await productsRes.json();
-                // Filter for Wheat related products if possible
+                // Filter for Wheat related products only
                 const allProducts = productsData.data || [];
-                // const wheatProducts = allProducts.filter(p => 
-                //   p.name.toLowerCase().includes('wheat') || 
-                //   p.name.toLowerCase().includes('grain')
-                // );
-                // setProducts(wheatProducts.length > 0 ? wheatProducts : allProducts);
-                setProducts(allProducts);
+                const wheatProducts = allProducts.filter(p =>
+                    p.name.toLowerCase().includes('wheat') ||
+                    p.name.toLowerCase().includes('grain') ||
+                    p.category === 'Wheat Grain' ||
+                    p.category === 'Raw Materials'
+                );
+                console.log(`✅ Filtered ${wheatProducts.length} wheat products from ${allProducts.length} total products`);
+                setProducts(wheatProducts.length > 0 ? wheatProducts : allProducts);
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -224,8 +226,8 @@ export default function WheatSalesPage() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${sale.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                            sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-red-100 text-red-800'
+                                                        sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-red-100 text-red-800'
                                                         }`}>
                                                         {sale.status || 'Pending'}
                                                     </span>
