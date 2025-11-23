@@ -1,0 +1,6 @@
+Verification Failed: customer is not defined
+
+Stack: ReferenceError: customer is not defined
+    at createSale (file:///C:/Users/malir/OneDrive/Desktop/FloorMillManagementSystem/server/controller/salesController.js:674:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async runVerification (file:///C:/Users/malir/OneDrive/Desktop/FloorMillManagementSystem/server/verify_stock_flow.js:238:9)

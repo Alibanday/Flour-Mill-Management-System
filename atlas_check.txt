@@ -1,0 +1,76 @@
+﻿Connecting to: mongodb+srv://finalflourmill:flourmill321@cluster1...
+Γ£à Connected to MongoDB Atlas
+
+≡ƒôª Latest Bag Purchases:
+Found 3 bag purchases
+
+1. Purchase Number: BP-20251122-0005
+   Warehouse ID: 6921f0976da30e945fcfb37c
+   Status: Received
+   Date: Sat Nov 22 2025 05:00:00 GMT+0500 (Pakistan Standard Time)
+   Bags: {
+  Fine: {
+    quantity: 10,
+    unit: '10kg bags',
+    unitPrice: 1500,
+    totalPrice: 15000,
+    _id: new ObjectId('692201c4e4cc7fccc957b17f')
+  }
+}
+
+2. Purchase Number: BP-20251122-0004
+   Warehouse ID: 6921f0976da30e945fcfb37c
+   Status: Completed
+   Date: Sat Nov 22 2025 05:00:00 GMT+0500 (Pakistan Standard Time)
+   Bags: {
+  Fine: {
+    quantity: 10,
+    unit: '20kg bags',
+    unitPrice: 2499.97,
+    totalPrice: 24999.699999999997,
+    _id: new ObjectId('6922019ae4cc7fccc957b151')
+  }
+}
+
+3. Purchase Number: BP-20251122-0003
+   Warehouse ID: 6921f0976da30e945fcfb37c
+   Status: Completed
+   Date: Sat Nov 22 2025 05:00:00 GMT+0500 (Pakistan Standard Time)
+   Bags: {
+  Fine: {
+    quantity: 32,
+    unit: '10kg bags',
+    unitPrice: 1500,
+    totalPrice: 48000,
+    _id: new ObjectId('69220150e4cc7fccc957b091')
+  }
+}
+
+
+≡ƒôè Latest Stock Movements:
+Found 1 stock movements
+
+1. Reference: BP-20251122-0005
+   Warehouse ID: 6921f0976da30e945fcfb37c
+   Type: in
+   Quantity: 100
+   Reason: Bag Purchase - BP-20251122-0005
+   Inventory Item ID: 6921fbbb70c54bd83babb635
+
+
+≡ƒôï Latest Inventory Items:
+Found 1 inventory items
+
+1. Name: Fine
+   Warehouse ID: 6921f0976da30e945fcfb37c
+   Current Stock: 100
+   Status: Active
+
+
+≡ƒÅ¡ Warehouses:
+Found 1 warehouses
+
+1. Test Warehouse (ID: 6921f0976da30e945fcfb37c)
+   Location: Random address in pakistan.
+
+Γ£à Disconnected

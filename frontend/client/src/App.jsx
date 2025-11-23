@@ -6,14 +6,16 @@ import Login from './pages/Login';
 import UserManagementPage from './pages/UserManagementPage';
 import AccountsPage from './pages/AccountsPage';
 import EmployeesPage from './pages/EmployeesPage';
-import SalesPage from './pages/SalesPage';
+import BagSalesPage from './pages/BagSalesPage';
+import WheatSalesPage from './pages/WheatSalesPage';
 import ProductionPage from './pages/ProductionPage';
 import ReportsPage from './pages/ReportsPage';
 import WarehousePage from './pages/WarehousePage';
 import WarehouseDetail from './components/WarehouseManagement/WarehouseDetail';
 import InventoryPage from './pages/InventoryPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
-import BagFoodPurchasePage from './pages/BagFoodPurchasePage';
+import BagPurchasePage from './pages/BagPurchasePage';
+import FoodPurchasePage from './pages/FoodPurchasePage';
 import SupplierManagementPage from './pages/SupplierManagementPage';
 import SupplierDetailPage from './pages/SupplierDetailPage';
 import GatePassPage from './pages/GatePassPage';
@@ -38,58 +40,69 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
-        
+
         {/* Protected Routes */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        
-        <Route 
-          path="/dashboard" 
+
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
-        
+
         {/* User Management - Admin and Manager only */}
-        <Route 
-          path="/users" 
+        <Route
+          path="/users"
           element={
             <UserManagementRoute>
               <UserManagementPage />
             </UserManagementRoute>
-          } 
+          }
         />
-        
+
         {/* Accounts - Admin and General Manager only */}
-        <Route 
-          path="/accounts" 
+        <Route
+          path="/accounts"
           element={
             <GeneralManagerRoute>
               <AccountsPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Employees - Admin and General Manager only */}
-        <Route 
-          path="/employees" 
+        <Route
+          path="/employees"
           element={
             <GeneralManagerRoute>
               <EmployeesPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
-        {/* Sales Management - Admin, General Manager, and Sales Manager */}
-        <Route 
-          path="/sales" 
+
+        {/* Bag Sales - Admin, General Manager, and Sales Manager */}
+        <Route
+          path="/bag-sales"
           element={
             <SalesManagerRoute>
-              <SalesPage />
+              <BagSalesPage />
             </SalesManagerRoute>
-          } 
+          }
         />
+
+        {/* Wheat Sales - Admin, General Manager, and Sales Manager */}
+        <Route
+          path="/wheat-sales"
+          element={
+            <SalesManagerRoute>
+              <WheatSalesPage />
+            </SalesManagerRoute>
+          }
+        />
+
         <Route
           path="/sales/:id"
           element={
@@ -98,55 +111,65 @@ function App() {
             </SalesManagerRoute>
           }
         />
-        
+
         {/* Production - Admin, General Manager, and Production Manager */}
-        <Route 
-          path="/production" 
+        <Route
+          path="/production"
           element={
             <ProductionManagerRoute>
               <ProductionPage />
             </ProductionManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Reports - Admin and General Manager only */}
-        <Route 
-          path="/reports" 
+        <Route
+          path="/reports"
           element={
             <GeneralManagerRoute>
               <ReportsPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Financial Management - Admin and General Manager only */}
-        <Route 
-          path="/financial" 
+        <Route
+          path="/financial"
           element={
             <GeneralManagerRoute>
               <FinancialManagementPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
-        {/* Bag & Food Purchase - Admin and General Manager only */}
-        <Route 
-          path="/bag-food-purchase" 
+
+        {/* Bag Purchase - Admin and General Manager only */}
+        <Route
+          path="/bag-purchase"
           element={
             <GeneralManagerRoute>
-              <BagFoodPurchasePage />
+              <BagPurchasePage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
+
+        {/* Food Purchase - Admin and General Manager only */}
+        <Route
+          path="/food-purchase"
+          element={
+            <GeneralManagerRoute>
+              <FoodPurchasePage />
+            </GeneralManagerRoute>
+          }
+        />
+
         {/* Supplier & Vendor Management - Admin and General Manager only */}
-        <Route 
-          path="/suppliers" 
+        <Route
+          path="/suppliers"
           element={
             <GeneralManagerRoute>
               <SupplierManagementPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
         <Route
           path="/suppliers/:id"
@@ -156,55 +179,55 @@ function App() {
             </GeneralManagerRoute>
           }
         />
-        
+
         {/* Gate Pass System - Admin, General Manager, Production Manager, and Warehouse Manager */}
-        <Route 
-          path="/gate-pass" 
+        <Route
+          path="/gate-pass"
           element={
             <EmployeeRoute>
               <GatePassPage />
             </EmployeeRoute>
-          } 
+          }
         />
-        
+
         {/* Notifications & Utilities - Admin and General Manager only */}
-        <Route 
-          path="/notifications" 
+        <Route
+          path="/notifications"
           element={
             <GeneralManagerRoute>
               <NotificationsPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
+
         {/* System Configuration - Admin only */}
-        <Route 
-          path="/system-config" 
+        <Route
+          path="/system-config"
           element={
             <AdminRoute>
               <SystemConfigPage />
             </AdminRoute>
-          } 
+          }
         />
-        
+
         {/* Language Test Page */}
-        <Route 
-          path="/language-test" 
+        <Route
+          path="/language-test"
           element={
             <ProtectedRoute>
               <LanguageTestPage />
             </ProtectedRoute>
-          } 
+          }
         />
 
         {/* Customer Management - Admin, General Manager, and Sales Manager */}
-        <Route 
-          path="/customers" 
+        <Route
+          path="/customers"
           element={
             <SalesManagerRoute>
               <CustomerManagementPage />
             </SalesManagerRoute>
-          } 
+          }
         />
         <Route
           path="/customers/:id"
@@ -216,13 +239,13 @@ function App() {
         />
 
         {/* Stock Transfer - Admin, General Manager, Production Manager, and Warehouse Manager */}
-        <Route 
-          path="/stock-transfers" 
+        <Route
+          path="/stock-transfers"
           element={
             <EmployeeRoute>
               <StockTransferPage />
             </EmployeeRoute>
-          } 
+          }
         />
         <Route
           path="/stock-transfers/:id"
@@ -234,25 +257,25 @@ function App() {
         />
 
         {/* Repacking - Admin, General Manager, and Production Manager */}
-        <Route 
-          path="/repacking" 
+        <Route
+          path="/repacking"
           element={
             <ProductionManagerRoute>
               <RepackingPage />
             </ProductionManagerRoute>
-          } 
+          }
         />
 
         {/* Production Cost Analysis - Admin and General Manager only */}
-        <Route 
-          path="/production-costs" 
+        <Route
+          path="/production-costs"
           element={
             <GeneralManagerRoute>
               <ProductionCostPage />
             </GeneralManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Warehouse - Admin, General Manager, and Warehouse Manager */}
         <Route
           path="/warehouses"
@@ -278,40 +301,40 @@ function App() {
             </EmployeeRoute>
           }
         />
-        
+
         {/* Stock - Admin, General Manager, and Warehouse Manager */}
-        <Route 
-          path="/stock" 
+        <Route
+          path="/stock"
           element={
             <WarehouseManagerRoute>
               <StockPage />
             </WarehouseManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Warehouse Manager Dashboard */}
-        <Route 
-          path="/warehouse-manager-dashboard" 
+        <Route
+          path="/warehouse-manager-dashboard"
           element={
             <WarehouseManagerRoute>
               <WarehouseManagerDashboard />
             </WarehouseManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Damage Report Page */}
-        <Route 
-          path="/damage-report" 
+        <Route
+          path="/damage-report"
           element={
             <WarehouseManagerRoute>
               <DamageReportPage />
             </WarehouseManagerRoute>
-          } 
+          }
         />
-        
+
         {/* Settings - Admin only */}
-        <Route 
-          path="/settings" 
+        <Route
+          path="/settings"
           element={
             <AdminRoute>
               <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -321,9 +344,9 @@ function App() {
                 </div>
               </div>
             </AdminRoute>
-          } 
+          }
         />
-        
+
         {/* Catch all route */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

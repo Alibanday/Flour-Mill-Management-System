@@ -468,16 +468,16 @@ export const createProduction = async (req, res) => {
         });
       }
 
-      const existingStock = getInventoryStock(productInventory);
-      const newStockLevel = existingStock + outputProduct.quantity;
-
-      productInventory.currentStock = newStockLevel;
-      productInventory.status = newStockLevel === 0
-        ? "Out of Stock"
-        : (productInventory.minimumStock && newStockLevel <= productInventory.minimumStock ? "Low Stock" : "Active");
-      productInventory.lastUpdated = new Date();
-
-      await productInventory.save();
+      // Only save if it's a new inventory record (no _id yet, but mongoose assigns _id on new)
+      // Actually, we just need to ensure it exists in DB before creating Stock
+      // If it was found by findOne, it's already in DB.
+      // If it was created with new Inventory(), it needs to be saved.
+      if (productInventory.isNew) {
+        await productInventory.save();
+      }
+      // Note: We do NOT update currentStock here. The Stock middleware (triggered by Stock.save below)
+      // will automatically update the inventory's currentStock.
+      // Updating it here would cause double counting.
 
       const productStockIn = new Stock({
         inventoryItem: productInventory._id,
@@ -500,6 +500,8 @@ export const createProduction = async (req, res) => {
       type: "production",
       priority: "medium",
       user: req.user._id || req.user.id,
+      relatedEntity: "production",
+      entityId: production._id,
       data: {
         productionId: production._id,
         batchNumber: production.batchNumber,

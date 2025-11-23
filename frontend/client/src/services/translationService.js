@@ -109,7 +109,11 @@ const translations = {
         customerManagement: 'Customer Management',
         reports: 'Reports',
         notifications: 'Notifications & Utilities',
-        systemConfiguration: 'System Configuration'
+        systemConfiguration: 'System Configuration',
+        bagPurchase: 'Bag Purchase',
+        wheatPurchase: 'Wheat Purchase',
+        bagSales: 'Bag Sales',
+        wheatSales: 'Wheat Sales'
       },
 
       sections: {
@@ -625,7 +629,11 @@ const translations = {
         customerManagement: 'گاہکوں کا انتظام',
         reports: 'رپورٹس',
         notifications: 'نوٹیفیکیشنز اور یوٹیلیٹیز',
-        systemConfiguration: 'سسٹم کنفیگریشن'
+        systemConfiguration: 'سسٹم کنفیگریشن',
+        bagPurchase: 'بیگ کی خریداری',
+        wheatPurchase: 'گندم کی خریداری',
+        bagSales: 'بیگ کی فروخت',
+        wheatSales: 'گندم کی فروخت'
       },
 
       sections: {
@@ -1037,7 +1045,7 @@ const translations = {
 export const t = (key, language = 'en') => {
   const keys = key.split('.');
   let value = translations[language] || translations.en;
-  
+
   for (const k of keys) {
     if (value && value[k]) {
       value = value[k];
@@ -1053,7 +1061,7 @@ export const t = (key, language = 'en') => {
       }
     }
   }
-  
+
   return value || key;
 };
 

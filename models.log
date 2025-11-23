@@ -1,0 +1,16 @@
+[
+  "User",
+  "Warehouse",
+  "Product",
+  "Supplier",
+  "CustomerNew",
+  "Inventory",
+  "Stock",
+  "GatePass",
+  "Notification",
+  "BagPurchase",
+  "Production",
+  "Sale",
+  "Account",
+  "Transaction"
+]

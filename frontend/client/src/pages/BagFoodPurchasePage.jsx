@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   FaShoppingBag, FaIndustry, FaWarehouse, FaPlus, FaEdit, FaTrash,
   FaEye, FaDownload, FaPrint, FaSearch, FaFilter, FaSignOutAlt, FaUserCog,
@@ -15,9 +15,21 @@ import BagPurchaseDetail from '../components/BagFoodPurchase/BagPurchaseDetail';
 
 export default function BagFoodPurchasePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [activeMenu] = useState("Bag & Food Purchase");
-  const [activeTab, setActiveTab] = useState("bags");
+
+  // Initialize activeTab from URL or default to "bags"
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "bags");
+
+  // Update activeTab when URL changes
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && ["bags", "food", "summary"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [viewingItem, setViewingItem] = useState(null);
@@ -117,7 +129,7 @@ export default function BagFoodPurchasePage() {
       if (bagResponse.ok && foodResponse.ok) {
         const bagStats = await bagResponse.json();
         const foodStats = await foodResponse.json();
-        
+
         setStats({
           totalBagPurchases: bagStats.data?.total || 0,
           totalFoodPurchases: foodStats.data?.total || 0,
@@ -134,15 +146,15 @@ export default function BagFoodPurchasePage() {
   const handleSaveBagPurchase = async (purchaseData) => {
     try {
       console.log('Saving bag purchase with data:', purchaseData);
-      
-      const url = editingItem 
+
+      const url = editingItem
         ? `http://localhost:7000/api/bag-purchases/${editingItem._id}`
         : 'http://localhost:7000/api/bag-purchases';
-      
+
       const method = editingItem ? 'PUT' : 'POST';
-      
+
       console.log('Making request to:', url, 'with method:', method);
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -177,14 +189,14 @@ export default function BagFoodPurchasePage() {
   const handleSaveFoodPurchase = async (purchaseData) => {
     try {
       console.log('💾 Saving food purchase with data:', purchaseData);
-      const url = editingItem 
+      const url = editingItem
         ? `http://localhost:7000/api/food-purchases/${editingItem._id}`
         : 'http://localhost:7000/api/food-purchases';
-      
+
       const method = editingItem ? 'PUT' : 'POST';
-      
+
       console.log(`📤 Making ${method} request to:`, url);
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -231,10 +243,10 @@ export default function BagFoodPurchasePage() {
     if (!window.confirm('Are you sure you want to delete this purchase?')) return;
 
     try {
-      const url = type === 'bag' 
+      const url = type === 'bag'
         ? `http://localhost:7000/api/bag-purchases/${item._id}`
         : `http://localhost:7000/api/food-purchases/${item._id}`;
-      
+
       const response = await fetch(url, {
         method: 'DELETE',
         headers: {
@@ -274,14 +286,14 @@ export default function BagFoodPurchasePage() {
 
   return (
     <div className="absolute inset-0 bg-white bg-opacity-30 backdrop-blur-sm z-0"
-         style={{ backgroundImage: "url('/dashboard.jpg')" }}>
+      style={{ backgroundImage: "url('/dashboard.jpg')" }}>
       {/* Header */}
       <header className="bg-white shadow-sm w-full">
         <div className="px-6 py-3 flex items-center justify-between w-full">
           <div className="flex items-center">
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
-              <button 
+              <button
                 className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"
                 onClick={() => navigate("/dashboard")}
               >
@@ -296,7 +308,7 @@ export default function BagFoodPurchasePage() {
             <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
               <FaUserCog className="text-lg" />
             </button>
-            <button 
+            <button
               onClick={handleLogout}
               className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 bg-transparent"
             >
@@ -315,10 +327,9 @@ export default function BagFoodPurchasePage() {
             <ul className="space-y-1">
               <li>
                 <button
-                  onClick={() => setActiveTab("bags")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
-                    activeTab === "bags" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }`}
+                  onClick={() => navigate("?tab=bags")}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "bags" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                    }`}
                 >
                   <FaShoppingBag className="mr-3" />
                   Bag Purchases
@@ -326,10 +337,9 @@ export default function BagFoodPurchasePage() {
               </li>
               <li>
                 <button
-                  onClick={() => setActiveTab("food")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
-                    activeTab === "food" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }`}
+                  onClick={() => navigate("?tab=food")}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "food" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                    }`}
                 >
                   <FaIndustry className="mr-3" />
                   Food Purchases
@@ -337,10 +347,9 @@ export default function BagFoodPurchasePage() {
               </li>
               <li>
                 <button
-                  onClick={() => setActiveTab("summary")}
-                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${
-                    activeTab === "summary" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                  }`}
+                  onClick={() => navigate("?tab=summary")}
+                  className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors bg-transparent ${activeTab === "summary" ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                    }`}
                 >
                   <FaChartBar className="mr-3" />
                   Summary & Reports
@@ -365,7 +374,7 @@ export default function BagFoodPurchasePage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-lg">
@@ -377,7 +386,7 @@ export default function BagFoodPurchasePage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
               <div className="flex items-start">
                 <div className="p-2 bg-yellow-100 rounded-lg flex-shrink-0">
@@ -389,7 +398,7 @@ export default function BagFoodPurchasePage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
               <div className="flex items-start">
                 <div className="p-2 bg-purple-100 rounded-lg flex-shrink-0">
@@ -401,7 +410,7 @@ export default function BagFoodPurchasePage() {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 overflow-hidden">
               <div className="flex items-start">
                 <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
@@ -419,16 +428,16 @@ export default function BagFoodPurchasePage() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {activeTab === "bags" ? "Bag Purchase Management" : 
-                   activeTab === "food" ? "Food Purchase Management" : 
-                   "Purchase Summary & Reports"}
+                  {activeTab === "bags" ? "Bag Purchase Management" :
+                    activeTab === "food" ? "Food Purchase Management" :
+                      "Purchase Summary & Reports"}
                 </h1>
                 <p className="text-gray-600">
-                  {activeTab === "bags" 
-                    ? "Manage ATA, MAIDA, SUJI, and FINE bag purchases" 
+                  {activeTab === "bags"
+                    ? "Manage ATA, MAIDA, SUJI, and FINE bag purchases"
                     : activeTab === "food"
-                    ? "Manage wheat and other food item purchases"
-                    : "View comprehensive purchase analytics and reports"
+                      ? "Manage wheat and other food item purchases"
+                      : "View comprehensive purchase analytics and reports"
                   }
                 </p>
               </div>
@@ -455,7 +464,7 @@ export default function BagFoodPurchasePage() {
                 suppliers={suppliers}
               />
             )}
-            
+
             {activeTab === "food" && (
               <FoodPurchaseList
                 purchases={foodPurchases}
@@ -465,7 +474,7 @@ export default function BagFoodPurchasePage() {
                 onDelete={(item) => handleDelete(item, 'food')}
               />
             )}
-            
+
             {activeTab === "summary" && (
               <PurchaseSummary
                 bagPurchases={bagPurchases}
@@ -505,7 +514,7 @@ export default function BagFoodPurchasePage() {
           onSave={handleSaveBagPurchase}
         />
       )}
-      
+
       {showForm && activeTab === "food" && (
         <FoodPurchaseForm
           purchase={editingItem}
@@ -516,4 +525,4 @@ export default function BagFoodPurchasePage() {
       )}
     </div>
   );
-} 
+}

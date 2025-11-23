@@ -51,7 +51,10 @@ export default function Dashboard() {
     "Warehouse": "dashboard.quickActions.warehouse",
     "Warehouse Dashboard": "dashboard.quickActions.warehouseDashboard",
     "Stock": "dashboard.quickActions.stock",
-    "Bag & Food Purchase": "navigation.bagFoodPurchase"
+    "Bag Purchase": "dashboard.quickActions.bagPurchase",
+    "Wheat Purchase": "dashboard.quickActions.wheatPurchase",
+    "Bag Sales": "dashboard.quickActions.bagSales",
+    "Wheat Sales": "dashboard.quickActions.wheatSales"
   };
 
   // Redirect warehouse managers to their own dashboard
@@ -71,66 +74,79 @@ export default function Dashboard() {
   // Role-based masters menu
   const getMastersMenu = () => {
     const baseMenu = [];
-
     const filteredMenu = baseMenu.filter(item => item.roles.includes(role));
-
     if (isSalesMgr) {
       return [];
     }
-
     return filteredMenu;
   };
 
   // Role-based function buttons (only unique items not in sidebar)
   const getFunctionButtons = () => {
     const allButtons = [
-      { 
-        name: "Production", 
-        shortcut: "F7", 
-        icon: <FaIndustry />, 
+      {
+        name: "Production",
+        shortcut: "F7",
+        icon: <FaIndustry />,
         action: () => navigate("/production"),
         roles: ['Admin', 'General Manager', 'Production Manager'],
         color: "bg-green-100 text-green-600"
       },
-      { 
-        name: "Sales", 
-        shortcut: "F8", 
+      {
+        name: "Bag Sales",
+        shortcut: "F8",
         icon: <FaReceipt />,
-        action: () => navigate("/sales"),
+        action: () => navigate("/bag-sales"),
         roles: ['Admin', 'General Manager', 'Sales Manager'],
         color: "bg-orange-100 text-orange-600"
       },
-      { 
-        name: "Warehouse", 
-        shortcut: "F9", 
-        icon: <FaWarehouse />, 
+      {
+        name: "Wheat Sales",
+        shortcut: "F13",
+        icon: <FaReceipt />,
+        action: () => navigate("/wheat-sales"),
+        roles: ['Admin', 'General Manager', 'Sales Manager'],
+        color: "bg-amber-100 text-amber-600"
+      },
+      {
+        name: "Warehouse",
+        shortcut: "F9",
+        icon: <FaWarehouse />,
         action: () => navigate("/warehouses"),
         roles: ['Admin', 'General Manager', 'Warehouse Manager', 'Sales Manager'],
         color: "bg-indigo-100 text-indigo-600"
       },
-      { 
-        name: "Warehouse Dashboard", 
-        shortcut: "F17", 
-        icon: <FaWarehouse />, 
+      {
+        name: "Warehouse Dashboard",
+        shortcut: "F17",
+        icon: <FaWarehouse />,
         action: () => navigate("/warehouse-manager-dashboard"),
         roles: ['Warehouse Manager'],
         color: "bg-purple-100 text-purple-600"
       },
-      { 
-        name: "Stock", 
-        shortcut: "F11", 
-        icon: <FaBoxes />, 
+      {
+        name: "Stock",
+        shortcut: "F11",
+        icon: <FaBoxes />,
         action: () => navigate("/stock"),
         roles: ['Admin', 'General Manager', 'Warehouse Manager'],
         color: "bg-teal-100 text-teal-600"
       },
-      { 
-        name: "Bag & Food Purchase", 
-        shortcut: "F10", 
-        icon: <FaShoppingBag />, 
-        action: () => navigate("/bag-food-purchase"),
+      {
+        name: "Bag Purchase",
+        shortcut: "F10",
+        icon: <FaShoppingBag />,
+        action: () => navigate("/bag-purchase"),
         roles: ['Admin', 'General Manager', 'Production Manager', 'Warehouse Manager'],
         color: "bg-yellow-100 text-yellow-600"
+      },
+      {
+        name: "Wheat Purchase",
+        shortcut: "F12",
+        icon: <FaIndustry />,
+        action: () => navigate("/food-purchase"),
+        roles: ['Admin', 'General Manager', 'Production Manager', 'Warehouse Manager'],
+        color: "bg-green-100 text-green-600"
       },
     ];
 
@@ -138,7 +154,8 @@ export default function Dashboard() {
 
     if (isSalesMgr) {
       const allowedSalesManagerButtons = new Set([
-        "Sales",
+        "Bag Sales",
+        "Wheat Sales",
         "Warehouse"
       ]);
       return visibleButtons.filter(button => allowedSalesManagerButtons.has(button.name));
@@ -150,30 +167,30 @@ export default function Dashboard() {
   // Role-based stats
   const getStats = () => {
     const baseStats = [
-      { 
-        title: t('dashboard.stats.cashInHand'), 
-        value: "Rs. 0", 
+      {
+        title: t('dashboard.stats.cashInHand'),
+        value: "Rs. 0",
         icon: <FaCashRegister />,
         trend: "up",
         roles: ['Admin', 'Manager']
       },
-      { 
-        title: t('dashboard.stats.totalDebit'), 
-        value: "Rs. 0", 
+      {
+        title: t('dashboard.stats.totalDebit'),
+        value: "Rs. 0",
         icon: <FaChartBar />,
         trend: "down",
         roles: ['Admin', 'Manager']
       },
-      { 
-        title: t('dashboard.stats.totalCredit'), 
-        value: "Rs. 0", 
+      {
+        title: t('dashboard.stats.totalCredit'),
+        value: "Rs. 0",
         icon: <FaChartBar />,
         trend: "up",
         roles: ['Admin', 'Manager']
       },
-      { 
-        title: t('dashboard.stats.totalStock'), 
-        value: "0 Units", 
+      {
+        title: t('dashboard.stats.totalStock'),
+        value: "0 Units",
         icon: <FaBoxes />,
         trend: "neutral",
         roles: ['Admin', 'Manager', 'Employee']
@@ -198,45 +215,44 @@ export default function Dashboard() {
           <div className="flex items-center">
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
             <nav className="hidden md:flex space-x-8">
-              <button 
+              <button
                 className={`px-4 py-2 font-medium rounded-md transition duration-150 ${activeMenu === "Dashboard" ? "bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm" : "text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"}`}
                 onClick={() => {
                   setActiveMenu("Dashboard");
-                  navigate("/Dashboard"); 
+                  navigate("/Dashboard");
                 }}
               >
                 {t('navigation.dashboard')}
               </button>
             </nav>
           </div>
-                        <div className="flex items-center space-x-4">
-                {/* Language Toggle */}
-                <LanguageToggle />
-                
-                {/* Theme Toggle */}
-                <ThemeToggle />
-                
-                {/* Notifications Bell - Admin and Manager only */}
-                {(isAdmin() || isManager()) && <NotificationBell />}
-                
-                {/* Role Display */}
-                <div className="flex items-center space-x-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                role === 'Admin' ? 'bg-red-100 text-red-800 border border-red-200' :
+          <div className="flex items-center space-x-4">
+            {/* Language Toggle */}
+            <LanguageToggle />
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
+            {/* Notifications Bell - Admin and Manager only */}
+            {(isAdmin() || isManager()) && <NotificationBell />}
+
+            {/* Role Display */}
+            <div className="flex items-center space-x-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${role === 'Admin' ? 'bg-red-100 text-red-800 border border-red-200' :
                 role === 'Manager' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                role === 'Employee' ? 'bg-green-100 text-green-800 border border-green-200' :
-                'bg-purple-800 border border-purple-200'
-              }`}>
+                  role === 'Employee' ? 'bg-green-100 text-green-800 border border-green-200' :
+                    'bg-purple-800 border border-purple-200'
+                }`}>
                 <FaUserShield className="h-3 w-3 mr-1 inline" />
                 {translatedRoleName}
               </span>
             </div>
-            
+
             <button className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200">
               <FaUserCog className="text-lg" />
             </button>
 
-            <button 
+            <button
               onClick={handleLogout}
               className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 bg-transparent"
             >
@@ -250,129 +266,181 @@ export default function Dashboard() {
       <div className="flex w-full">
         {/* Sidebar - Hidden for Warehouse Managers */}
         {!isWarehouseManager() && (
-        <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
-          <div className="p-4">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('navigation.mainMenu')}</h3>
-            <ul className="space-y-1">
-              {/* Gate Pass System - All roles */}
-              {canAccessGatePass && (
-              <li>
-                <button
-                  onClick={() => navigate("/gate-pass")}
-                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                >
-                  <FaPassport className="mr-3" />
-                  {t('navigation.gatePassSystem')}
-                </button>
-              </li>
-              )}
+          <aside className="w-64 bg-white shadow-sm min-h-[calc(100vh-4rem)] hidden md:block">
+            <div className="p-4">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">{t('navigation.mainMenu')}</h3>
+              <ul className="space-y-1">
+                {/* Gate Pass System - All roles */}
+                {canAccessGatePass && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/gate-pass")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaPassport className="mr-3" />
+                      {t('navigation.gatePassSystem')}
+                    </button>
+                  </li>
+                )}
 
-              {/* Financial Management - Admin and General Manager only */}
-              {(isAdmin() || isGeneralManager()) && (
+                {/* Financial Management - Admin and General Manager only */}
+                {(isAdmin() || isGeneralManager()) && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/financial")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaChartLine className="mr-3" />
+                      {t('dashboard.quickActions.financialManagement')}
+                    </button>
+                  </li>
+                )}
+
+                {/* System Configuration - Admin only */}
+                {isAdmin() && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/system-config")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaCog className="mr-3" />
+                      {t('navigation.systemConfiguration')}
+                    </button>
+                  </li>
+                )}
+                {/* Inventory Management - All roles */}
                 <li>
                   <button
-                    onClick={() => navigate("/financial")}
+                    onClick={() => navigate("/inventory")}
                     className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
                   >
-                    <FaChartLine className="mr-3" />
-                    {t('dashboard.quickActions.financialManagement')}
+                    <FaBoxes className="mr-3" />
+                    {t('navigation.inventoryManagement')}
                   </button>
                 </li>
-              )}
 
-              {/* System Configuration - Admin only */}
-              {isAdmin() && (
-                <li>
-                  <button
-                    onClick={() => navigate("/system-config")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaCog className="mr-3" />
-                    {t('navigation.systemConfiguration')}
-                  </button>
-                </li>
-              )}
-              {/* Inventory Management - All roles */}
-              <li>
-                <button
-                  onClick={() => navigate("/inventory")}
-                  className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                >
-                  <FaBoxes className="mr-3" />
-                  {t('navigation.inventoryManagement')}
-                </button>
-              </li>
+                {/* Bag Purchase - Admin, GM, Production, Warehouse */}
+                {canAccessBagFoodPurchase && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/bag-purchase")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaShoppingBag className="mr-3" />
+                      {t('dashboard.quickActions.bagPurchase') || "Bag Purchase"}
+                    </button>
+                  </li>
+                )}
 
-              {/* Customer Management - Admin, Manager, Sales */}
-              {(isAdmin() || isManager() || role === 'Sales') && (
-                <li>
-                  <button
-                    onClick={() => navigate("/customers")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaUserPlus className="mr-3" />
-                    {t('navigation.customerManagement')}
-                  </button>
-                </li>
-              )}
+                {/* Wheat Purchase - Admin, GM, Production, Warehouse */}
+                {canAccessBagFoodPurchase && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/food-purchase")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaIndustry className="mr-3" />
+                      {t('dashboard.quickActions.wheatPurchase') || "Wheat Purchase"}
+                    </button>
+                  </li>
+                )}
 
-              {/* Supplier Management - Admin and Manager only */}
-              {canSeeSupplierManagement && (
-                <li>
-                  <button
-                    onClick={() => navigate("/suppliers")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaUsers className="mr-3" />
-                    {t('navigation.supplierManagement')}
-                  </button>
-                </li>
-              )}
+                {/* Bag Sales - Admin, Manager, Sales */}
+                {(isAdmin() || isManager() || role === 'Sales') && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/bag-sales")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaReceipt className="mr-3" />
+                      {t('dashboard.quickActions.bagSales') || "Bag Sales"}
+                    </button>
+                  </li>
+                )}
 
-              {/* Employees - Admin and General Manager only */}
-              {(isAdmin() || isGeneralManager()) && (
-                <li>
-                  <button
-                    onClick={() => navigate("/employees")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaUsers className="mr-3" />
-                    {t('dashboard.quickActions.employees')}
-                  </button>
-                </li>
-              )}
-              
-              {mastersMenu.map((item, index) => (
-                <li key={index}>
-                  <button
-                    onClick={() => {
-                      if (typeof item.action === 'function') {
-                        item.action();
-                      }
-                    }}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    {item.icon}
-                    {t(item.translationKey)}
-                  </button>
-                </li>
-              ))}
+                {/* Wheat Sales - Admin, Manager, Sales */}
+                {(isAdmin() || isManager() || role === 'Sales') && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/wheat-sales")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaReceipt className="mr-3" />
+                      {t('dashboard.quickActions.wheatSales') || "Wheat Sales"}
+                    </button>
+                  </li>
+                )}
 
-              {/* User Management - Admin and Manager only - Last */}
-              {canSeeUserManagement && (
-                <li>
-                  <button
-                    onClick={() => navigate("/users")}
-                    className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                  >
-                    <FaUserShield className="mr-3" />
-                    {t('navigation.userManagement')}
-                  </button>
-                </li>
-              )}
-            </ul>
-          </div>
-        </aside>
+                {/* Customer Management - Admin, Manager, Sales */}
+                {(isAdmin() || isManager() || role === 'Sales') && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/customers")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaUserPlus className="mr-3" />
+                      {t('navigation.customerManagement')}
+                    </button>
+                  </li>
+                )}
+
+                {/* Supplier Management - Admin and Manager only */}
+                {canSeeSupplierManagement && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/suppliers")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaUsers className="mr-3" />
+                      {t('navigation.supplierManagement')}
+                    </button>
+                  </li>
+                )}
+
+                {/* Employees - Admin and General Manager only */}
+                {(isAdmin() || isGeneralManager()) && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/employees")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaUsers className="mr-3" />
+                      {t('dashboard.quickActions.employees')}
+                    </button>
+                  </li>
+                )}
+
+                {mastersMenu.map((item, index) => (
+                  <li key={index}>
+                    <button
+                      onClick={() => {
+                        if (typeof item.action === 'function') {
+                          item.action();
+                        }
+                      }}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      {item.icon}
+                      {t(item.translationKey)}
+                    </button>
+                  </li>
+                ))}
+
+                {/* User Management - Admin and Manager only - Last */}
+                {canSeeUserManagement && (
+                  <li>
+                    <button
+                      onClick={() => navigate("/users")}
+                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
+                    >
+                      <FaUserShield className="mr-3" />
+                      {t('navigation.userManagement')}
+                    </button>
+                  </li>
+                )}
+              </ul>
+            </div>
+          </aside>
         )}
 
         {/* Main Content */}
@@ -404,10 +472,10 @@ export default function Dashboard() {
           {stats.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 w-full">
               {stats.map((stat, index) => (
-                <DashboardCard 
+                <DashboardCard
                   key={index}
-                  title={stat.title} 
-                  value={stat.value} 
+                  title={stat.title}
+                  value={stat.value}
                   icon={stat.icon}
                   trend={stat.trend}
                 />
@@ -478,7 +546,7 @@ export default function Dashboard() {
                 ×
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto">
               {/* AccountsPage component would go here */}
               <div className="text-center py-8 text-gray-400">
@@ -486,7 +554,7 @@ export default function Dashboard() {
                 <p>Accounts Management</p>
               </div>
             </div>
-            
+
             <div className="border-t p-4 flex justify-end space-x-3 bg-gray-50 rounded-b-xl">
               <button
                 onClick={() => setShowForm(false)}

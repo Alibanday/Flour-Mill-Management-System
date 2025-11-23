@@ -1,0 +1,222 @@
+{
+  "bagPurchases": [
+    {
+      "_id": "692201c4e4cc7fccc957b17e",
+      "purchaseNumber": "BP-20251122-0005",
+      "supplier": "68f91b8ecfbfad1727012e6c",
+      "purchaseDate": "2025-11-22T00:00:00.000Z",
+      "bags": {
+        "Fine": {
+          "quantity": 10,
+          "unit": "10kg bags",
+          "unitPrice": 1500,
+          "totalPrice": 15000,
+          "_id": "692201c4e4cc7fccc957b17f"
+        }
+      },
+      "totalQuantity": 10,
+      "subtotal": 15000,
+      "tax": 0,
+      "discount": 0,
+      "totalAmount": 15000,
+      "paymentMethod": "Cash",
+      "paymentStatus": "Paid",
+      "paidAmount": 0,
+      "dueAmount": 15000,
+      "status": "Received",
+      "notes": "notes",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "createdBy": "507f1f77bcf86cd799439011",
+      "createdAt": "2025-11-22T18:32:36.771Z",
+      "updatedAt": "2025-11-22T18:32:36.771Z",
+      "__v": 0
+    },
+    {
+      "_id": "6922019ae4cc7fccc957b150",
+      "purchaseNumber": "BP-20251122-0004",
+      "supplier": "68f91b8ecfbfad1727012e6c",
+      "purchaseDate": "2025-11-22T00:00:00.000Z",
+      "bags": {
+        "Fine": {
+          "quantity": 10,
+          "unit": "20kg bags",
+          "unitPrice": 2499.97,
+          "totalPrice": 24999.699999999997,
+          "_id": "6922019ae4cc7fccc957b151"
+        }
+      },
+      "totalQuantity": 10,
+      "subtotal": 24999.699999999997,
+      "tax": 0,
+      "discount": 0,
+      "totalAmount": 24999.699999999997,
+      "paymentMethod": "Cash",
+      "paymentStatus": "Paid",
+      "paidAmount": 0,
+      "dueAmount": 24999.699999999997,
+      "status": "Completed",
+      "notes": "test warhouse",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "createdBy": "507f1f77bcf86cd799439011",
+      "createdAt": "2025-11-22T18:31:54.485Z",
+      "updatedAt": "2025-11-22T18:31:54.485Z",
+      "__v": 0
+    },
+    {
+      "_id": "69220150e4cc7fccc957b090",
+      "purchaseNumber": "BP-20251122-0003",
+      "supplier": "68f91b8ecfbfad1727012e6c",
+      "purchaseDate": "2025-11-22T00:00:00.000Z",
+      "bags": {
+        "Fine": {
+          "quantity": 32,
+          "unit": "10kg bags",
+          "unitPrice": 1500,
+          "totalPrice": 48000,
+          "_id": "69220150e4cc7fccc957b091"
+        }
+      },
+      "totalQuantity": 32,
+      "subtotal": 48000,
+      "tax": 0,
+      "discount": 0,
+      "totalAmount": 48000,
+      "paymentMethod": "Cash",
+      "paymentStatus": "Paid",
+      "paidAmount": 0,
+      "dueAmount": 48000,
+      "status": "Completed",
+      "notes": "ya allah krm",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "createdBy": "507f1f77bcf86cd799439011",
+      "createdAt": "2025-11-22T18:30:40.731Z",
+      "updatedAt": "2025-11-22T18:30:40.731Z",
+      "__v": 0
+    },
+    {
+      "_id": "6922001d6fa0270246336b2b",
+      "purchaseNumber": "BP-20251122-0002",
+      "supplier": "68f91b8ecfbfad1727012e6c",
+      "purchaseDate": "2025-11-22T00:00:00.000Z",
+      "bags": {
+        "Fine": {
+          "quantity": 20,
+          "unit": "20kg bags",
+          "unitPrice": 2499.97,
+          "totalPrice": 49999.399999999994,
+          "_id": "6922001d6fa0270246336b2c"
+        }
+      },
+      "totalQuantity": 20,
+      "subtotal": 49999.399999999994,
+      "tax": 0,
+      "discount": 0,
+      "totalAmount": 49999.399999999994,
+      "paymentMethod": "Cash",
+      "paymentStatus": "Paid",
+      "paidAmount": 0,
+      "dueAmount": 49999.399999999994,
+      "status": "Completed",
+      "notes": "this is the great thing",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "createdBy": "507f1f77bcf86cd799439011",
+      "createdAt": "2025-11-22T18:25:33.749Z",
+      "updatedAt": "2025-11-22T18:25:33.749Z",
+      "__v": 0
+    },
+    {
+      "_id": "6921fbba70c54bd83babb62e",
+      "purchaseNumber": "BP-20251122-0001",
+      "supplier": "68f91b8ecfbfad1727012e6c",
+      "purchaseDate": "2025-11-22T00:00:00.000Z",
+      "bags": {
+        "Fine": {
+          "quantity": 3200,
+          "unit": "10kg bags",
+          "unitPrice": 1500,
+          "totalPrice": 4800000,
+          "_id": "6921fbba70c54bd83babb62f"
+        }
+      },
+      "totalQuantity": 3200,
+      "subtotal": 4800000,
+      "tax": 0,
+      "discount": 0,
+      "totalAmount": 4800000,
+      "paymentMethod": "Cash",
+      "paymentStatus": "Paid",
+      "paidAmount": 0,
+      "dueAmount": 4800000,
+      "status": "Completed",
+      "notes": "this is the answer",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "createdBy": "507f1f77bcf86cd799439011",
+      "createdAt": "2025-11-22T18:06:50.461Z",
+      "updatedAt": "2025-11-22T18:06:50.461Z",
+      "__v": 0
+    }
+  ],
+  "stockMovements": [
+    {
+      "_id": "692201c5e4cc7fccc957b185",
+      "inventoryItem": "6921fbbb70c54bd83babb635",
+      "movementType": "in",
+      "quantity": 100,
+      "reason": "Bag Purchase - BP-20251122-0005",
+      "referenceNumber": "BP-20251122-0005",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "createdBy": "507f1f77bcf86cd799439011",
+      "createdAt": "2025-11-22T18:32:37.446Z",
+      "__v": 0
+    }
+  ],
+  "inventoryItems": [
+    {
+      "_id": "6921fbbb70c54bd83babb635",
+      "product": "6921fb7870c54bd83babb5cb",
+      "warehouse": "6921f0976da30e945fcfb37c",
+      "currentStock": 100,
+      "minimumStock": 10,
+      "status": "Active",
+      "name": "Fine",
+      "code": "PRD-FIN744736ZQGF96",
+      "category": "Finished Goods",
+      "subcategory": "Gov",
+      "weight": 10,
+      "price": 1500,
+      "lastUpdated": "2025-11-22T18:32:37.879Z",
+      "createdAt": "2025-11-22T18:06:51.068Z",
+      "updatedAt": "2025-11-22T18:32:37.879Z",
+      "__v": 0
+    }
+  ],
+  "warehouses": [
+    {
+      "_id": "6921f0976da30e945fcfb37c",
+      "name": "Test Warehouse",
+      "location": "Random address in pakistan.",
+      "status": "Active",
+      "description": "",
+      "manager": "690796af55961be7e2e6f516",
+      "capacity": {
+        "totalCapacity": 100,
+        "unit": "50kg bags",
+        "currentUsage": 100
+      },
+      "contact": {
+        "phone": "+92123456789",
+        "email": "good@good.com",
+        "address": {
+          "street": "",
+          "city": "",
+          "state": "",
+          "zipCode": "",
+          "country": "this is the good address"
+        }
+      },
+      "createdAt": "2025-11-22T17:19:19.073Z",
+      "warehouseNumber": "WH959078HS",
+      "__v": 0
+    }
+  ]
+}

@@ -75,21 +75,21 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
         if (response.data && response.data.success) {
           const allProducts = response.data.data || [];
           const activeProducts = allProducts.filter(p => p.status === 'Active');
-          
+
           // Sort products: bag-related products first, then others
           const sortedProducts = activeProducts.sort((a, b) => {
             const aIsBag = (a.category === 'Packaging Materials' && a.subcategory === 'Bags') ||
-                          (a.name.toLowerCase().includes('bag') || a.name.toLowerCase().includes('ata') || 
-                           a.name.toLowerCase().includes('maida') || a.name.toLowerCase().includes('suji'));
+              (a.name.toLowerCase().includes('bag') || a.name.toLowerCase().includes('ata') ||
+                a.name.toLowerCase().includes('maida') || a.name.toLowerCase().includes('suji'));
             const bIsBag = (b.category === 'Packaging Materials' && b.subcategory === 'Bags') ||
-                          (b.name.toLowerCase().includes('bag') || b.name.toLowerCase().includes('ata') || 
-                           b.name.toLowerCase().includes('maida') || b.name.toLowerCase().includes('suji'));
-            
+              (b.name.toLowerCase().includes('bag') || b.name.toLowerCase().includes('ata') ||
+                b.name.toLowerCase().includes('maida') || b.name.toLowerCase().includes('suji'));
+
             if (aIsBag && !bIsBag) return -1;
             if (!aIsBag && bIsBag) return 1;
             return 0;
           });
-          
+
           setProducts(sortedProducts);
         } else {
           const allProducts = response.data?.data || response.data || [];
@@ -113,22 +113,22 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       ...formData,
       [name]: value
     };
-    
+
     // Calculate remaining amount when paid amount changes
     if (name === 'paidAmount') {
       const paidAmount = parseFloat(value) || 0;
       const totalPrice = items.reduce((sum, item) => sum + (item.total || 0), 0);
       newFormData.remainingAmount = totalPrice - paidAmount;
     }
-    
+
     setFormData(newFormData);
   };
 
-  // Handle item changes (product, weight category, quantity)
+  // Handle item changes (product, weight category, quantity, unitPrice)
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     const item = newItems[index];
-    
+
     if (field === 'product') {
       // Product selected - find product and reset weight category
       const product = products.find(p => p._id === value);
@@ -146,14 +146,15 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
         item.total = 0;
       }
     } else if (field === 'weightCategory') {
-      // Weight category selected - set unit price from catalog
+      // Weight category selected - suggest price from catalog (can be overridden)
       const product = products.find(p => p._id === item.productId);
       if (product && product.weightVariants && product.weightVariants.length > 0) {
-        const weightVariant = product.weightVariants.find(v => 
+        const weightVariant = product.weightVariants.find(v =>
           v.weight === parseFloat(value) && v.isActive !== false
         );
         if (weightVariant) {
           item.weightCategory = value;
+          // Suggest price from catalog, but user can change it
           item.unitPrice = weightVariant.price || 0;
           // Recalculate total
           item.total = (parseFloat(item.quantity) || 0) * item.unitPrice;
@@ -163,11 +164,15 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       // Quantity changed - recalculate total
       item.quantity = parseFloat(value) || 0;
       item.total = item.quantity * item.unitPrice;
+    } else if (field === 'unitPrice') {
+      // Unit price manually changed - recalculate total
+      item.unitPrice = parseFloat(value) || 0;
+      item.total = (parseFloat(item.quantity) || 0) * item.unitPrice;
     }
-    
+
     newItems[index] = item;
     setItems(newItems);
-    
+
     // Recalculate remaining amount
     const totalPrice = newItems.reduce((sum, i) => sum + (i.total || 0), 0);
     setFormData(prev => ({
@@ -193,7 +198,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
     if (items.length > 1) {
       const newItems = items.filter((_, i) => i !== index);
       setItems(newItems);
-      
+
       // Recalculate remaining amount
       const totalPrice = newItems.reduce((sum, item) => sum + (item.total || 0), 0);
       setFormData(prev => ({
@@ -223,12 +228,12 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
     try {
       const selectedSupplier = suppliers.find(s => s._id === formData.supplier);
       const selectedWarehouse = warehouses.find(w => w._id === formData.warehouse);
-      
+
       const supplierName = selectedSupplier?.name || 'Supplier';
-      const supplierContact = selectedSupplier?.contactPerson?.phone || 
-                              selectedSupplier?.phone || 
-                              selectedSupplier?.contact || 
-                              'N/A';
+      const supplierContact = selectedSupplier?.contactPerson?.phone ||
+        selectedSupplier?.phone ||
+        selectedSupplier?.contact ||
+        'N/A';
 
       // Build items list from purchase items
       const gatePassItems = purchaseItems.map((item) => {
@@ -259,7 +264,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       };
 
       const response = await api.post('http://localhost:7000/api/gate-pass', gatePassData);
-      
+
       if (response.data && response.data.success) {
         console.log('✅ Gate pass created:', response.data.data.gatePassNumber);
         return response.data.data;
@@ -279,7 +284,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
     setError(null);
 
     // Validate items
-    const validItems = items.filter(item => 
+    const validItems = items.filter(item =>
       item.productId && item.weightCategory && item.quantity > 0
     );
 
@@ -292,7 +297,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
     try {
       // Format data for backend - convert items to bags Map structure
       const bags = new Map();
-      
+
       validItems.forEach((item) => {
         const product = products.find(p => p._id === item.productId);
         if (product) {
@@ -322,9 +327,9 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       // Save the purchase
       const savedPurchase = await onSave(purchaseData);
       console.log('✅ Purchase saved:', savedPurchase);
-      
+
       let gatePassNumber = null;
-      
+
       // Handle generate gatepass action (do this first so notification is sent to warehouse manager)
       if (generateGatepass) {
         try {
@@ -338,7 +343,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
           // Continue even if gatepass creation fails
         }
       }
-      
+
       // Show success message
       if (generateGatepass && gatePassNumber) {
         const message = `Purchase saved successfully!\n\nGate Pass ${gatePassNumber} has been generated and sent to the warehouse manager of the selected warehouse.\n\n${printInvoice ? 'Invoice will be printed now.' : ''}`;
@@ -351,14 +356,14 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       } else {
         alert('Purchase saved successfully!');
       }
-      
+
       // Print invoice if selected (after a short delay to ensure message is shown)
       if (printInvoice) {
         setTimeout(() => {
           window.print();
         }, 1500);
       }
-      
+
       // Close form after a delay to allow print dialog to show
       setTimeout(() => {
         onClose();
@@ -485,7 +490,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                       {/* Product Selection */}
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Product * 
+                          Product *
                         </label>
                         <select
                           value={item.productId}
@@ -516,15 +521,15 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                         >
                           <option value="">
-                            {!item.productId 
-                              ? 'Select product first' 
-                              : weightVariants.length === 0 
-                              ? 'No weight categories' 
-                              : 'Select weight'}
+                            {!item.productId
+                              ? 'Select product first'
+                              : weightVariants.length === 0
+                                ? 'No weight categories'
+                                : 'Select weight'}
                           </option>
                           {weightVariants.map((variant) => (
                             <option key={variant.weight} value={variant.weight}>
-                              {variant.weight}kg - Rs. {variant.price.toLocaleString()}
+                              {variant.weight}kg
                             </option>
                           ))}
                         </select>
@@ -539,6 +544,8 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                           type="number"
                           value={item.quantity || ''}
                           onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                          onWheel={(e) => e.target.blur()}
+                          onFocus={(e) => e.target.addEventListener('wheel', (evt) => evt.preventDefault(), { passive: false })}
                           required
                           min="0"
                           step="0.01"
@@ -547,17 +554,24 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                         />
                       </div>
 
-                      {/* Unit Price (Read-only) */}
+                      {/* Unit Price (Editable) */}
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Unit Price (Rs.)
+                          Unit Price (Rs.) *
                         </label>
                         <input
                           type="number"
-                          value={item.unitPrice.toFixed(2)}
-                          readOnly
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-600 cursor-not-allowed text-sm"
+                          value={item.unitPrice || ''}
+                          onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
+                          onWheel={(e) => e.target.blur()}
+                          onFocus={(e) => e.target.addEventListener('wheel', (evt) => evt.preventDefault(), { passive: false })}
+                          required
+                          min="0"
+                          step="0.01"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          placeholder="Enter price per kg"
                         />
+                        <p className="mt-1 text-xs text-gray-500">Auto-filled from catalog, can be changed</p>
                       </div>
 
                       {/* Total (Read-only) */}
@@ -603,8 +617,6 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
               >
                 <option value="Pending">Pending</option>
                 <option value="Received">Received</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
               </select>
             </div>
 
@@ -689,9 +701,8 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                     type="number"
                     value={formData.remainingAmount.toFixed(2)}
                     readOnly
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md font-semibold ${
-                      formData.remainingAmount > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md font-semibold ${formData.remainingAmount > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                      }`}
                   />
                 </div>
               </div>
@@ -745,13 +756,13 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
               </label>
             </div>
             <p className="mt-3 text-xs text-gray-500">
-              {!printInvoice && !generateGatepass 
+              {!printInvoice && !generateGatepass
                 ? 'Select at least one action. The purchase will be saved regardless.'
                 : printInvoice && generateGatepass
-                ? 'The purchase will be saved, invoice will be printed, and a gate pass will be generated and sent to the warehouse manager.'
-                : printInvoice
-                ? 'The purchase will be saved and the invoice will be printed.'
-                : 'The purchase will be saved and a gate pass will be automatically generated and sent to the warehouse manager.'}
+                  ? 'The purchase will be saved, invoice will be printed, and a gate pass will be generated and sent to the warehouse manager.'
+                  : printInvoice
+                    ? 'The purchase will be saved and the invoice will be printed.'
+                    : 'The purchase will be saved and a gate pass will be automatically generated and sent to the warehouse manager.'}
             </p>
           </div>
 

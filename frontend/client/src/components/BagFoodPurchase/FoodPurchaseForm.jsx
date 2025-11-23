@@ -87,12 +87,12 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
       ...formData,
       [name]: type === 'checkbox' ? value === 'true' : value
     };
-    
+
     // If purchase type changes, reset supplier to show correct suppliers
     if (name === 'purchaseType') {
       newFormData.supplier = ''; // Reset supplier when switching types
     }
-    
+
     // Calculate total price when quantity or unit price changes
     if (name === 'quantity' || name === 'unitPrice') {
       const quantity = name === 'quantity' ? parseFloat(value) || 0 : formData.quantity;
@@ -102,13 +102,13 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
       const paidAmount = parseFloat(newFormData.paidAmount) || 0;
       newFormData.remainingAmount = newFormData.totalPrice - paidAmount;
     }
-    
+
     // Calculate remaining amount when paid amount changes
     if (name === 'paidAmount') {
       const paidAmount = parseFloat(value) || 0;
       const totalPrice = parseFloat(newFormData.totalPrice) || 0;
       newFormData.remainingAmount = totalPrice - paidAmount;
-      
+
       // Auto-update payment status based on paid amount
       if (paidAmount === 0) {
         newFormData.paymentStatus = 'Pending';
@@ -118,7 +118,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
         newFormData.paymentStatus = 'Partial';
       }
     }
-    
+
     // Auto-update payment status when payment status changes manually
     if (name === 'paymentStatus' && value === 'Completed') {
       // If marked as completed, set paid amount to total price
@@ -126,7 +126,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
       newFormData.paidAmount = totalPrice;
       newFormData.remainingAmount = 0;
     }
-    
+
     setFormData(newFormData);
   };
 
@@ -155,7 +155,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
   // Filter suppliers based on purchase type
   const privateSuppliers = suppliers.filter(s => s.supplierType === 'Private');
   const governmentSuppliers = suppliers.filter(s => s.supplierType === 'Government');
-  
+
   // Get the appropriate supplier list based on purchase type
   const getCurrentSuppliers = () => {
     return formData.purchaseType === 'Government' ? governmentSuppliers : privateSuppliers;
@@ -277,6 +277,8 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 name="quantity"
                 value={formData.quantity}
                 onChange={handleInputChange}
+                onWheel={(e) => e.target.blur()}
+                onFocus={(e) => e.target.addEventListener('wheel', (evt) => evt.preventDefault(), { passive: false })}
                 required
                 min="0"
                 step="0.01"
@@ -293,6 +295,8 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 name="unitPrice"
                 value={formData.unitPrice}
                 onChange={handleInputChange}
+                onWheel={(e) => e.target.blur()}
+                onFocus={(e) => e.target.addEventListener('wheel', (evt) => evt.preventDefault(), { passive: false })}
                 required
                 min="0"
                 step="0.01"
@@ -376,6 +380,8 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                     name="paidAmount"
                     value={formData.paidAmount}
                     onChange={handleInputChange}
+                    onWheel={(e) => e.target.blur()}
+                    onFocus={(e) => e.target.addEventListener('wheel', (evt) => evt.preventDefault(), { passive: false })}
                     required
                     min="0"
                     step="0.01"
@@ -402,9 +408,8 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                     type="number"
                     value={formData.remainingAmount.toFixed(2)}
                     readOnly
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md font-semibold ${
-                      formData.remainingAmount > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
-                    }`}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md font-semibold ${formData.remainingAmount > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'
+                      }`}
                   />
                 </div>
               </div>
