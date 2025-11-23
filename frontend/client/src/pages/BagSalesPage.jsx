@@ -42,18 +42,20 @@ export default function BagSalesPage() {
             }
             if (productsRes.ok) {
                 const productsData = await productsRes.json();
-                // Filter for Bag/Flour related products if possible, for now showing all or filtering by name
-                // Assuming 'Bag' or 'Flour' or 'Maida' or 'Suji' might be in the name for bag sales
+                // Filter for Bag/Packaging related products only
                 const allProducts = productsData.data || [];
-                // const bagProducts = allProducts.filter(p => 
-                //   p.name.toLowerCase().includes('bag') || 
-                //   p.name.toLowerCase().includes('flour') || 
-                //   p.name.toLowerCase().includes('maida') || 
-                //   p.name.toLowerCase().includes('suji') ||
-                //   p.name.toLowerCase().includes('fine')
-                // );
-                // setProducts(bagProducts.length > 0 ? bagProducts : allProducts);
-                setProducts(allProducts);
+                const bagProducts = allProducts.filter(p =>
+                    p.name.toLowerCase().includes('bag') ||
+                    p.name.toLowerCase().includes('flour') ||
+                    p.name.toLowerCase().includes('maida') ||
+                    p.name.toLowerCase().includes('suji') ||
+                    p.name.toLowerCase().includes('fine') ||
+                    p.name.toLowerCase().includes('chakki') ||
+                    p.category === 'Packaging Materials' ||
+                    p.category === 'Finished Goods'
+                );
+                console.log(`✅ Filtered ${bagProducts.length} bag products from ${allProducts.length} total products`);
+                setProducts(bagProducts.length > 0 ? bagProducts : allProducts);
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -228,8 +230,8 @@ export default function BagSalesPage() {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${sale.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                            sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-red-100 text-red-800'
+                                                        sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                            'bg-red-100 text-red-800'
                                                         }`}>
                                                         {sale.status || 'Pending'}
                                                     </span>
