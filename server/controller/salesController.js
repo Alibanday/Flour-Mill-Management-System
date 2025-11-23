@@ -190,8 +190,8 @@ export const createSale = async (req, res) => {
         // Calculate how much credit will be used (remaining amount after payment)
         const creditToBeUsed = remainingAmountValue;
         
-        // For Credit payment method or if there's any remaining amount
-        if (paymentMethod === 'Credit' || creditToBeUsed > 0) {
+        // For Credit payment method only
+        if (paymentMethod === 'Credit') {
           const newCreditUsed = currentCreditUsed + creditToBeUsed;
           
           // Validate credit limit
