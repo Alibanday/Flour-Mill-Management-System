@@ -332,7 +332,7 @@ router.post("/", [
           if (!product) {
             product = new Product({
               name: foodItem.name,
-              category: foodItem.category || 'Raw Materials',
+              category: 'Raw Materials', // Always use valid enum value
               subcategory: productType,
               description: `${foodItem.name} - ${productType}`,
               unit: foodItem.unit || 'kg',

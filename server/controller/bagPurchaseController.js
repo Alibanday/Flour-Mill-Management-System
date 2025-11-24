@@ -138,14 +138,15 @@ export const createBagPurchase = async (req, res) => {
                     console.log(`✅ Created inventory for ${product.name}`);
                 }
 
-                // Calculate total weight
-                const totalWeight = weight ? bagData.quantity * weight : bagData.quantity;
+                // For bags, track by quantity (count), not by weight capacity
+                // The 'weight' here refers to bag capacity (e.g., 50kg bag), not the weight of the bags themselves
+                const stockQuantity = bagData.quantity; // Track bags by count
 
                 // Create Stock movement
                 const stockIn = new Stock({
                     inventoryItem: inventoryItem._id,
                     movementType: "in",
-                    quantity: totalWeight,
+                    quantity: stockQuantity,
                     reason: `Bag Purchase - ${newPurchase.purchaseNumber}`,
                     referenceNumber: newPurchase.purchaseNumber,
                     warehouse: warehouseId,
@@ -153,7 +154,7 @@ export const createBagPurchase = async (req, res) => {
                 });
                 await stockIn.save();
 
-                console.log(`✅ Added ${bagData.quantity} ${bagData.unit} (${totalWeight}kg) of ${product.name} to warehouse`);
+                console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${product.name} to warehouse`);
             } catch (innerErr) {
                 console.error(`❌ Error processing ${productName}:`, innerErr);
                 stockErrors.push(`Error processing ${productName}: ${innerErr.message}`);
