@@ -47,7 +47,7 @@ export const createSale = async (req, res) => {
       // We need to find the Inventory record (Product + Warehouse) to check stock
       const Product = (await import("../model/Product.js")).default;
       const product = await Product.findById(item.product);
-      
+
       if (!product) {
         return res.status(404).json({
           success: false,
@@ -68,7 +68,7 @@ export const createSale = async (req, res) => {
           name: { $regex: new RegExp(`^${product.name}$`, 'i') },
           warehouse: warehouse
         });
-        
+
         if (!inventoryItem) {
           // Create new inventory record
           inventoryItem = new Inventory({
@@ -92,10 +92,10 @@ export const createSale = async (req, res) => {
       }
 
       // Check stock availability
-      const availableStock = inventoryItem.currentStock !== undefined 
-        ? inventoryItem.currentStock 
+      const availableStock = inventoryItem.currentStock !== undefined
+        ? inventoryItem.currentStock
         : (inventoryItem.weight || 0);
-        
+
       if (availableStock < item.quantity) {
         return res.status(400).json({
           success: false,
@@ -130,12 +130,12 @@ export const createSale = async (req, res) => {
     let discountAmount = 0;
     let discountType = 'none';
     let discountValue = 0;
-    
+
     if (discount) {
       if (typeof discount === 'object') {
         discountType = discount.type || 'none';
         discountValue = discount.value || 0;
-        
+
         if (discountType === 'percentage') {
           discountAmount = (subtotal * discountValue) / 100;
         } else if (discountType === 'fixed') {
@@ -168,7 +168,7 @@ export const createSale = async (req, res) => {
     } else if (finalPaymentStatus === 'Unpaid') {
       finalPaymentStatus = 'Pending';
     }
-    
+
     // Auto-determine if not provided
     if (!finalPaymentStatus) {
       if (paidAmountValue >= totalAmount) {
@@ -186,14 +186,14 @@ export const createSale = async (req, res) => {
       if (customerDoc) {
         const currentCreditUsed = customerDoc.creditUsed || 0;
         const creditLimit = customerDoc.creditLimit || 0;
-        
+
         // Calculate how much credit will be used (remaining amount after payment)
         const creditToBeUsed = remainingAmountValue;
-        
+
         // For Credit payment method only
         if (paymentMethod === 'Credit') {
           const newCreditUsed = currentCreditUsed + creditToBeUsed;
-          
+
           // Validate credit limit
           if (newCreditUsed > creditLimit) {
             return res.status(400).json({
@@ -258,7 +258,7 @@ export const createSale = async (req, res) => {
     let sale;
     try {
       sale = new Sale(saleData);
-      
+
       // Validate the sale before saving
       const validationError = sale.validateSync();
       if (validationError) {
@@ -274,10 +274,10 @@ export const createSale = async (req, res) => {
           validationError: validationError.message
         });
       }
-      
+
       await sale.save();
       console.log('Sale saved successfully:', sale.invoiceNumber);
-      
+
       // Create financial transaction for this sale
       try {
         const financialTransactions = await createSaleTransaction({
@@ -291,17 +291,34 @@ export const createSale = async (req, res) => {
         console.error('❌ Error creating financial transaction for sale:', financialError);
         console.error('Financial error details:', financialError.message);
       }
+
+      // AUTOMATIC GATEPASS GENERATION
+      try {
+        const gatePass = new GatePass({
+          gatePassNumber: `GP-${sale.invoiceNumber}`,
+          type: 'Outward',
+          status: 'Pending',
+          warehouse: warehouse,
+          referenceType: 'Sale',
+          referenceId: sale._id,
+          issuedTo: customerData.name,
+          items: processedItems.map(item => ({
+            product: item.product, // Inventory ID
+            productName: item.productName,
+            quantity: item.quantity,
+            unit: item.unit
+          })),
+          createdBy: req.user._id || req.user.id,
+          notes: `Auto-generated for Sale Invoice ${sale.invoiceNumber}`
+        });
+
+        await gatePass.save();
+        console.log(`✅ Auto-generated Gatepass ${gatePass.gatePassNumber} for sale ${sale.invoiceNumber}`);
+      } catch (gpError) {
+        console.error('❌ Error creating auto-gatepass:', gpError);
+      }
     } catch (saveError) {
-      console.error('Error saving sale:', saveError);
-      console.error('Save error details:', {
-        name: saveError.name,
-        message: saveError.message,
-        errors: saveError.errors,
-        code: saveError.code,
-        keyPattern: saveError.keyPattern,
-        keyValue: saveError.keyValue
-      });
-      
+
       // Handle validation errors
       if (saveError.name === 'ValidationError') {
         const errors = {};
@@ -314,7 +331,7 @@ export const createSale = async (req, res) => {
           errors: errors
         });
       }
-      
+
       // Handle duplicate key errors
       if (saveError.code === 11000) {
         return res.status(400).json({
@@ -322,7 +339,7 @@ export const createSale = async (req, res) => {
           message: "Duplicate entry. Invoice number already exists."
         });
       }
-      
+
       throw saveError; // Re-throw to be caught by outer catch
     }
 
@@ -332,7 +349,7 @@ export const createSale = async (req, res) => {
       if (customerDoc) {
         // Add the remaining amount (due amount) to customer's creditUsed
         const creditToAdd = remainingAmountValue;
-        
+
         if (creditToAdd > 0) {
           customerDoc.creditUsed = (customerDoc.creditUsed || 0) + creditToAdd;
           await customerDoc.save();
@@ -366,18 +383,18 @@ export const createSale = async (req, res) => {
 
       await stockOut.save();
       console.log(`Deducted ${item.quantity} units of ${item.productName} for sale`);
-      
+
       // Note: Stock middleware automatically updates Inventory.currentStock
       // Fetch the updated inventory to check stock levels for notifications
       const updatedInventory = await Inventory.findById(item.product);
-      
+
       if (!updatedInventory) {
         console.error(`Inventory item ${item.product} not found after stock movement`);
         continue;
       }
-      
+
       console.log(`Updated ${item.productName} stock: ${updatedInventory.currentStock || updatedInventory.weight}`);
-      
+
       // Check if item is now low stock or out of stock
       const currentStock = updatedInventory.currentStock !== undefined ? updatedInventory.currentStock : (updatedInventory.weight || 0);
       if (currentStock === 0) {
@@ -443,12 +460,12 @@ export const createSale = async (req, res) => {
     try {
       // Get warehouse details
       const warehouseDoc = await Warehouse.findById(warehouse).populate('manager', 'firstName lastName email');
-      
+
       if (!warehouseDoc) {
         console.error('Warehouse not found for gatepass creation:', warehouse);
         throw new Error('Warehouse not found');
       }
-      
+
       // Create gate pass items from sale items - ensure all required fields
       const gatePassItems = items.map(item => {
         // Ensure description is a non-empty string
@@ -459,7 +476,7 @@ export const createSale = async (req, res) => {
         const unit = (item.unit || 'units').toString().trim();
         // Value is optional but should be a number
         const value = parseFloat(item.totalPrice) || 0;
-        
+
         return {
           description: description || 'Product',
           quantity: quantity,
@@ -475,7 +492,7 @@ export const createSale = async (req, res) => {
       } else if (customer && typeof customer === 'object') {
         customerName = (customer.name || customer.customerName || customer.firstName || 'Customer').toString().trim();
       }
-      
+
       // Extract customer contact - ensure it's a string
       let customerContact = 'N/A';
       if (customer && typeof customer === 'object') {
@@ -489,7 +506,7 @@ export const createSale = async (req, res) => {
           customerContact = (customer.phone || customer.email || 'N/A').toString().trim();
         }
       }
-      
+
       // Ensure contact is not empty
       if (!customerContact || customerContact === '') {
         customerContact = 'N/A';
@@ -580,7 +597,7 @@ export const createSale = async (req, res) => {
               { role: 'Admin' }
             ]
           }).limit(10); // Limit to prevent too many notifications
-          
+
           if (warehouseManagers.length > 0) {
             for (const manager of warehouseManagers) {
               try {
@@ -627,7 +644,7 @@ export const createSale = async (req, res) => {
           console.error('❌ Error finding warehouse managers:', findError);
         }
       }
-      
+
       if (!notificationSent) {
         console.warn(`⚠️ Gate Pass ${gatePass.gatePassNumber} created but notification not sent. Warehouse manager may need to check gatepass list manually.`);
       }
@@ -656,7 +673,7 @@ export const createSale = async (req, res) => {
 
     // Add notification status if gatepass was created
     if (gatePass) {
-      responseData.gatePassNotification = notificationSent 
+      responseData.gatePassNotification = notificationSent
         ? "Gate pass notification sent to warehouse manager"
         : "Gate pass created but notification not sent (warehouse manager may check gatepass list)";
       responseData.gatePassAccessible = true;
@@ -700,7 +717,7 @@ export const getAllSales = async (req, res) => {
 
     // Build filter object
     const filter = {};
-    
+
     if (search) {
       filter.$or = [
         { invoiceNumber: { $regex: search, $options: 'i' } },
@@ -708,11 +725,11 @@ export const getAllSales = async (req, res) => {
         { 'customer.email': { $regex: search, $options: 'i' } }
       ];
     }
-    
+
     if (status) filter.status = status;
     if (warehouse) filter.warehouse = warehouse;
     if (paymentMethod) filter.paymentMethod = paymentMethod;
-    
+
     if (startDate || endDate) {
       filter.createdAt = {};
       if (startDate) filter.createdAt.$gte = new Date(startDate);
@@ -721,10 +738,10 @@ export const getAllSales = async (req, res) => {
 
     // Calculate pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Get total count for pagination
     const total = await Sale.countDocuments(filter);
-    
+
     // Get sales with pagination
     const sales = await Sale.find(filter)
       .populate('warehouse', 'name location')
@@ -807,7 +824,7 @@ export const updateSale = async (req, res) => {
       { ...req.body, updatedAt: new Date() },
       { new: true, runValidators: true }
     ).populate("warehouse", "name location")
-     .populate("createdBy", "firstName lastName");
+      .populate("createdBy", "firstName lastName");
 
     res.json({
       success: true,

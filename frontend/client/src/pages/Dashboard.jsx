@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
+import { useTranslation } from '../hooks/useTranslation';
 import {
   FaFolderOpen, FaShoppingBag, FaIndustry, FaCashRegister,
   FaReceipt, FaExchangeAlt, FaBoxes, FaBook, FaBalanceScale,
@@ -11,21 +12,20 @@ import NotificationBell from '../components/Notifications/NotificationBell';
 import ThemeToggle from '../components/UI/ThemeToggle';
 import LanguageToggle from '../components/UI/LanguageToggle';
 
-import { useTranslation } from '../hooks/useTranslation';
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, role, isAdmin, isGeneralManager, isSalesManager, isProductionManager, isWarehouseManager, isManager, isEmployee, isCashier, isSales } = useAuth();
   const { t } = useTranslation();
-  const [showForm, setShowForm] = useState(false);
+  const { user, role, isAdmin, isGeneralManager, isSalesManager, isProductionManager, isWarehouseManager, isManager, isEmployee, isCashier, isSales } = useAuth();
   const [activeMenu, setActiveMenu] = useState("Dashboard");
+  const [showForm, setShowForm] = useState(false);
+
   const isSalesMgr = isSalesManager();
-  const canSeeUserManagement = isAdmin() || (isManager() && !isSalesMgr);
-  const canSeeSupplierManagement = isAdmin() || isGeneralManager() || isSalesMgr || isProductionManager() || isWarehouseManager();
-  const canAccessGatePass = !isSalesMgr;
+  const canAccessGatePass = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager() || isSalesManager();
   const canAccessBagFoodPurchase = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
-  const canSeeReports = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
-  const canSeeNotifications = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
+  const canSeeReports = isAdmin() || isGeneralManager() || isSalesManager();
+  const canSeeNotifications = isAdmin() || isGeneralManager() || isSalesManager();
+  const canSeeSupplierManagement = isAdmin() || isGeneralManager();
+  const canSeeUserManagement = isAdmin() || isGeneralManager();
 
   const roleTranslationMap = {
     'Admin': 'admin',
@@ -40,9 +40,7 @@ export default function Dashboard() {
   };
 
   const currentRoleKey = roleTranslationMap[role] || 'employee';
-  const translatedRoleName = t(`roles.${currentRoleKey}`);
-  const capabilitiesList = t(`dashboard.capabilities.${currentRoleKey}`);
-  const roleCapabilities = Array.isArray(capabilitiesList) ? capabilitiesList : [];
+  const translatedRoleName = t(`roles.${currentRoleKey}`, role);
   const capabilityFallback = t('dashboard.capabilities.default');
 
   const quickActionTranslationMap = {
@@ -147,7 +145,7 @@ export default function Dashboard() {
         action: () => navigate("/food-purchase"),
         roles: ['Admin', 'General Manager', 'Production Manager', 'Warehouse Manager'],
         color: "bg-green-100 text-green-600"
-      },
+      }
     ];
 
     const visibleButtons = allButtons.filter(button => button.roles.includes(role));

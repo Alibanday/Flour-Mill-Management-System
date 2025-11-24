@@ -8,7 +8,7 @@ export const useAuth = () => {
     const loadUser = () => {
       const token = localStorage.getItem('token');
       const userData = localStorage.getItem('user');
-      
+
       if (token && userData) {
         try {
           const parsedUser = JSON.parse(userData);
@@ -23,7 +23,7 @@ export const useAuth = () => {
       } else {
         setUser(null);
       }
-      
+
       setLoading(false);
     };
 
@@ -47,8 +47,8 @@ export const useAuth = () => {
   };
 
   // Role-based helper functions
-  const role = user?.role || 'Production Manager';
-  
+  const role = user?.role;
+
   const isAdmin = () => {
     return role === 'Admin';
   };
@@ -104,7 +104,8 @@ export const useAuth = () => {
         'purchase.create', 'purchase.read', 'purchase.update',
         'production.create', 'production.read', 'production.update',
         'gatepass.create', 'gatepass.read', 'gatepass.update',
-        'financial.create', 'financial.read', 'financial.update'
+        'financial.create', 'financial.read', 'financial.update',
+        'customer.create', 'customer.read', 'customer.update'
       ],
       'General Manager': [
         'user.create', 'user.read', 'user.update',
@@ -115,7 +116,8 @@ export const useAuth = () => {
         'purchase.create', 'purchase.read', 'purchase.update',
         'production.create', 'production.read', 'production.update',
         'gatepass.create', 'gatepass.read', 'gatepass.update',
-        'financial.create', 'financial.read', 'financial.update'
+        'financial.create', 'financial.read', 'financial.update',
+        'customer.create', 'customer.read', 'customer.update'
       ],
       'Sales Manager': [
         'sales.create', 'sales.read', 'sales.update',
@@ -123,25 +125,55 @@ export const useAuth = () => {
         'purchase.read',
         'inventory.read',
         'reports.read',
-        'financial.read'
+        'financial.read',
+        'gatepass.read'
       ],
       'Production Manager': [
         'production.create', 'production.read', 'production.update',
         'warehouse.read', 'inventory.read', 'inventory.update',
         'gatepass.create', 'gatepass.read',
         'reports.read',
-        'financial.read'
+        'financial.read',
+        'purchase.create', 'purchase.read'
       ],
       'Warehouse Manager': [
         'warehouse.create', 'warehouse.read', 'warehouse.update',
         'inventory.create', 'inventory.read', 'inventory.update',
         'gatepass.create', 'gatepass.read', 'gatepass.update',
         'reports.read'
+      ],
+      // Legacy roles for backward compatibility
+      'Manager': [
+        'user.create', 'user.read', 'user.update',
+        'warehouse.create', 'warehouse.read', 'warehouse.update',
+        'inventory.create', 'inventory.read', 'inventory.update',
+        'reports.read', 'reports.create',
+        'sales.create', 'sales.read', 'sales.update',
+        'purchase.create', 'purchase.read', 'purchase.update',
+        'production.create', 'production.read', 'production.update',
+        'gatepass.create', 'gatepass.read', 'gatepass.update',
+        'financial.create', 'financial.read', 'financial.update'
+      ],
+      'Employee': [
+        'warehouse.read', 'inventory.read',
+        'production.create', 'production.read',
+        'gatepass.create', 'gatepass.read'
+      ],
+      'Cashier': [
+        'sales.create', 'sales.read', 'sales.update',
+        'purchase.read',
+        'inventory.read'
+      ],
+      'Sales': [
+        'sales.create', 'sales.read', 'sales.update',
+        'customer.create', 'customer.read', 'customer.update',
+        'inventory.read',
+        'reports.read'
       ]
     };
 
     const userPermissions = rolePermissions[role] || [];
-    
+
     // Check if user has any of the required permissions
     return requiredPermissions.some(permission => userPermissions.includes(permission));
   };
@@ -157,6 +189,17 @@ export const useAuth = () => {
         'user.create', 'user.read', 'user.update', 'user.delete',
         'warehouse.create', 'warehouse.read', 'warehouse.update', 'warehouse.delete',
         'inventory.create', 'inventory.read', 'inventory.update', 'inventory.delete',
+        'reports.read', 'reports.create',
+        'sales.create', 'sales.read', 'sales.update',
+        'purchase.create', 'purchase.read', 'purchase.update',
+        'production.create', 'production.read', 'production.update',
+        'gatepass.create', 'gatepass.read', 'gatepass.update',
+        'financial.create', 'financial.read', 'financial.update'
+      ],
+      'General Manager': [
+        'user.create', 'user.read', 'user.update',
+        'warehouse.create', 'warehouse.read', 'warehouse.update',
+        'inventory.create', 'inventory.read', 'inventory.update',
         'reports.read', 'reports.create',
         'sales.create', 'sales.read', 'sales.update',
         'purchase.create', 'purchase.read', 'purchase.update',
@@ -194,7 +237,7 @@ export const useAuth = () => {
     };
 
     const userPermissions = rolePermissions[role] || [];
-    
+
     // Check if user has all of the required permissions
     return requiredPermissions.every(permission => userPermissions.includes(permission));
   };

@@ -22,10 +22,10 @@ router.get('/warehouse', protect, isWarehouseManager, async (req, res) => {
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id })
       .populate('manager', 'firstName lastName email');
-    
-    // Fallback: If no warehouse found via manager field, try user's warehouse field
-    if (!warehouse && req.user.warehouse) {
-      warehouse = await Warehouse.findById(req.user.warehouse)
+
+    // Fallback: If no warehouse found via manager field, try user's assignedWarehouse field
+    if (!warehouse && req.user.assignedWarehouse) {
+      warehouse = await Warehouse.findById(req.user.assignedWarehouse)
         .populate('manager', 'firstName lastName email');
     }
 
@@ -45,18 +45,18 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
   try {
     console.log('🔍 Fetching stock for warehouse manager:', req.user._id);
     console.log('📦 User warehouse field:', req.user.warehouse);
-    
+
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id });
     console.log('🏭 Warehouse found via manager field:', warehouse ? warehouse._id : 'None');
-    
-    // Fallback: If no warehouse found via manager field, try user's warehouse field
-    if (!warehouse && req.user.warehouse) {
-      console.log('🔄 Trying fallback: user.warehouse field');
-      warehouse = await Warehouse.findById(req.user.warehouse);
-      console.log('🏭 Warehouse found via user.warehouse field:', warehouse ? warehouse._id : 'None');
+
+    // Fallback: If no warehouse found via manager field, try user's assignedWarehouse field
+    if (!warehouse && req.user.assignedWarehouse) {
+      console.log('🔄 Trying fallback: user.assignedWarehouse field');
+      warehouse = await Warehouse.findById(req.user.assignedWarehouse);
+      console.log('🏭 Warehouse found via user.assignedWarehouse field:', warehouse ? warehouse._id : 'None');
     }
-    
+
     if (!warehouse) {
       console.error('❌ No warehouse found for manager:', req.user._id);
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
@@ -64,20 +64,20 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
 
     console.log('✅ Using warehouse:', warehouse._id, warehouse.name);
     console.log('🔍 Warehouse ID type:', typeof warehouse._id, warehouse._id.toString());
-    
+
     // Get inventory items for this warehouse
     // MongoDB should handle ObjectId comparison automatically, but we'll ensure it's correct
     const warehouseId = warehouse._id;
-    
+
     console.log('🔍 Searching for inventory with warehouse ID:', warehouseId);
-    
+
     // First, try direct query (most common case)
     let stockItems = await Inventory.find({ warehouse: warehouseId })
       .select('name code category currentStock minimumStock unit status location cost warehouse')
       .sort({ name: 1 });
-    
+
     console.log(`📊 Direct query found ${stockItems.length} items`);
-    
+
     // If no items found, try with ObjectId conversion (in case of type mismatch)
     if (stockItems.length === 0 && mongoose.Types.ObjectId.isValid(warehouseId)) {
       console.log('🔄 Trying with ObjectId conversion...');
@@ -87,7 +87,7 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
         .sort({ name: 1 });
       console.log(`📊 ObjectId query found ${stockItems.length} items`);
     }
-    
+
     // If still no items, try string comparison (in case warehouse is stored as string)
     if (stockItems.length === 0) {
       console.log('🔄 Trying with string comparison...');
@@ -98,7 +98,7 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
     }
 
     console.log(`✅ Found ${stockItems.length} stock items for warehouse ${warehouse._id}`);
-    
+
     // Debug: Log first few items to see their warehouse field
     if (stockItems.length > 0) {
       console.log('📦 Sample stock items:');
@@ -110,7 +110,7 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
       const totalInventory = await Inventory.countDocuments({});
       const inventoryWithWarehouse = await Inventory.countDocuments({ warehouse: { $exists: true, $ne: null } });
       console.log(`⚠️ No stock items found. Total inventory: ${totalInventory}, With warehouse: ${inventoryWithWarehouse}`);
-      
+
       // Try to find any inventory items and log their warehouse IDs
       const sampleItems = await Inventory.find({ warehouse: { $exists: true, $ne: null } })
         .select('name warehouse')
@@ -122,7 +122,7 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
         const match = itemWarehouseId === targetWarehouseId;
         console.log(`  - ${item.name}: warehouse = ${itemWarehouseId} (type: ${typeof item.warehouse}) ${match ? '✅ MATCH' : '❌ NO MATCH'}`);
       });
-      
+
       // Also check if there are inventory items with this exact warehouse ID but stored differently
       const allInventory = await Inventory.find({})
         .select('name warehouse')
@@ -138,7 +138,7 @@ router.get('/stock', protect, isWarehouseManager, async (req, res) => {
         }
       });
     }
-    
+
     res.json(stockItems);
   } catch (error) {
     console.error('❌ Error fetching stock items:', error);
@@ -151,12 +151,12 @@ router.get('/damage-reports', protect, isWarehouseManager, async (req, res) => {
   try {
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id });
-    
+
     // Fallback: If no warehouse found via manager field, try user's warehouse field
     if (!warehouse && req.user.warehouse) {
       warehouse = await Warehouse.findById(req.user.warehouse);
     }
-    
+
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
     }
@@ -190,12 +190,12 @@ router.post('/damage-reports', protect, isWarehouseManager, async (req, res) => 
 
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id });
-    
-    // Fallback: If no warehouse found via manager field, try user's warehouse field
-    if (!warehouse && req.user.warehouse) {
-      warehouse = await Warehouse.findById(req.user.warehouse);
+
+    // Fallback: If no warehouse found via manager field, try user's assignedWarehouse field
+    if (!warehouse && req.user.assignedWarehouse) {
+      warehouse = await Warehouse.findById(req.user.assignedWarehouse);
     }
-    
+
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
     }
@@ -212,8 +212,8 @@ router.post('/damage-reports', protect, isWarehouseManager, async (req, res) => 
 
     // Validate quantity doesn't exceed current stock
     if (quantityDamaged > inventory.currentStock) {
-      return res.status(400).json({ 
-        message: `Quantity damaged (${quantityDamaged}) cannot exceed current stock (${inventory.currentStock})` 
+      return res.status(400).json({
+        message: `Quantity damaged (${quantityDamaged}) cannot exceed current stock (${inventory.currentStock})`
       });
     }
 
@@ -254,12 +254,12 @@ router.put('/damage-reports/:id', protect, isWarehouseManager, async (req, res) 
 
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id });
-    
-    // Fallback: If no warehouse found via manager field, try user's warehouse field
-    if (!warehouse && req.user.warehouse) {
-      warehouse = await Warehouse.findById(req.user.warehouse);
+
+    // Fallback: If no warehouse found via manager field, try user's assignedWarehouse field
+    if (!warehouse && req.user.assignedWarehouse) {
+      warehouse = await Warehouse.findById(req.user.assignedWarehouse);
     }
-    
+
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
     }
@@ -301,12 +301,12 @@ router.get('/stock-history', protect, isWarehouseManager, async (req, res) => {
   try {
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id });
-    
-    // Fallback: If no warehouse found via manager field, try user's warehouse field
-    if (!warehouse && req.user.warehouse) {
-      warehouse = await Warehouse.findById(req.user.warehouse);
+
+    // Fallback: If no warehouse found via manager field, try user's assignedWarehouse field
+    if (!warehouse && req.user.assignedWarehouse) {
+      warehouse = await Warehouse.findById(req.user.assignedWarehouse);
     }
-    
+
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
     }
@@ -314,11 +314,11 @@ router.get('/stock-history', protect, isWarehouseManager, async (req, res) => {
     const { page = 1, limit = 50, movementType, startDate, endDate } = req.query;
 
     const query = { warehouse: warehouse._id };
-    
+
     if (movementType) {
       query.movementType = movementType;
     }
-    
+
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
@@ -351,12 +351,12 @@ router.get('/statistics', protect, isWarehouseManager, async (req, res) => {
   try {
     // First try: Get warehouse from manager field (warehouse.manager = user._id)
     let warehouse = await Warehouse.findOne({ manager: req.user._id });
-    
-    // Fallback: If no warehouse found via manager field, try user's warehouse field
-    if (!warehouse && req.user.warehouse) {
-      warehouse = await Warehouse.findById(req.user.warehouse);
+
+    // Fallback: If no warehouse found via manager field, try user's assignedWarehouse field
+    if (!warehouse && req.user.assignedWarehouse) {
+      warehouse = await Warehouse.findById(req.user.assignedWarehouse);
     }
-    
+
     if (!warehouse) {
       return res.status(404).json({ message: 'No warehouse assigned to this manager' });
     }
@@ -387,7 +387,7 @@ router.get('/statistics', protect, isWarehouseManager, async (req, res) => {
     // Get recent stock movements (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const recentStockMovements = await Stock.countDocuments({
       warehouse: warehouse._id,
       createdAt: { $gte: thirtyDaysAgo }

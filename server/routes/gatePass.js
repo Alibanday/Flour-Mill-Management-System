@@ -20,17 +20,32 @@ const validateGatePass = [
 // @desc    Get all gate passes (base route)
 // @route   GET /api/gate-pass
 // @access  Admin, Manager, Employee
-router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+// @access  Admin, Manager, Employee, Warehouse Manager
+router.get("/", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), async (req, res) => {
   try {
     const { page = 1, limit = 10, status, type, warehouse, relatedSale, relatedPurchase } = req.query;
     const query = {};
-    
+
+    // RBAC: Warehouse Manager can only see gate passes for their assigned warehouse
+    if (req.user.role === 'Warehouse Manager') {
+      if (!req.user.assignedWarehouse) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied. No warehouse assigned to your account."
+        });
+      }
+      // Force filter by assigned warehouse
+      query.warehouse = req.user.assignedWarehouse;
+    } else if (warehouse) {
+      // For other roles, allow filtering if provided
+      query.warehouse = warehouse;
+    }
+
     if (status) query.status = status;
     if (type) query.type = type;
-    if (warehouse) query.warehouse = warehouse;
     if (relatedSale) query.relatedSale = relatedSale;
     if (relatedPurchase) query.relatedPurchase = relatedPurchase;
-    
+
     // Check if database is connected
     if (mongoose.connection.readyState !== 1) {
       console.log("Database not connected, returning empty data");
@@ -44,16 +59,16 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
         }
       });
     }
-    
+
     const gatePasses = await GatePass.find(query)
       .populate('warehouse', 'name location')
       .populate('issuedBy', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
-    
+
     const total = await GatePass.countDocuments(query);
-    
+
     res.json({
       success: true,
       data: gatePasses,
@@ -65,7 +80,7 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
     });
   } catch (error) {
     console.error("Get gate passes error:", error);
-    
+
     // Handle database connection errors gracefully
     if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
       return res.json({
@@ -79,7 +94,7 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
         message: "Database connection issue - returning empty data"
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -91,7 +106,7 @@ router.get("/", protect, authorize("Admin", "Manager", "Employee"), async (req, 
 // @desc    Create new gate pass (base route)
 // @route   POST /api/gate-pass
 // @access  Admin, Manager, Employee
-router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
+router.post("/", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), validateGatePass, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -145,34 +160,34 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
         const Warehouse = (await import('../model/wareHouse.js')).default;
         const User = (await import('../model/user.js')).default;
         const Notification = (await import('../model/Notification.js')).default;
-        
+
         // Find warehouse document to get manager
         const warehouseDoc = await Warehouse.findById(warehouseId).populate('manager', '_id email firstName lastName');
-        
+
         // Determine notification message based on purpose
         const isReceiving = gatePass.purpose && (
-          gatePass.purpose.toLowerCase().includes('receiving') || 
+          gatePass.purpose.toLowerCase().includes('receiving') ||
           gatePass.purpose.toLowerCase().includes('receive') ||
           gatePass.purpose.toLowerCase().includes('purchase')
         );
-        
-        const notificationTitle = isReceiving 
+
+        const notificationTitle = isReceiving
           ? 'Gate Pass Issued - Goods Receiving'
           : 'Gate Pass Issued - Stock Dispatch';
         const notificationMessage = isReceiving
           ? `Gate Pass ${gatePass.gatePassNumber} issued for goods receiving. Prepare to receive goods at ${warehouseDoc?.name || 'warehouse'}.`
           : `Gate Pass ${gatePass.gatePassNumber} issued. Prepare stock for dispatch from ${warehouseDoc?.name || 'warehouse'}.`;
-        
+
         // Find warehouse managers - check if warehouse has a manager field
         const managers = [];
-        
+
         if (warehouseDoc?.manager) {
           const managerId = warehouseDoc.manager._id || warehouseDoc.manager;
           if (managerId) {
             managers.push(managerId.toString());
           }
         }
-        
+
         // Also find all warehouse managers assigned to this warehouse (via User.warehouse field)
         const warehouseManagers = await User.find({
           $or: [
@@ -181,7 +196,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
             { role: 'Admin' }
           ]
         }).select('_id').limit(10);
-        
+
         // Add managers to list (avoid duplicates)
         const managerIds = new Set(managers);
         warehouseManagers.forEach(m => {
@@ -189,7 +204,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
             managerIds.add(m._id.toString());
           }
         });
-        
+
         // Create notifications for all managers
         for (const managerId of managerIds) {
           try {
@@ -203,8 +218,8 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
               relatedEntity: 'warehouse',
               entityId: gatePass._id,
               status: 'unread',
-              metadata: { 
-                gatePassNumber: gatePass.gatePassNumber, 
+              metadata: {
+                gatePassNumber: gatePass.gatePassNumber,
                 warehouse: warehouseDoc?.name || 'Warehouse',
                 purpose: gatePass.purpose,
                 isReceiving: isReceiving
@@ -235,7 +250,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
     });
   } catch (error) {
     console.error("Create gate pass error:", error);
-    
+
     // Handle database connection errors gracefully
     if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
       return res.status(503).json({
@@ -244,7 +259,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
         error: "Database connection timeout"
       });
     }
-    
+
     // Handle validation errors
     if (error.name === 'ValidationError') {
       return res.status(400).json({
@@ -253,7 +268,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
         error: error.message
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -265,7 +280,7 @@ router.post("/", protect, authorize("Admin", "Manager", "Employee"), validateGat
 // @desc    Create new gate pass (create route)
 // @route   POST /api/gate-pass/create
 // @access  Admin, Manager, Employee
-router.post("/create", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
+router.post("/create", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), validateGatePass, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -314,7 +329,7 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
     });
   } catch (error) {
     console.error("Create gate pass error:", error);
-    
+
     // Handle database connection errors gracefully
     if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
       return res.status(503).json({
@@ -323,7 +338,7 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
         error: "Database connection timeout"
       });
     }
-    
+
     // Handle duplicate key errors
     if (error.code === 11000) {
       return res.status(400).json({
@@ -331,7 +346,7 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
         message: "Gate pass number already exists",
       });
     }
-    
+
     // Handle validation errors
     if (error.name === 'ValidationError') {
       return res.status(400).json({
@@ -340,7 +355,7 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
         error: error.message
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -352,12 +367,12 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee"), valid
 // @desc    Get all gate passes
 // @route   GET /api/gate-pass
 // @access  Admin, Manager, Employee
-router.get("/all", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/all", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, type, warehouse, dateFrom, dateTo } = req.query;
-    
+
     const query = {};
-    
+
     // Search filter
     if (search) {
       query.$or = [
@@ -366,22 +381,22 @@ router.get("/all", protect, authorize("Admin", "Manager", "Employee"), async (re
         { purpose: { $regex: search, $options: "i" } },
       ];
     }
-    
+
     // Status filter
     if (status) {
       query.status = status;
     }
-    
+
     // Type filter
     if (type) {
       query.type = type;
     }
-    
+
     // Warehouse filter
     if (warehouse) {
       query.warehouse = warehouse;
     }
-    
+
     // Date range filter
     if (dateFrom || dateTo) {
       query.validFrom = {};
@@ -422,7 +437,7 @@ router.get("/all", protect, authorize("Admin", "Manager", "Employee"), async (re
 // @desc    Get gate pass by ID
 // @route   GET /api/gate-pass/:id
 // @access  Admin, Manager, Employee
-router.get("/:id", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.get("/:id", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id)
       .populate("issuedBy", "name email")
@@ -453,7 +468,7 @@ router.get("/:id", protect, authorize("Admin", "Manager", "Employee"), async (re
 // @desc    Update gate pass
 // @route   PUT /api/gate-pass/:id
 // @access  Admin, Manager, Employee (only if issued by them)
-router.put("/:id", protect, authorize("Admin", "Manager", "Employee"), validateGatePass, async (req, res) => {
+router.put("/:id", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), validateGatePass, async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -510,7 +525,7 @@ router.put("/:id", protect, authorize("Admin", "Manager", "Employee"), validateG
 // @desc    Delete gate pass
 // @route   DELETE /api/gate-pass/:id
 // @access  Admin, Manager (only if issued by them)
-router.delete("/:id", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.delete("/:id", protect, authorize("Admin", "Manager", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id);
     if (!gatePass) {
@@ -546,7 +561,7 @@ router.delete("/:id", protect, authorize("Admin", "Manager"), async (req, res) =
 // @desc    Approve gate pass
 // @route   PATCH /api/gate-pass/:id/approve
 // @access  Admin, Manager
-router.patch("/:id/approve", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.patch("/:id/approve", protect, authorize("Admin", "Manager", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id);
     if (!gatePass) {
@@ -590,7 +605,7 @@ router.patch("/:id/approve", protect, authorize("Admin", "Manager"), async (req,
 // @desc    Activate gate pass
 // @route   PATCH /api/gate-pass/:id/activate
 // @access  Admin, Manager
-router.patch("/:id/activate", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.patch("/:id/activate", protect, authorize("Admin", "Manager", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id);
     if (!gatePass) {
@@ -633,7 +648,7 @@ router.patch("/:id/activate", protect, authorize("Admin", "Manager"), async (req
 // @desc    Complete gate pass
 // @route   PATCH /api/gate-pass/:id/complete
 // @access  Admin, Manager, Employee
-router.patch("/:id/complete", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.patch("/:id/complete", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id);
     if (!gatePass) {
@@ -676,7 +691,7 @@ router.patch("/:id/complete", protect, authorize("Admin", "Manager", "Employee")
 // @desc    Cancel gate pass
 // @route   PATCH /api/gate-pass/:id/cancel
 // @access  Admin, Manager (only if issued by them)
-router.patch("/:id/cancel", protect, authorize("Admin", "Manager"), async (req, res) => {
+router.patch("/:id/cancel", protect, authorize("Admin", "Manager", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id);
     if (!gatePass) {
@@ -727,10 +742,10 @@ router.patch("/:id/cancel", protect, authorize("Admin", "Manager"), async (req, 
 // @desc    Confirm stock dispatch
 // @route   PATCH /api/gate-pass/:id/confirm-dispatch
 // @access  Admin, Manager, Employee
-router.patch("/:id/confirm-dispatch", protect, authorize("Admin", "Manager", "Employee"), async (req, res) => {
+router.patch("/:id/confirm-dispatch", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), async (req, res) => {
   try {
     const { notes } = req.body;
-    
+
     const gatePass = await GatePass.findById(req.params.id);
     if (!gatePass) {
       return res.status(404).json({
@@ -757,7 +772,7 @@ router.patch("/:id/confirm-dispatch", protect, authorize("Admin", "Manager", "Em
     gatePass.stockDispatch.confirmedBy = req.user.id;
     gatePass.stockDispatch.confirmedAt = new Date();
     gatePass.stockDispatch.notes = notes || "";
-    
+
     await gatePass.save();
 
     await gatePass.populate([
@@ -797,7 +812,7 @@ router.patch("/:id/whatsapp-shared", protect, authorize("Admin", "Manager", "Emp
     gatePass.whatsappShared = true;
     gatePass.whatsappSharedAt = new Date();
     gatePass.whatsappSharedBy = req.user.id;
-    
+
     await gatePass.save();
 
     await gatePass.populate([
@@ -857,7 +872,7 @@ router.get("/stats/summary", protect, authorize("Admin", "Manager"), async (req,
     const pending = await GatePass.countDocuments({ status: "Pending" });
     const approved = await GatePass.countDocuments({ status: "Approved" });
     const completed = await GatePass.countDocuments({ status: "Completed" });
-    const expired = await GatePass.countDocuments({ 
+    const expired = await GatePass.countDocuments({
       validUntil: { $lt: new Date() },
       status: { $in: ["Active", "Approved"] }
     });
@@ -876,7 +891,7 @@ router.get("/stats/summary", protect, authorize("Admin", "Manager"), async (req,
     });
   } catch (error) {
     console.error("Get gate pass stats error:", error);
-    
+
     // Handle database connection errors gracefully
     if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
       return res.json({
@@ -893,7 +908,7 @@ router.get("/stats/summary", protect, authorize("Admin", "Manager"), async (req,
         message: "Database connection issue - returning empty stats"
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Server error",

@@ -3,20 +3,20 @@ import mongoose from "mongoose";
 
 const UserSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
-  lastName:  { type: String, required: true },
-  email:     { type: String, required: true, unique: true },
-  password:  { type: String, required: true },
-  role: { 
-    type: String, 
-    enum: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'], 
-    default: 'Production Manager' 
+  lastName: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: {
+    type: String,
+    enum: ['Admin', 'General Manager', 'Sales Manager', 'Production Manager', 'Warehouse Manager'],
+    default: 'Production Manager'
   },
-  status: { 
-    type: String, 
-    enum: ['Active', 'Inactive'], 
-    default: 'Active' 
+  status: {
+    type: String,
+    enum: ['Active', 'Inactive'],
+    default: 'Active'
   },
-  warehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse",  required: false  },
+  assignedWarehouse: { type: mongoose.Schema.Types.ObjectId, ref: "Warehouse", required: false },
 
   // Additional fields:
   cnic: { type: String },
@@ -33,7 +33,7 @@ const UserSchema = new mongoose.Schema({
   profileImage: { type: String }, // URL from Cloudinary
   salary: { type: Number }
 },
-{ timestamps: true }
+  { timestamps: true }
 );
 
 const User = mongoose.model("User", UserSchema);

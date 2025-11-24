@@ -15,42 +15,6 @@ export default function LoginForm() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Mock users for demonstration
-  const mockUsers = [
-    {
-      email: 'admin@flourmill.com',
-      password: 'admin123',
-      firstName: 'John',
-      lastName: 'Doe',
-      role: 'Admin',
-      _id: 'admin-1'
-    },
-    {
-      email: 'manager@flourmill.com',
-      password: 'manager123',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      role: 'Manager',
-      _id: 'manager-1'
-    },
-    {
-      email: 'employee@flourmill.com',
-      password: 'employee123',
-      firstName: 'Mike',
-      lastName: 'Johnson',
-      role: 'Employee',
-      _id: 'employee-1'
-    },
-    {
-      email: 'cashier@flourmill.com',
-      password: 'cashier123',
-      firstName: 'Sarah',
-      lastName: 'Wilson',
-      role: 'Cashier',
-      _id: 'cashier-1'
-    }
-  ];
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -64,98 +28,52 @@ export default function LoginForm() {
     setLoading(true);
 
     try {
-      // Check against mock users first (for development)
-      const mockUser = mockUsers.find(user => 
-        user.email === formData.email && user.password === formData.password
-      );
+      // Use real API login only
+      const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
 
-      if (mockUser) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Create mock login result
-        const mockResult = {
-          success: true,
-          user: mockUser,
-          token: 'mock-jwt-token-' + Date.now(),
-          message: 'Login successful'
-        };
-        
-        // Store user data in localStorage for mock login
-        localStorage.setItem('token', mockResult.token);
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        localStorage.setItem('role', mockUser.role);
-        
-        // Update auth state
-        login(mockUser, mockResult.token);
-        
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Use the login function from useAuth to store the user data
+        console.log('Login successful, user data:', result.user);
+        console.log('Token:', result.token);
+        login(result.user, result.token);
+
+        // Verify it was stored correctly
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        console.log('Stored user data:', storedUser);
+
         // Small delay to ensure state is updated
         await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Show success message
-        toast.success(`Welcome ${mockUser.firstName}! You're logged in as ${mockUser.role}`);
-        
+
+        toast.success(`Welcome ${result.user.firstName || result.user.email}! You're logged in as ${result.user.role}`);
+
         // Redirect based on role
-        if (mockUser.role === 'Warehouse Manager') {
+        if (result.user.role === 'Warehouse Manager') {
           navigate('/warehouse-manager-dashboard');
         } else {
           navigate('/dashboard');
         }
-        return;
-      }
-
-      // Try real API login if not found in mock users
-      try {
-        const response = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Login failed');
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-          // Use the login function from useAuth to store the user data
-          console.log('Login successful, user data:', result.user);
-          console.log('Warehouse ID in login response:', result.user.warehouse);
-          login(result.user, result.token);
-          
-          // Verify it was stored correctly
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          console.log('Stored user data:', storedUser);
-          console.log('Stored warehouse ID:', storedUser.warehouse);
-          
-          // Small delay to ensure state is updated
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          toast.success(`Welcome ${result.user.firstName || result.user.email}! You're logged in as ${result.user.role}`);
-          
-          // Redirect based on role
-          if (result.user.role === 'Warehouse Manager') {
-            navigate('/warehouse-manager-dashboard');
-          } else {
-            navigate('/dashboard');
-          }
-        } else {
-          toast.error(result.message || 'Invalid email or password. Please try again.');
-        }
-      } catch (apiError) {
-        console.error('API login error:', apiError);
-        toast.error(apiError.message || 'Login failed. Please try again.');
+      } else {
+        toast.error(result.message || 'Invalid email or password. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Login failed. Please try again.');
+      toast.error(error.message || 'Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -258,17 +176,16 @@ export default function LoginForm() {
           </div>
         </form>
 
-        {/* Demo Accounts Info */}
+        {/* Database Users Info */}
         <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center mb-2">
             <FaShieldAlt className="h-4 w-4 text-blue-600 mr-2" />
-            <h3 className="text-sm font-medium text-blue-800">Demo Accounts</h3>
+            <h3 className="text-sm font-medium text-blue-800">Login Information</h3>
           </div>
           <div className="text-xs text-blue-700 space-y-1">
-            <div><strong>Admin:</strong> admin@flourmill.com / admin123</div>
-            <div><strong>Manager:</strong> manager@flourmill.com / manager123</div>
-            <div><strong>Employee:</strong> employee@flourmill.com / employee123</div>
-            <div><strong>Cashier:</strong> cashier@flourmill.com / cashier123</div>
+            <div><strong>Note:</strong> Use credentials from your database</div>
+            <div>Example: admin@flourmill.com / admin123</div>
+            <div>Or create users via User Management page</div>
           </div>
         </div>
       </div>

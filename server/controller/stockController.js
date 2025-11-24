@@ -8,9 +8,20 @@ export const addStock = async (req, res) => {
   try {
     console.log("Add stock request body:", req.body);
     console.log("User:", req.user);
-    
+
     const { inventoryItem, movementType, quantity, reason, referenceNumber, warehouse } = req.body;
-    
+
+    // RBAC: Warehouse Manager check
+    if (req.user?.role === 'Warehouse Manager') {
+      const assignedId = req.user.assignedWarehouse ? req.user.assignedWarehouse.toString() : null;
+      if (assignedId && assignedId !== warehouse) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied. You can only add stock to your assigned warehouse."
+        });
+      }
+    }
+
     // Validate required fields
     if (!inventoryItem || !movementType || !quantity || !warehouse) {
       return res.status(400).json({
@@ -18,42 +29,42 @@ export const addStock = async (req, res) => {
         message: "Missing required fields: inventoryItem, movementType, quantity, warehouse"
       });
     }
-    
+
     // Validate inventory item exists
     const inventory = await Inventory.findById(inventoryItem);
     if (!inventory) {
       console.log("Inventory item not found:", inventoryItem);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Inventory item not found" 
+        message: "Inventory item not found"
       });
     }
-    
+
     // Validate warehouse exists
     const warehouseExists = await Warehouse.findById(warehouse);
     if (!warehouseExists) {
       console.log("Warehouse not found:", warehouse);
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Warehouse not found" 
+        message: "Warehouse not found"
       });
     }
-    
+
     // Validate that the inventory item belongs to the selected warehouse
     if (inventory.warehouse.toString() !== warehouse) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: `Cannot add stock to inventory from different warehouse. This inventory belongs to warehouse ${inventory.warehouse}, but you selected ${warehouse}` 
+        message: `Cannot add stock to inventory from different warehouse. This inventory belongs to warehouse ${inventory.warehouse}, but you selected ${warehouse}`
       });
     }
-    
+
     // Check warehouse capacity and inventory limits before adding stock
     if (movementType === 'in') {
       const warehouseData = await Warehouse.findById(warehouse);
       if (warehouseData && warehouseData.capacity && warehouseData.capacity.totalCapacity) {
         const currentUsage = warehouseData.capacity.currentUsage || 0;
         const newUsage = currentUsage + quantity;
-        
+
         if (newUsage > warehouseData.capacity.totalCapacity) {
           return res.status(400).json({
             success: false,
@@ -61,7 +72,7 @@ export const addStock = async (req, res) => {
           });
         }
       }
-      
+
       // Check if adding more stock than reasonable limit (up to current stock size)
       // Exception: Allow stock additions to newly created inventory items (currentStock = 0) during transfers
       const maxReasonableAddition = inventory.currentStock;
@@ -72,7 +83,7 @@ export const addStock = async (req, res) => {
         });
       }
     }
-    
+
     const stock = new Stock({
       inventoryItem,
       movementType,
@@ -82,20 +93,20 @@ export const addStock = async (req, res) => {
       warehouse,
       createdBy: req.user._id
     });
-    
+
     console.log("Creating stock movement:", stock);
     await stock.save();
     console.log("Stock movement saved successfully");
-    
+
     // Populate related fields
     await stock.populate([
       { path: 'inventoryItem', select: 'name code category currentStock' },
       { path: 'warehouse', select: 'name code' },
       { path: 'createdBy', select: 'name email' }
     ]);
-    
+
     console.log("Stock movement populated:", stock);
-    
+
     res.status(201).json({
       success: true,
       message: "Stock movement recorded successfully",
@@ -103,9 +114,9 @@ export const addStock = async (req, res) => {
     });
   } catch (err) {
     console.error("Add stock error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 };
@@ -115,12 +126,12 @@ export const updateStock = async (req, res) => {
   try {
     console.log("Update stock request:", req.params.id, req.body);
     console.log("User:", req.user);
-    
+
     const stock = await Stock.findById(req.params.id);
     if (!stock) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Stock movement not found" 
+        message: "Stock movement not found"
       });
     }
 
@@ -135,7 +146,7 @@ export const updateStock = async (req, res) => {
     // Only allow updating certain fields for stock movements
     const allowedFields = ['reason', 'referenceNumber'];
     const updateData = {};
-    
+
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
         updateData[field] = req.body[field];
@@ -145,16 +156,16 @@ export const updateStock = async (req, res) => {
     // Update the stock movement
     Object.assign(stock, updateData);
     await stock.save();
-    
+
     // Populate related fields
     await stock.populate([
       { path: 'inventoryItem', select: 'name code category currentStock unit' },
       { path: 'warehouse', select: 'name code' },
       { path: 'createdBy', select: 'name email' }
     ]);
-    
+
     console.log("Stock updated successfully:", stock);
-    
+
     res.json({
       success: true,
       message: "Stock movement updated successfully",
@@ -162,9 +173,9 @@ export const updateStock = async (req, res) => {
     });
   } catch (err) {
     console.error("Update stock error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 };
@@ -174,31 +185,31 @@ export const deleteStock = async (req, res) => {
   try {
     const stock = await Stock.findById(req.params.id);
     if (!stock) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Stock movement not found" 
+        message: "Stock movement not found"
       });
     }
 
     // Check permissions - allow admin, manager, and user roles to delete
     // For now, allow all authenticated users to delete for testing
     if (!req.user || !req.user._id) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: "Authentication required" 
+        message: "Authentication required"
       });
     }
 
     await Stock.findByIdAndDelete(req.params.id);
-    res.json({ 
+    res.json({
       success: true,
-      message: "Stock movement deleted successfully" 
+      message: "Stock movement deleted successfully"
     });
   } catch (err) {
     console.error("Delete stock error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 };
@@ -211,8 +222,25 @@ export const getAllStocks = async (req, res) => {
     // Build filter object
     const filter = {};
     if (movementType) filter.movementType = movementType;
-    if (warehouse) filter.warehouse = warehouse;
-    
+    // RBAC: Warehouse Manager check
+    if (req.user?.role === 'Warehouse Manager') {
+      if (req.user.assignedWarehouse) {
+        filter.warehouse = req.user.assignedWarehouse;
+      } else {
+        // Fallback
+        const Warehouse = (await import('../model/wareHouse.js')).default;
+        const managedWarehouses = await Warehouse.find({ manager: req.user._id }).select('_id');
+        const warehouseIds = managedWarehouses.map(w => w._id);
+        if (warehouseIds.length > 0) {
+          filter.warehouse = { $in: warehouseIds };
+        } else {
+          return res.json({ success: true, data: [], pagination: { current: parseInt(page), pages: 0, total: 0 } });
+        }
+      }
+    } else if (warehouse) {
+      filter.warehouse = warehouse;
+    }
+
     if (search) {
       filter.$or = [
         { referenceNumber: { $regex: search, $options: 'i' } },
@@ -244,9 +272,9 @@ export const getAllStocks = async (req, res) => {
     });
   } catch (err) {
     console.error("Get all stocks error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 };
@@ -255,11 +283,11 @@ export const getAllStocks = async (req, res) => {
 export const searchStock = async (req, res) => {
   try {
     const { q, category, warehouse } = req.query;
-    
+
     const filter = {};
     if (category) filter.category = category;
     if (warehouse) filter.warehouse = warehouse;
-    
+
     if (q) {
       filter.$or = [
         { itemName: { $regex: q, $options: 'i' } },
@@ -287,7 +315,7 @@ export const getStockById = async (req, res) => {
       .populate('supplier', 'name contact')
       .populate('createdBy', 'name email')
       .populate('updatedBy', 'name email');
-      
+
     if (!stock) return res.status(404).json({ message: "Stock not found" });
     res.json(stock);
   } catch (err) {
@@ -320,10 +348,21 @@ export const getStockByCategory = async (req, res) => {
 export const transferStock = async (req, res) => {
   try {
     const { inventoryItem, fromWarehouse, toWarehouse, quantity, reason, referenceNumber } = req.body;
-    
+
     console.log("Transfer stock request:", req.body);
     console.log("User:", req.user);
-    
+
+    // RBAC: Warehouse Manager check
+    if (req.user?.role === 'Warehouse Manager') {
+      const assignedId = req.user.assignedWarehouse ? req.user.assignedWarehouse.toString() : null;
+      if (assignedId && assignedId !== fromWarehouse) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied. You can only transfer stock FROM your assigned warehouse."
+        });
+      }
+    }
+
     // Validate required fields
     if (!inventoryItem || !fromWarehouse || !toWarehouse || !quantity) {
       return res.status(400).json({
@@ -331,21 +370,21 @@ export const transferStock = async (req, res) => {
         message: "Missing required fields: inventoryItem, fromWarehouse, toWarehouse, quantity"
       });
     }
-    
+
     if (quantity <= 0) {
       return res.status(400).json({
         success: false,
         message: "Quantity must be greater than 0"
       });
     }
-    
+
     if (fromWarehouse === toWarehouse) {
       return res.status(400).json({
         success: false,
         message: "Source and destination warehouses cannot be the same"
       });
     }
-    
+
     // Validate inventory item exists and belongs to source warehouse
     const inventory = await Inventory.findById(inventoryItem);
     if (!inventory) {
@@ -354,14 +393,14 @@ export const transferStock = async (req, res) => {
         message: "Inventory item not found"
       });
     }
-    
+
     if (inventory.warehouse.toString() !== fromWarehouse) {
       return res.status(400).json({
         success: false,
         message: "Inventory item does not belong to source warehouse"
       });
     }
-    
+
     // Check if there's sufficient stock
     if (inventory.currentStock < quantity) {
       return res.status(400).json({
@@ -369,23 +408,23 @@ export const transferStock = async (req, res) => {
         message: `Insufficient stock. Available: ${inventory.currentStock}, Requested: ${quantity}`
       });
     }
-    
+
     // Validate warehouses exist
     const fromWarehouseExists = await Warehouse.findById(fromWarehouse);
     const toWarehouseExists = await Warehouse.findById(toWarehouse);
-    
+
     if (!fromWarehouseExists || !toWarehouseExists) {
       return res.status(404).json({
         success: false,
         message: "One or both warehouses not found"
       });
     }
-    
+
     // Check destination warehouse capacity
     if (toWarehouseExists.capacity && toWarehouseExists.capacity.totalCapacity) {
       const currentUsage = toWarehouseExists.capacity.currentUsage || 0;
       const newUsage = currentUsage + quantity;
-      
+
       if (newUsage > toWarehouseExists.capacity.totalCapacity) {
         return res.status(400).json({
           success: false,
@@ -393,7 +432,7 @@ export const transferStock = async (req, res) => {
         });
       }
     }
-    
+
     // Create stock out movement from source warehouse
     const stockOut = new Stock({
       inventoryItem,
@@ -404,10 +443,10 @@ export const transferStock = async (req, res) => {
       warehouse: fromWarehouse,
       createdBy: req.user?._id || null
     });
-    
+
     // Save the out movement first (this will update the source inventory)
     await stockOut.save();
-    
+
     // Now handle the destination inventory
     console.log(`Checking for existing inventory in destination warehouse: ${toWarehouse}`);
     const existingInventoryInDestination = await Inventory.findOne({
@@ -415,14 +454,14 @@ export const transferStock = async (req, res) => {
       warehouse: toWarehouse,
       category: inventory.category
     });
-    
+
     console.log(`Existing inventory found:`, existingInventoryInDestination);
-    
+
     let destinationInventory = null;
     let destinationInventoryId = null;
-    
+
     console.log("Starting destination inventory check...");
-    
+
     if (existingInventoryInDestination) {
       console.log("Found existing inventory in destination, adding stock...");
       // Add stock to existing inventory item in destination warehouse
@@ -444,9 +483,9 @@ export const transferStock = async (req, res) => {
         const timestamp = Date.now().toString().slice(-4);
         const randomSuffix = Math.random().toString(36).substring(2, 4);
         const newCode = `${baseCode}${timestamp}${randomSuffix}`;
-        
+
         console.log(`Generated unique code: ${newCode}`);
-        
+
         const newInventoryItem = new Inventory({
           name: inventory.name,
           code: newCode, // Unique code for this warehouse
@@ -460,7 +499,7 @@ export const transferStock = async (req, res) => {
           status: 'Active',
           tags: inventory.tags
         });
-        
+
         destinationInventory = await newInventoryItem.save();
         destinationInventoryId = destinationInventory._id;
         console.log(`Created new inventory item in destination warehouse:`, destinationInventory._id);
@@ -478,7 +517,7 @@ export const transferStock = async (req, res) => {
         }
       }
     }
-    
+
     // Create stock in movement to destination warehouse (using the destination inventory ID)
     const stockIn = new Stock({
       inventoryItem: destinationInventoryId || inventoryItem, // Use destination inventory if available
@@ -489,35 +528,35 @@ export const transferStock = async (req, res) => {
       warehouse: toWarehouse,
       createdBy: req.user?._id || null
     });
-    
+
     console.log("Stock in movement will use inventory item:", destinationInventoryId || inventoryItem);
     console.log("Destination inventory ID:", destinationInventoryId);
     console.log("Source inventory ID:", inventoryItem);
-    
+
     // Save the in movement (this will update the destination inventory)
     await stockIn.save();
-    
-    
+
+
     // Populate related fields for both movements
     await stockOut.populate([
       { path: 'inventoryItem', select: 'name code category currentStock' },
       { path: 'warehouse', select: 'name code' },
       { path: 'createdBy', select: 'name email' }
     ]);
-    
+
     await stockIn.populate([
       { path: 'inventoryItem', select: 'name code category currentStock' },
       { path: 'warehouse', select: 'name code' },
       { path: 'createdBy', select: 'name email' }
     ]);
-    
+
     console.log("Stock transfer completed successfully");
-    
+
     // Get updated inventory information
     const updatedSourceInventory = await Inventory.findById(inventoryItem);
     console.log("Updated source inventory:", updatedSourceInventory?.currentStock);
     console.log("Destination inventory:", destinationInventory?.currentStock);
-    
+
     res.status(201).json({
       success: true,
       message: "Stock transferred successfully",
@@ -548,18 +587,36 @@ export const transferStock = async (req, res) => {
 // Get stock summary
 export const getStockSummary = async (req, res) => {
   try {
+    const filter = {};
+
+    // RBAC: Warehouse Manager check
+    if (req.user?.role === 'Warehouse Manager') {
+      if (req.user.assignedWarehouse) {
+        filter.warehouse = req.user.assignedWarehouse;
+      } else {
+        const Warehouse = (await import('../model/wareHouse.js')).default;
+        const managedWarehouses = await Warehouse.find({ manager: req.user._id }).select('_id');
+        const warehouseIds = managedWarehouses.map(w => w._id);
+        if (warehouseIds.length > 0) {
+          filter.warehouse = { $in: warehouseIds };
+        } else {
+          return res.json({ success: true, data: { totalMovements: 0, stockInCount: 0, stockOutCount: 0, recentMovements: 0, stockInPercentage: 0, stockOutPercentage: 0 } });
+        }
+      }
+    }
+
     // Get basic stock movement counts
-    const totalMovements = await Stock.countDocuments();
-    const stockInCount = await Stock.countDocuments({ movementType: 'in' });
-    const stockOutCount = await Stock.countDocuments({ movementType: 'out' });
-    
+    const totalMovements = await Stock.countDocuments(filter);
+    const stockInCount = await Stock.countDocuments({ ...filter, movementType: 'in' });
+    const stockOutCount = await Stock.countDocuments({ ...filter, movementType: 'out' });
+
     // Get recent movements (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const recentMovements = await Stock.countDocuments({
       createdAt: { $gte: sevenDaysAgo }
     });
-    
+
     const summary = {
       totalMovements,
       stockInCount,
@@ -568,16 +625,16 @@ export const getStockSummary = async (req, res) => {
       stockInPercentage: totalMovements > 0 ? Math.round((stockInCount / totalMovements) * 100) : 0,
       stockOutPercentage: totalMovements > 0 ? Math.round((stockOutCount / totalMovements) * 100) : 0
     };
-    
+
     res.json({
       success: true,
       data: summary
     });
   } catch (err) {
     console.error("Get stock summary error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: err.message 
+      message: err.message
     });
   }
 };
@@ -587,7 +644,7 @@ export const updateStockQuantity = async (req, res) => {
   try {
     const { id } = req.params;
     const { quantity, operation, reason } = req.body; // operation: 'in' or 'out'
-    
+
     const stock = await Stock.findById(id);
     if (!stock) return res.status(404).json({ message: "Stock not found" });
 
@@ -605,7 +662,7 @@ export const updateStockQuantity = async (req, res) => {
     // Recalculate total value
     stock.totalValue = stock.quantity.value * stock.unitPrice;
     stock.updatedBy = req.user._id;
-    
+
     await stock.save();
 
     // Create notification for low stock using proper schema
@@ -613,7 +670,7 @@ export const updateStockQuantity = async (req, res) => {
       try {
         // Get the current user as recipient
         const recipient = req.user._id;
-        
+
         // Create notification with proper schema for notification module
         const notification = await Notification.create({
           type: 'low_stock',
@@ -631,7 +688,7 @@ export const updateStockQuantity = async (req, res) => {
             stockStatus: stock.status
           }
         });
-        
+
         console.log('Stock notification created:', notification._id);
       } catch (error) {
         console.error('Error creating stock notification:', error);
@@ -651,6 +708,19 @@ export const transferStockToWarehouse = async (req, res) => {
     const stock = await Stock.findById(req.params.id);
 
     if (!stock) return res.status(404).json({ message: "Stock not found" });
+
+    // RBAC: Warehouse Manager check
+    if (req.user?.role === 'Warehouse Manager') {
+      const assignedId = req.user.assignedWarehouse ? req.user.assignedWarehouse.toString() : null;
+      // Check if source stock belongs to assigned warehouse
+      if (assignedId && stock.warehouse && stock.warehouse.toString() !== assignedId) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied. You can only transfer stock FROM your assigned warehouse."
+        });
+      }
+    }
+
     if (stock.quantity.value < transferQuantity) {
       return res.status(400).json({ message: "Insufficient stock to transfer" });
     }
@@ -670,15 +740,15 @@ export const transferStockToWarehouse = async (req, res) => {
       createdBy: req.user._id,
       lastStockIn: new Date()
     });
-    
+
     // Update original stock
     stock.quantity.value -= transferQuantity;
     stock.totalValue = stock.quantity.value * stock.unitPrice;
     stock.updatedBy = req.user._id;
-    
+
     await Promise.all([newStock.save(), stock.save()]);
 
-    res.json({ 
+    res.json({
       message: `Transferred ${transferQuantity} units to warehouse ${targetWarehouse.name}`,
       originalStock: stock,
       newStock: newStock
@@ -691,14 +761,32 @@ export const transferStockToWarehouse = async (req, res) => {
 // Get stock alerts
 export const getStockAlerts = async (req, res) => {
   try {
-    const alerts = await Stock.find({
+    const filter = {
       $or: [
         { lowStockAlert: true },
         { expiryAlert: true },
         { status: 'Low Stock' },
         { status: 'Out of Stock' }
       ]
-    }).populate('warehouse', 'name location');
+    };
+
+    // RBAC: Warehouse Manager check
+    if (req.user?.role === 'Warehouse Manager') {
+      if (req.user.assignedWarehouse) {
+        filter.warehouse = req.user.assignedWarehouse;
+      } else {
+        const Warehouse = (await import('../model/wareHouse.js')).default;
+        const managedWarehouses = await Warehouse.find({ manager: req.user._id }).select('_id');
+        const warehouseIds = managedWarehouses.map(w => w._id);
+        if (warehouseIds.length > 0) {
+          filter.warehouse = { $in: warehouseIds };
+        } else {
+          return res.json([]);
+        }
+      }
+    }
+
+    const alerts = await Stock.find(filter).populate('warehouse', 'name location');
 
     res.json(alerts);
   } catch (err) {
