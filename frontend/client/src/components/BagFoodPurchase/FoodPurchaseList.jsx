@@ -40,19 +40,19 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
   const filteredPurchases = purchases.filter(purchase => {
     const supplierName = typeof purchase.supplier === 'object' ? purchase.supplier.name : purchase.supplier;
     const searchStr = searchTerm.toLowerCase();
-    
+
     const matchesSearch = purchase.purchaseNumber?.toLowerCase().includes(searchStr) ||
-                         supplierName?.toLowerCase().includes(searchStr) ||
-                         purchase.productType?.toLowerCase().includes(searchStr);
-    
+      supplierName?.toLowerCase().includes(searchStr) ||
+      purchase.productType?.toLowerCase().includes(searchStr);
+
     const matchesStatus = statusFilter === 'all' || purchase.status === statusFilter;
-    
+
     // Fix supplier filter comparison
     const purchaseSupplierId = typeof purchase.supplier === 'object' ? purchase.supplier._id : purchase.supplier;
     const matchesSupplier = supplierFilter === 'all' || purchaseSupplierId === supplierFilter;
-    
+
     const matchesCategory = categoryFilter === 'all' || purchase.productType === categoryFilter;
-    
+
     let matchesDate = true;
     if (dateFilter === 'today') {
       const today = new Date().toDateString();
@@ -133,11 +133,12 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Suppliers</option>
-          {uniqueSuppliers.map(supplier => {
-            const supplierName = typeof supplier === 'object' ? supplier.name : supplier;
+          {Array.from(new Map(uniqueSuppliers.map(s => [typeof s === 'object' ? s._id : s, s])).values()).map(supplier => {
+            const supplierId = typeof supplier === 'object' ? supplier._id : supplier;
+            const supplierName = typeof supplier === 'object' ? supplier.name : 'Unknown Supplier';
             return (
-              <option key={typeof supplier === 'object' ? supplier._id : supplier} value={typeof supplier === 'object' ? supplier._id : supplier}>
-                {supplierName || 'Unknown Supplier'}
+              <option key={supplierId} value={supplierId}>
+                {supplierName}
               </option>
             );
           })}
@@ -209,44 +210,57 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
                     )}
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900">
                     {typeof purchase.supplier === 'object' ? purchase.supplier.name : purchase.supplier || 'Unknown Supplier'}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {purchase.productType || 'N/A'}
-                  </div>
                 </td>
-                
+
                 <td className="px-6 py-4">
                   <div className="text-sm">
-                    <div className="text-xs">
-                      <span className="font-medium">Type:</span> {purchase.productType || 'N/A'}
-                    </div>
-                    <div className="text-xs">
-                      <span className="font-medium">Quantity:</span> {purchase.quantity || 0} {purchase.unit || 'kg'}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Total: {purchase.quantity || 0} {purchase.unit || 'kg'}
-                    </div>
+                    {purchase.foodItems && purchase.foodItems.length > 0 ? (
+                      <div className="space-y-1">
+                        {purchase.foodItems.map((item, idx) => (
+                          <div key={idx} className="border-b border-gray-100 last:border-0 pb-1 last:pb-0">
+                            <div className="text-xs">
+                              <span className="font-medium">{item.name}</span>
+                              {item.category && <span className="text-gray-500"> ({item.category})</span>}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {item.quantity} {item.unit} @ Rs. {item.unitPrice?.toLocaleString()}/unit
+                            </div>
+                            {item.quality && (
+                              <div className="text-xs text-gray-500">
+                                Quality: {item.quality}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <div className="text-xs font-medium text-gray-700 mt-1 pt-1 border-t border-gray-200">
+                          Total: {purchase.totalQuantity || 0} units
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-gray-400">No items</div>
+                    )}
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4 min-w-[180px]">
                   <div className="text-sm">
                     <div className="text-gray-900 font-medium break-words">
-                      Rs. {(purchase.totalPrice || 0).toLocaleString()}
+                      Rs. {(purchase.totalAmount || 0).toLocaleString()}
                     </div>
-                    <div className="text-gray-500 break-words">
-                      Unit Price: Rs. {(purchase.unitPrice || 0).toLocaleString()}
+                    <div className="text-xs text-gray-500 break-words">
+                      Paid: Rs. {(purchase.paidAmount || 0).toLocaleString()}
                     </div>
-                    <div className="text-gray-500">
-                      Status: {purchase.paymentStatus || 'Unknown'}
+                    <div className="text-xs text-gray-500">
+                      Due: Rs. {(purchase.dueAmount || 0).toLocaleString()}
                     </div>
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4">
                   <div className="space-y-2">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(purchase.status)}`}>
@@ -264,7 +278,7 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
                     </div>
                   </div>
                 </td>
-                
+
                 <td className="px-6 py-4">
                   <div className="flex space-x-2">
                     <button
@@ -311,12 +325,12 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
           <div className="flex space-x-4 text-sm">
             <span className="text-gray-600">
               Total Value: <span className="font-semibold text-gray-900">
-                Rs. {filteredPurchases.reduce((sum, p) => sum + (p.totalPrice || 0), 0).toLocaleString()}
+                Rs. {filteredPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0).toLocaleString()}
               </span>
             </span>
             <span className="text-gray-600">
-              Total Items: <span className="font-semibold text-gray-900">
-                {filteredPurchases.reduce((sum, p) => sum + (p.quantity || 0), 0)}
+              Total Quantity: <span className="font-semibold text-gray-900">
+                {filteredPurchases.reduce((sum, p) => sum + (p.totalQuantity || 0), 0)}
               </span>
             </span>
           </div>
@@ -324,4 +338,4 @@ export default function FoodPurchaseList({ purchases, loading, error, onEdit, on
       </div>
     </div>
   );
-} 
+}

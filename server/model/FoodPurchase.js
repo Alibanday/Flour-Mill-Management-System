@@ -106,7 +106,6 @@ const foodPurchaseSchema = new mongoose.Schema(
     dueAmount: {
       type: Number,
       default: 0,
-      min: 0,
     },
     deliveryDate: {
       type: Date,
@@ -179,16 +178,16 @@ foodPurchaseSchema.pre("save", async function (next) {
 foodPurchaseSchema.pre("save", function (next) {
   // Calculate total quantity
   this.totalQuantity = this.foodItems.reduce((total, item) => total + item.quantity, 0);
-  
+
   // Calculate subtotal
   this.subtotal = this.foodItems.reduce((total, item) => total + item.totalPrice, 0);
-  
+
   // Calculate total amount
   this.totalAmount = this.subtotal + this.tax - this.discount;
-  
+
   // Calculate due amount
   this.dueAmount = this.totalAmount - this.paidAmount;
-  
+
   next();
 });
 

@@ -314,61 +314,44 @@ router.post("/", [
       await newPurchase.save();
       console.log('✅ Food purchase saved to database:', newPurchase._id);
 
-      // Add food stock to selected warehouse
+      // Add food stock to selected warehouse - SIMPLIFIED FLOW (No Product Catalog Required)
       try {
-        // Import models
-        const Product = (await import("../model/Product.js")).default;
+        // Import models - No Product catalog needed
         const Inventory = (await import("../model/inventory.js")).default;
         const Stock = (await import("../model/stock.js")).default;
 
         // Process each food item in the purchase
         for (const foodItem of foodItems) {
-          let product = await Product.findOne({
-            name: { $regex: new RegExp(`^${foodItem.name}$`, 'i') },
-            category: foodItem.category || 'Raw Materials',
-            subcategory: productType
-          });
+          console.log(`📦 Processing ${foodItem.name}: ${foodItem.quantity} ${foodItem.unit}`);
 
-          if (!product) {
-            product = new Product({
-              name: foodItem.name,
-              category: 'Raw Materials', // Always use valid enum value
-              subcategory: productType,
-              description: `${foodItem.name} - ${productType}`,
-              unit: foodItem.unit || 'kg',
-              price: 0,
-              purchasePrice: foodItem.unitPrice || 0,
-              minimumStock: 10,
-              status: 'Active'
-            });
-            await product.save();
-            console.log(`✅ Created product in catalog: ${foodItem.name}`);
-          }
-
+          // For wheat purchases, directly find or create inventory item by name
+          // No Product catalog required
           let inventoryItem = await Inventory.findOne({
-            product: product._id,
+            name: { $regex: new RegExp(`^${foodItem.name}$`, 'i') },
             warehouse: warehouseId
           });
 
           if (!inventoryItem) {
+            // Create new inventory item
             inventoryItem = new Inventory({
-              product: product._id,
+              name: foodItem.name,
               warehouse: warehouseId,
               currentStock: 0,
-              minimumStock: product.minimumStock || 10,
+              minimumStock: 100,
               status: 'Active',
-              name: product.name,
-              code: product.code,
-              category: product.category,
-              subcategory: product.subcategory,
-              unit: product.unit,
-              price: product.purchasePrice
+              category: 'Raw Materials',
+              subcategory: 'Grains',
+              unit: foodItem.unit || 'kg',
+              price: foodItem.unitPrice || 0
             });
             await inventoryItem.save();
-            console.log(`✅ Created new inventory item for ${product.name}`);
+            console.log(`✅ Created new inventory item for ${foodItem.name} (ID: ${inventoryItem._id})`);
+          } else {
+            console.log(`✅ Found existing inventory: ${foodItem.name} (ID: ${inventoryItem._id}), stock = ${inventoryItem.currentStock || 0}`);
           }
 
           // Create Stock movement - the Stock model's pre-save middleware will update inventory automatically
+          console.log(`📝 Creating Stock movement for ${foodItem.quantity} ${foodItem.unit}...`);
           const stockIn = new Stock({
             inventoryItem: inventoryItem._id,
             movementType: 'in',
@@ -379,12 +362,28 @@ router.post("/", [
             createdBy: req.user._id || req.user.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
           });
 
+          console.log(`📝 Stock movement data:`, {
+            inventoryItem: stockIn.inventoryItem.toString(),
+            movementType: stockIn.movementType,
+            quantity: stockIn.quantity,
+            warehouse: stockIn.warehouse.toString()
+          });
+
           await stockIn.save();
+          console.log(`✅ Stock movement saved successfully (ID: ${stockIn._id})`);
           console.log(`✅ Added ${foodItem.quantity} ${foodItem.unit} of ${foodItem.name} to warehouse`);
+
+          // Verify the inventory was updated
+          const updatedInventory = await Inventory.findById(inventoryItem._id);
+          console.log(`✅ Inventory currentStock after stock movement: ${updatedInventory.currentStock}`);
         }
       } catch (stockError) {
-        console.error("⚠️ Error adding stock to warehouse:", stockError);
-        // Don't fail the request if stock addition fails, but log it
+        console.error("❌ ERROR adding stock to warehouse:");
+        console.error("  Error message:", stockError.message);
+        console.error("  Error name:", stockError.name);
+        console.error("  Error stack:", stockError.stack);
+        // Re-throw the error so the purchase creation fails if stock can't be added
+        throw new Error(`Failed to add stock to warehouse: ${stockError.message}`);
       }
 
       // Populate the response

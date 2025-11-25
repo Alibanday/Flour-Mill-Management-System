@@ -12,7 +12,8 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
     unitPrice: 0, // Price per kg
     totalPrice: 0,
     purchaseDate: new Date().toISOString().split('T')[0],
-    status: 'Pending', // Delivery status
+    status: 'Pending', // General status (Draft/Pending/Approved/Completed/Cancelled)
+    deliveryStatus: 'Pending', // Delivery status (Pending/In Transit/Delivered)
     paymentStatus: 'Pending',
     paidAmount: 0, // Partial payment amount
     remainingAmount: 0, // Remaining amount to pay
@@ -65,6 +66,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
         totalPrice: purchase.totalPrice || 0,
         purchaseDate: new Date(purchase.purchaseDate).toISOString().split('T')[0],
         status: purchase.status || 'Pending',
+        deliveryStatus: purchase.deliveryStatus || 'Pending',
         paymentStatus: purchase.paymentStatus || 'Pending',
         paidAmount: purchase.paidAmount || 0,
         remainingAmount: purchase.remainingAmount || 0,
@@ -90,7 +92,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
 
     // If purchase type changes, reset supplier to show correct suppliers
     if (name === 'purchaseType') {
-      newFormData.supplier = ''; // Reset supplier when switching types
+      newFormData.supplier = '';
     }
 
     // Calculate total price when quantity or unit price changes
@@ -98,16 +100,18 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
       const quantity = name === 'quantity' ? parseFloat(value) || 0 : formData.quantity;
       const unitPrice = name === 'unitPrice' ? parseFloat(value) || 0 : formData.unitPrice;
       newFormData.totalPrice = quantity * unitPrice;
+
       // Recalculate remaining amount
       const paidAmount = parseFloat(newFormData.paidAmount) || 0;
-      newFormData.remainingAmount = newFormData.totalPrice - paidAmount;
+      newFormData.remainingAmount = Math.max(0, newFormData.totalPrice - paidAmount);
     }
 
     // Calculate remaining amount when paid amount changes
     if (name === 'paidAmount') {
       const paidAmount = parseFloat(value) || 0;
       const totalPrice = parseFloat(newFormData.totalPrice) || 0;
-      newFormData.remainingAmount = totalPrice - paidAmount;
+
+      newFormData.remainingAmount = Math.max(0, totalPrice - paidAmount);
 
       // Auto-update payment status based on paid amount
       if (paidAmount === 0) {
@@ -120,11 +124,19 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
     }
 
     // Auto-update payment status when payment status changes manually
-    if (name === 'paymentStatus' && value === 'Completed') {
-      // If marked as completed, set paid amount to total price
+    if (name === 'paymentStatus') {
       const totalPrice = parseFloat(newFormData.totalPrice) || 0;
-      newFormData.paidAmount = totalPrice;
-      newFormData.remainingAmount = 0;
+
+      if (value === 'Completed') {
+        newFormData.paidAmount = totalPrice;
+        newFormData.remainingAmount = 0;
+      } else if (value === 'Pending') {
+        newFormData.paidAmount = 0;
+        newFormData.remainingAmount = totalPrice;
+      } else {
+        const currentPaid = parseFloat(newFormData.paidAmount) || 0;
+        newFormData.remainingAmount = Math.max(0, totalPrice - currentPaid);
+      }
     }
 
     setFormData(newFormData);
@@ -317,7 +329,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Purchase Date *
@@ -330,6 +342,25 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Status *
+              </label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Draft">Draft</option>
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
             </div>
 
             <div>
@@ -354,14 +385,15 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
                 Delivery Status *
               </label>
               <select
-                name="status"
-                value={formData.status}
+                name="deliveryStatus"
+                value={formData.deliveryStatus}
                 onChange={handleInputChange}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Pending">Pending</option>
-                <option value="Completed">Completed</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Delivered">Delivered</option>
               </select>
             </div>
           </div>
@@ -417,7 +449,7 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
           )}
 
           {/* Expected Delivery Date */}
-          {formData.status === 'Pending' && (
+          {formData.deliveryStatus === 'Pending' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Expected Delivery Date *
@@ -497,4 +529,4 @@ export default function FoodPurchaseForm({ purchase, suppliers, onClose, onSave 
       </div>
     </div>
   );
-} 
+}
