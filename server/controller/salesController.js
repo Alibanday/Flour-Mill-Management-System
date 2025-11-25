@@ -28,12 +28,20 @@ export const createSale = async (req, res) => {
       notes
     } = req.body;
 
+    // Normalize warehouse ID (might come as object or string)
+    let normalizedWarehouse = warehouse;
+    if (warehouse && typeof warehouse === 'object' && warehouse._id) {
+      normalizedWarehouse = warehouse._id.toString();
+    } else if (warehouse) {
+      normalizedWarehouse = warehouse.toString();
+    }
+    
     // Verify warehouse exists
-    const warehouseExists = await Warehouse.findById(warehouse);
+    const warehouseExists = await Warehouse.findById(normalizedWarehouse);
     if (!warehouseExists) {
       return res.status(404).json({
         success: false,
-        message: "Warehouse not found"
+        message: `Warehouse not found: ${normalizedWarehouse}`
       });
     }
 
@@ -56,39 +64,164 @@ export const createSale = async (req, res) => {
       }
 
       // Find inventory record for this product in this warehouse
-      let inventoryItem = await Inventory.findOne({
+      // IMPORTANT: Wheat purchases create inventory with name="Wheat", category="Raw Materials"
+      // and NO product field, so we need flexible lookup matching how purchases create inventory
+      
+      console.log(`🔍 Looking for inventory: product=${item.product}, warehouse=${normalizedWarehouse}, productName=${product.name}`);
+      let inventoryItem = null;
+      
+      // Strategy 1: Try to find by product catalog ID (for products that are linked)
+      let foundByProductId = await Inventory.findOne({
         product: item.product,
-        warehouse: warehouse
+        warehouse: normalizedWarehouse
       });
+      
+      if (foundByProductId) {
+        const foundStock = foundByProductId.currentStock !== undefined ? foundByProductId.currentStock : (foundByProductId.weight || 0);
+        console.log(`✅ Found inventory by product ID: ${foundByProductId.name}, stock: ${foundStock}`);
+        
+        // IMPORTANT: If this inventory has stock, use it. Otherwise, continue searching
+        // (Food purchases create inventory with stock but no product link - we want to find that!)
+        if (foundStock > 0) {
+          inventoryItem = foundByProductId;
+          console.log(`✅ Using inventory with stock: ${foundStock}`);
+        } else {
+          console.log(`⚠️ Inventory found by product ID has 0 stock (${foundStock}), searching for inventory created by food purchases...`);
+          // Continue searching - don't set inventoryItem yet
+        }
+      }
 
-      // If no inventory record exists, create one (backward compatibility)
+      // Strategy 2: For wheat/grain products, match how food purchases create inventory
+      // Food purchases create: name="Wheat", category="Raw Materials", subcategory="Grains"
+      // CRITICAL: We need to find inventory with actual stock, even if not linked to product catalog
       if (!inventoryItem) {
-        // Try legacy lookup by name
+        const productNameLower = (product.name || '').toLowerCase();
+        const productCategoryLower = (product.category || '').toLowerCase();
+        
+        // Check if this is a wheat/grain product
+        const isWheatOrGrain = productNameLower.includes('wheat') || 
+                               productNameLower.includes('grain') ||
+                               productCategoryLower.includes('raw materials') ||
+                               productCategoryLower.includes('wheat');
+        
+        if (isWheatOrGrain) {
+          console.log(`🔍 Searching for wheat inventory created by food purchases in warehouse ${normalizedWarehouse}`);
+          
+          // Match the exact pattern used by food purchases:
+          // Food purchases create inventory with: name="Wheat", category="Raw Materials", subcategory="Grains"
+          // IMPORTANT: Prioritize items with stock > 0
+          
+          // Query 1: Find by name containing "wheat" and category "Raw Materials" (preferred match)
+          let wheatInventory = await Inventory.findOne({
+            warehouse: normalizedWarehouse,
+            name: { $regex: /wheat/i },
+            category: { $regex: /raw materials/i }
+          });
+          
+          // Query 2: If not found, try just name containing wheat/grain in this warehouse
+          if (!wheatInventory) {
+            wheatInventory = await Inventory.findOne({
+              warehouse: normalizedWarehouse,
+              $or: [
+                { name: { $regex: /wheat/i } },
+                { name: { $regex: /grain/i } }
+              ]
+            });
+          }
+          
+          // Query 3: Try category and subcategory matching
+          if (!wheatInventory) {
+            wheatInventory = await Inventory.findOne({
+              warehouse: normalizedWarehouse,
+              category: { $regex: /raw materials/i },
+              subcategory: { $regex: /grain/i }
+            });
+          }
+          
+          // If we found wheat inventory, check its stock and use it
+          if (wheatInventory) {
+            const wheatStock = wheatInventory.currentStock !== undefined ? wheatInventory.currentStock : (wheatInventory.weight || 0);
+            console.log(`✅ Found wheat inventory: ${wheatInventory.name}, stock: ${wheatStock} kg`);
+            
+            // Use this inventory if it has stock OR if we haven't found any inventory yet
+            if (wheatStock > 0 || !foundByProductId) {
+              inventoryItem = wheatInventory;
+              console.log(`✅ Using wheat inventory with ${wheatStock} kg stock`);
+            } else {
+              console.log(`⚠️ Wheat inventory found but has 0 stock, will use product-linked inventory instead`);
+              inventoryItem = foundByProductId; // Fall back to product-linked inventory
+            }
+          } else {
+            console.log(`❌ No wheat inventory found in warehouse ${normalizedWarehouse}`);
+            // If we found inventory by product ID earlier, use that (even with 0 stock)
+            if (foundByProductId) {
+              inventoryItem = foundByProductId;
+            }
+          }
+        }
+      }
+
+      // Strategy 3: Try exact name match (case insensitive)
+      if (!inventoryItem) {
         inventoryItem = await Inventory.findOne({
           name: { $regex: new RegExp(`^${product.name}$`, 'i') },
-          warehouse: warehouse
+          warehouse: normalizedWarehouse
         });
+      }
 
-        if (!inventoryItem) {
-          // Create new inventory record
-          inventoryItem = new Inventory({
-            product: product._id,
-            warehouse: warehouse,
-            currentStock: 0,
-            minimumStock: product.minimumStock || 0,
-            status: 'Active',
-            // Legacy fields
-            name: product.name,
-            code: product.code,
-            category: product.category,
-            subcategory: product.subcategory
-          });
-          await inventoryItem.save();
-        } else {
-          // Update legacy inventory to link to product
-          inventoryItem.product = product._id;
-          await inventoryItem.save();
+      // Strategy 4: Try flexible name matching
+      if (!inventoryItem) {
+        inventoryItem = await Inventory.findOne({
+          name: { $regex: new RegExp(product.name, 'i') },
+          warehouse: normalizedWarehouse
+        });
+      }
+
+      // Strategy 5: Try category matching
+      if (!inventoryItem && product.category) {
+        inventoryItem = await Inventory.findOne({
+          category: { $regex: new RegExp(product.category, 'i') },
+          warehouse: normalizedWarehouse
+        });
+      }
+
+      // If still not found, create new inventory record (shouldn't happen for wheat)
+      if (!inventoryItem) {
+        console.warn(`⚠️ No inventory found for product ${product.name} in warehouse ${normalizedWarehouse}, creating new inventory with 0 stock`);
+        inventoryItem = new Inventory({
+          product: product._id,
+          warehouse: normalizedWarehouse,
+          currentStock: 0,
+          minimumStock: product.minimumStock || 0,
+          status: 'Active',
+          // Legacy fields
+          name: product.name,
+          code: product.code,
+          category: product.category,
+          subcategory: product.subcategory
+        });
+        await inventoryItem.save();
+      } else {
+        // Link inventory to product catalog if not already linked
+        if (!inventoryItem.product && product._id) {
+          try {
+            console.log(`🔗 Linking inventory ${inventoryItem.name} to product catalog ${product.name}`);
+            inventoryItem.product = product._id;
+            await inventoryItem.save();
+            console.log(`✅ Successfully linked inventory to product catalog`);
+          } catch (linkError) {
+            console.error(`⚠️ Error linking inventory to product (continuing anyway):`, linkError.message);
+            // Continue even if linking fails - the inventory item is still valid
+          }
         }
+        
+        const finalStock = inventoryItem.currentStock !== undefined ? inventoryItem.currentStock : (inventoryItem.weight || 0);
+        console.log(`✅ Final inventory selected: ${inventoryItem.name}, stock: ${finalStock} kg`);
+      }
+      
+      // Ensure inventoryItem is valid before proceeding
+      if (!inventoryItem) {
+        throw new Error(`Failed to find or create inventory for product ${product.name} in warehouse ${normalizedWarehouse}`);
       }
 
       // Check stock availability
@@ -222,10 +355,33 @@ export const createSale = async (req, res) => {
       });
     }
 
-    // Ensure customer object has required name field
+    // Ensure customer object has required name field and format contact data properly
+    // Fix address: Sale model expects address as String, but frontend might send it as Object
+    let formattedAddress = '';
+    if (customer?.contact?.address) {
+      if (typeof customer.contact.address === 'object') {
+        // Convert address object to string
+        const addr = customer.contact.address;
+        const addressParts = [];
+        if (addr.street) addressParts.push(addr.street);
+        if (addr.city) addressParts.push(addr.city);
+        if (addr.state) addressParts.push(addr.state);
+        if (addr.zipCode) addressParts.push(addr.zipCode);
+        if (addr.country) addressParts.push(addr.country);
+        formattedAddress = addressParts.join(', ') || '';
+      } else {
+        formattedAddress = customer.contact.address.toString();
+      }
+    }
+    
     const customerData = {
       ...customer,
-      name: customer.name || customer.customerName || 'Unknown Customer'
+      name: customer.name || customer.customerName || 'Unknown Customer',
+      contact: {
+        phone: customer.contact?.phone || '',
+        email: customer.contact?.email || '',
+        address: formattedAddress // Ensure address is a string
+      }
     };
 
     // Create sale data with proper structure
@@ -246,7 +402,7 @@ export const createSale = async (req, res) => {
       paidAmount: paidAmountValue,
       remainingAmount: remainingAmountValue,
       dueAmount: remainingAmountValue,
-      warehouse: warehouse,
+      warehouse: normalizedWarehouse,
       notes: notes || '',
       createdBy: req.user._id || req.user.id,
       status: paymentMethod === 'Credit' || remainingAmountValue > 0 ? 'Pending' : 'Completed'
@@ -353,7 +509,7 @@ export const createSale = async (req, res) => {
         quantity: item.quantity,
         reason: `Sale - Invoice ${sale.invoiceNumber}`,
         referenceNumber: sale.invoiceNumber,
-        warehouse: warehouse,
+        warehouse: normalizedWarehouse,
         createdBy: req.user._id || req.user.id
       });
 
@@ -513,7 +669,7 @@ export const createSale = async (req, res) => {
         validFrom: new Date(),
         validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Valid for 7 days
         issuedBy: req.user._id || req.user.id,
-        warehouse: warehouse,
+        warehouse: normalizedWarehouse,
         status: 'Active',
         relatedSale: sale._id,
         notes: `Auto-generated for Sale Invoice ${sale.invoiceNumber || sale._id}`
@@ -659,20 +815,29 @@ export const createSale = async (req, res) => {
     res.status(201).json(responseData);
 
   } catch (error) {
-    console.error("Create sale error:", error);
-    console.error("Error stack:", error.stack);
-    console.error("Error details:", {
+    console.error("❌ Create sale error:", error);
+    console.error("❌ Error stack:", error.stack);
+    console.error("❌ Error details:", {
       message: error.message,
       name: error.name,
-      customer: customer,
-      warehouse: warehouse,
-      items: items
+      code: error.code,
+      customer: customer?.customerId || customer?.name || 'N/A',
+      warehouse: warehouse || 'N/A',
+      items: items?.length || 0
     });
+    
+    // Provide more detailed error message
+    let errorMessage = "Server error while creating sale";
+    if (error.message) {
+      errorMessage = error.message;
+    }
+    
     res.status(500).json({
       success: false,
-      message: "Server error while creating sale",
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: errorMessage,
+      error: error.message || "Unknown error occurred",
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      errorType: error.name || 'Error'
     });
   }
 };
