@@ -121,12 +121,23 @@ export default function BagSalesPage() {
         if (!window.confirm('Are you sure you want to delete this sale?')) return;
 
         try {
-            const response = await fetch(`http://localhost:7000/api/sales/${id}`, { method: 'DELETE' });
+            const token = localStorage.getItem('token');
+            const response = await fetch(`http://localhost:7000/api/sales/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
             if (response.ok) {
                 await fetchData();
+                alert('Sale deleted successfully!');
+            } else {
+                const errorData = await response.json();
+                alert(`Error: ${errorData.message || 'Failed to delete sale'}`);
             }
         } catch (error) {
             console.error('Error deleting sale:', error);
+            alert('Error deleting sale. Please try again.');
         }
     };
 

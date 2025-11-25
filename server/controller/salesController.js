@@ -292,31 +292,7 @@ export const createSale = async (req, res) => {
         console.error('Financial error details:', financialError.message);
       }
 
-      // AUTOMATIC GATEPASS GENERATION
-      try {
-        const gatePass = new GatePass({
-          gatePassNumber: `GP-${sale.invoiceNumber}`,
-          type: 'Outward',
-          status: 'Pending',
-          warehouse: warehouse,
-          referenceType: 'Sale',
-          referenceId: sale._id,
-          issuedTo: customerData.name,
-          items: processedItems.map(item => ({
-            product: item.product, // Inventory ID
-            productName: item.productName,
-            quantity: item.quantity,
-            unit: item.unit
-          })),
-          createdBy: req.user._id || req.user.id,
-          notes: `Auto-generated for Sale Invoice ${sale.invoiceNumber}`
-        });
-
-        await gatePass.save();
-        console.log(`✅ Auto-generated Gatepass ${gatePass.gatePassNumber} for sale ${sale.invoiceNumber}`);
-      } catch (gpError) {
-        console.error('❌ Error creating auto-gatepass:', gpError);
-      }
+      // Note: Auto-gatepass generation is handled later in the code (after stock deduction)
     } catch (saveError) {
 
       // Handle validation errors
@@ -457,6 +433,7 @@ export const createSale = async (req, res) => {
 
     // AUTO-GENERATE GATE PASS
     let gatePass = null;
+    let notificationSent = false; // Declare here so it's accessible later
     try {
       // Get warehouse details
       const warehouseDoc = await Warehouse.findById(warehouse).populate('manager', 'firstName lastName email');
@@ -546,7 +523,6 @@ export const createSale = async (req, res) => {
       console.log(`✅ Gate pass ${gatePass.gatePassNumber} created for sale ${sale.invoiceNumber}`);
 
       // NOTIFY WAREHOUSE MANAGER - Send gatepass notification
-      let notificationSent = false;
       if (warehouseDoc?.manager) {
         try {
           const managerId = warehouseDoc.manager._id || warehouseDoc.manager;

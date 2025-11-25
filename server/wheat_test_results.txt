@@ -1,0 +1,89 @@
+﻿============================================================
+WHEAT PURCHASE FLOW VERIFICATION TEST
+============================================================
+
+[1/6] Connecting to MongoDB...
+Γ£à Connected to database
+
+[2/6] Setting up test environment...
+node : (node:19560) 
+[MONGOOSE] Warning: 
+Duplicate schema 
+index on {"code":1} 
+found. This is often 
+due to declaring an 
+index using both 
+"index: true" and 
+"schema.index()". 
+Please remove the 
+duplicate index 
+definition.
+At line:1 char:1
++ node verify_wheat_p
+urchase.js 2>&1 | 
+Out-File -FilePath 
+"wheat_test_r ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: ((node:1   
+ 9560) [M...dex d    
+efinition.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+(Use `node 
+--trace-warnings 
+...` to show where 
+the warning was 
+created)
+  Γ£à Using existing warehouse: Wheat Test Warehouse
+  Γ£à Using user ID: new ObjectId('69227d59e085280991cb46dc')
+  Γ£à Cleaned up existing wheat inventory
+
+  Γä╣∩╕Å  Wheat product EXISTS in Product Catalog (ID: new ObjectId('69232e9a8e9d05caf899a46d') )
+  Γä╣∩╕Å  This test verifies purchases work WITHOUT requiring Product Catalog
+
+[3/6] TEST 1: First wheat purchase (should create inventory)...
+  Γ£à Created new inventory item (ID: new ObjectId('692549c34bf21ee21559820a') )
+  Γ£à Created stock movement: + 100 kg
+  ≡ƒôè Expected stock: 100 kg
+  ≡ƒôè Actual stock:   100 kg
+  Γ£à TEST 1 PASSED: Inventory created and stock updated correctly
+
+[4/6] TEST 2: Second wheat purchase (should aggregate stock)...
+  Γ£à Created stock movement: + 75 kg
+  ≡ƒôè Expected stock: 175 kg ( 100 + 75 )
+  ≡ƒôè Actual stock:   175 kg
+  Γ£à TEST 2 PASSED: Stock aggregated correctly
+
+[5/6] TEST 3: Verify inventory works without Product reference...
+  ≡ƒôè Inventory.product field: null/undefined
+  ≡ƒôè Inventory.name field:    Wheat
+  ≡ƒôè Inventory.category:      Raw Materials
+  Γ£à TEST 3 PASSED: Inventory works without Product Catalog reference
+
+[6/6] TEST 4: Verify stock movement history...
+  ≡ƒôè Total stock movements: 2
+  ≡ƒôª Movement 1: in 100kg - Food Purchase - TEST-WP-1764051394985-1
+  ≡ƒôª Movement 2: in 75kg - Food Purchase - TEST-WP-1764051396226-2
+  Γ£à TEST 4 PASSED: Stock movement history recorded correctly
+
+============================================================
+VERIFICATION SUMMARY
+============================================================
+Γ£à All tests passed successfully!
+
+Key Findings:
+  ΓÇó Wheat purchases work WITHOUT Product Catalog
+  ΓÇó Inventory items created directly by name
+  ΓÇó Stock aggregates correctly across multiple purchases
+  ΓÇó Stock middleware updates inventory automatically
+  ΓÇó Audit trail maintained through Stock movements
+============================================================
+
+≡ƒæï Disconnected from database

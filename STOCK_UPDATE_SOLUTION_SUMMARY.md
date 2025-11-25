@@ -200,3 +200,5 @@ if (updatedInventory) {
 
 **Ready to test? Create a bag purchase and check the warehouse detail screen!** 🧪
 
+
+

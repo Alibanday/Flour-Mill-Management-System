@@ -1,0 +1,133 @@
+﻿≡ƒöî Connecting to MongoDB...
+Γ£à Connected.
+
+node : (node:8948) 
+[MONGOOSE] Warning: 
+Duplicate schema 
+index on {"code":1} 
+found. This is often 
+due to declaring an 
+index using both 
+"index: true" and 
+"schema.index()". 
+Please remove the 
+duplicate index 
+definition.
+At line:1 char:1
++ node 
+diagnose_wheat.js 
+2>&1 | Out-File 
+-Encoding UTF8 
+diagnose_output ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: ((node:8   
+ 948) [MO...dex d    
+efinition.:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+(Use `node 
+--trace-warnings 
+...` to show where 
+the warning was 
+created)
+≡ƒôª Checking Product Catalog for Wheat...
+Γ£à Found 5 wheat product(s):
+   - Wheat (69232e9a8e9d05caf899a46d) - Category: Raw Materials, Status: Active
+   - Wheat (69233c77cf1d5a4eaed35815) - Category: Raw Materials, Status: Active
+   - Wheat (6924a2260c08d1c666c3ab85) - Category: Raw Materials, Status: Active
+   - Wheat (6924a2970c08d1c666c3ac81) - Category: Raw Materials, Status: Active
+   - Test Wheat (69252faa56d5ade5c11e9bfe) - Category: Raw Materials, Status: Active
+
+≡ƒôï Checking recent Food Purchases...
+Γ¥î Error: 
+MissingSchemaError: 
+Schema hasn't been 
+registered for model 
+"Warehouse".
+Use 
+mongoose.model(name, 
+schema)
+    at NativeConnecti
+on.model (C:\Users\ma
+lir\OneDrive\Desktop\
+FloorMillManagementSy
+stem\server\node_modu
+les\mongoose\lib\conn
+ection.js:1491:13)
+    at 
+_getModelFromConn (C:
+\Users\malir\OneDrive
+\Desktop\FloorMillMan
+agementSystem\server\
+node_modules\mongoose
+\lib\helpers\populate
+\getModelsMapForPopul
+ate.js:579:15)
+    at 
+addModelNamesToMap (C
+:\Users\malir\OneDriv
+e\Desktop\FloorMillMa
+nagementSystem\server
+\node_modules\mongoos
+e\lib\helpers\populat
+e\getModelsMapForPopu
+late.js:507:17)
+    at getModelsMapFo
+rPopulate (C:\Users\m
+alir\OneDrive\Desktop
+\FloorMillManagementS
+ystem\server\node_mod
+ules\mongoose\lib\hel
+pers\populate\getMode
+lsMapForPopulate.js:2
+08:7)
+    at _populatePath 
+(C:\Users\malir\OneDr
+ive\Desktop\FloorMill
+ManagementSystem\serv
+er\node_modules\mongo
+ose\lib\model.js:4446
+:21)
+    at 
+Function.populate (C:
+\Users\malir\OneDrive
+\Desktop\FloorMillMan
+agementSystem\server\
+node_modules\mongoose
+\lib\model.js:4413:21
+)
+    at 
+model.Query._find (C:
+\Users\malir\OneDrive
+\Desktop\FloorMillMan
+agementSystem\server\
+node_modules\mongoose
+\lib\query.js:2407:20
+)
+    at process.proces
+sTicksAndRejections (
+node:internal/process
+/task_queues:105:5)
+    at async 
+model.Query.exec (C:\
+Users\malir\OneDrive\
+Desktop\FloorMillMana
+gementSystem\server\n
+ode_modules\mongoose\
+lib\query.js:4456:63)
+    at async checkWhe
+atPurchaseFlow (file:
+///C:/Users/malir/One
+Drive/Desktop/FloorMi
+llManagementSystem/se
+rver/diagnose_wheat.j
+s:57:33)
+
+≡ƒæï Disconnected.

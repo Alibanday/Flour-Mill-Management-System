@@ -95,54 +95,72 @@ export const createBagPurchase = async (req, res) => {
             try {
                 const weight = parseFloat(bagData.unit?.match(/(\d+)kg/)?.[1] || 0);
 
-                // Find product
+                // Find product (optional for bags, but good for linking)
                 let product = await Product.findOne({ name: { $regex: new RegExp(`^${productName}$`, "i") } });
                 if (!product) {
                     product = await Product.findOne({ name: { $regex: new RegExp(productName, "i") } });
                 }
-                if (!product) {
-                    const msg = `Product not found in catalog: ${productName}`;
-                    console.error(msg);
-                    stockErrors.push(msg);
-                    continue;
+
+                if (product) {
+                    console.log(`✅ Found matching product in catalog: ${product.name}`);
+                } else {
+                    console.log(`ℹ️ Product "${productName}" not found in catalog. Will create standalone inventory.`);
                 }
 
-                // Validate weight variant
-                if (weight && Array.isArray(product.weightVariants) && product.weightVariants.length) {
+                // Validate weight variant if product exists
+                if (product && weight && Array.isArray(product.weightVariants) && product.weightVariants.length) {
                     const variant = product.weightVariants.find(v => v.weight === weight && v.isActive !== false);
                     if (!variant) {
-                        const msg = `Weight category ${weight}kg not found for product ${product.name}`;
-                        console.error(msg);
-                        stockErrors.push(msg);
-                        continue;
+                        console.warn(`⚠️ Weight category ${weight}kg not found for product ${product.name}. Available variants: ${product.weightVariants.map(v => v.weight + 'kg').join(', ')}`);
+                    } else {
+                        console.log(`✅ Found matching weight variant: ${weight}kg for ${product.name}`);
                     }
                 }
 
                 // Find or create Inventory
-                let inventoryItem = await Inventory.findOne({ product: product._id, warehouse: warehouseId });
+                // Try to find by product ID first if available, otherwise by name
+                let inventoryQuery = { warehouse: warehouseId };
+                if (product) {
+                    inventoryQuery.product = product._id;
+                } else {
+                    inventoryQuery.name = productName;
+                    inventoryQuery.product = null; // Explicitly look for items without product link
+                }
+
+                let inventoryItem = await Inventory.findOne(inventoryQuery);
+
+                if (!inventoryItem) {
+                    // Double check by name if we looked by product ID and failed, or vice versa
+                    // This helps prevent duplicates if data is inconsistent
+                    if (product) {
+                        const existingByName = await Inventory.findOne({ warehouse: warehouseId, name: productName });
+                        if (existingByName) inventoryItem = existingByName;
+                    }
+                }
+
                 if (!inventoryItem) {
                     inventoryItem = new Inventory({
-                        product: product._id,
+                        product: product ? product._id : undefined,
                         warehouse: warehouseId,
                         currentStock: 0,
-                        minimumStock: product.minimumStock || 10,
+                        minimumStock: product?.minimumStock || 10,
                         status: "Active",
-                        name: product.name,
-                        code: product.code,
-                        category: product.category,
-                        subcategory: product.subcategory,
-                        weight: weight || product.weight || 0,
-                        price: product.price || 0
+                        name: product ? product.name : productName,
+                        code: product?.code || `BAG-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                        category: "Packaging", // Force category for bags
+                        subcategory: product?.subcategory || "Bags",
+                        weight: weight || product?.weight || 0,
+                        price: product?.price || parseFloat(bagData.unitPrice) || 0
                     });
                     await inventoryItem.save();
-                    console.log(`✅ Created inventory for ${product.name}`);
+                    console.log(`✅ Created new inventory for ${inventoryItem.name}`);
                 }
 
                 // For bags, track by quantity (count), not by weight capacity
-                // The 'weight' here refers to bag capacity (e.g., 50kg bag), not the weight of the bags themselves
-                const stockQuantity = bagData.quantity; // Track bags by count
+                const stockQuantity = parseFloat(bagData.quantity) || 0;
 
                 // Create Stock movement
+                console.log(`📝 Creating Stock movement for ${stockQuantity} ${bagData.unit}...`);
                 const stockIn = new Stock({
                     inventoryItem: inventoryItem._id,
                     movementType: "in",
@@ -152,11 +170,30 @@ export const createBagPurchase = async (req, res) => {
                     warehouse: warehouseId,
                     createdBy: req.user?._id || req.user?.id || new mongoose.Types.ObjectId("507f1f77bcf86cd799439011")
                 });
-                await stockIn.save();
 
-                console.log(`✅ Added ${bagData.quantity} ${bagData.unit} of ${product.name} to warehouse`);
+                console.log(`📝 Stock movement data:`, {
+                    inventoryItem: stockIn.inventoryItem.toString(),
+                    movementType: stockIn.movementType,
+                    quantity: stockIn.quantity,
+                    warehouse: stockIn.warehouse.toString(),
+                    reason: stockIn.reason
+                });
+
+                await stockIn.save();
+                console.log(`✅ Stock movement saved successfully (ID: ${stockIn._id})`);
+
+                // Update inventory current stock explicitly as failsafe
+                inventoryItem.currentStock = (inventoryItem.currentStock || 0) + stockQuantity;
+                await inventoryItem.save();
+
+                // Verify the inventory was updated
+                const updatedInventory = await Inventory.findById(inventoryItem._id);
+                console.log(`✅ Inventory currentStock after stock movement: ${updatedInventory.currentStock}`);
+                console.log(`✅ Added ${stockQuantity} ${bagData.unit} of ${inventoryItem.name} to warehouse`);
             } catch (innerErr) {
                 console.error(`❌ Error processing ${productName}:`, innerErr);
+                console.error(`❌ Error stack:`, innerErr.stack);
+                console.error(`❌ Error details:`, JSON.stringify(innerErr, null, 2));
                 stockErrors.push(`Error processing ${productName}: ${innerErr.message}`);
             }
         }

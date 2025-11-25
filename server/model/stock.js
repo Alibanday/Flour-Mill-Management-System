@@ -54,6 +54,7 @@ const stockSchema = new mongoose.Schema({
 stockSchema.index({ inventoryItem: 1, warehouse: 1 });
 stockSchema.index({ movementType: 1 });
 stockSchema.index({ createdAt: -1 });
+
 // Pre-save middleware to update inventory stock and validate movements
 stockSchema.pre('save', async function (next) {
   try {
@@ -89,15 +90,15 @@ stockSchema.pre('save', async function (next) {
       }
     }
 
-    // For 'in' movements, check warehouse capacity and reasonable limits
+    // For 'in' movements, check warehouse capacity (only warn, don't block)
     if (this.movementType === 'in') {
-      // Check warehouse capacity
-      if (warehouse.capacity && warehouse.capacity.totalCapacity) {
+      if (warehouse.capacity && warehouse.capacity.totalCapacity && warehouse.capacity.totalCapacity > 0) {
         const currentUsage = warehouse.capacity.currentUsage || 0;
         const newUsage = currentUsage + this.quantity;
 
         if (newUsage > warehouse.capacity.totalCapacity) {
-          throw new Error(`Warehouse capacity exceeded. Available capacity: ${warehouse.capacity.totalCapacity - currentUsage}, Requested: ${this.quantity}`);
+          console.warn(`⚠️ Warehouse capacity would be exceeded. Available: ${warehouse.capacity.totalCapacity - currentUsage}, Requested: ${this.quantity}. Allowing anyway.`);
+          // Don't throw error - just log warning to allow stock to be added
         }
       }
     }
@@ -127,7 +128,7 @@ stockSchema.pre('save', async function (next) {
 
       await inventory.save();
 
-      // Update warehouse capacity usage
+      // Update warehouse capacity usage (but don't enforce limits)
       if (warehouse.capacity && warehouse.capacity.totalCapacity) {
         if (this.movementType === 'in') {
           warehouse.capacity.currentUsage = (warehouse.capacity.currentUsage || 0) + this.quantity;
