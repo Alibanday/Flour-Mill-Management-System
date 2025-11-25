@@ -19,10 +19,18 @@ export default function FinancialManagementPage() {
 
   const fetchAccounts = async () => {
     try {
-      const response = await fetch('http://localhost:7000/api/financial/accounts');
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:7000/api/financial/accounts', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setAccounts(data.accounts || []);
+      } else if (response.status === 401) {
+        console.error('Unauthorized: Please log in again');
+        // Optionally redirect to login
       }
     } catch (error) {
       console.error('Error fetching accounts:', error);

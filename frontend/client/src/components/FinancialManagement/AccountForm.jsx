@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaCalculator, FaBuilding } from 'react-icons/fa';
+import { FaSave, FaTimes, FaCalculator } from 'react-icons/fa';
+
+const ACCOUNT_TYPE_MAPPING = {
+  'Cash': { type: 'Asset', category: 'Cash' },
+  'Bank': { type: 'Asset', category: 'Bank' },
+  'Receivable': { type: 'Asset', category: 'Accounts Receivable' },
+  'Payable': { type: 'Liability', category: 'Accounts Payable' },
+  'Expenses': { type: 'Expense', category: 'Other' },
+  'Others': { type: 'Asset', category: 'Other' }
+};
+
+const REVERSE_MAPPING = (type, category) => {
+  if (category === 'Cash') return 'Cash';
+  if (category === 'Bank') return 'Bank';
+  if (category === 'Accounts Receivable') return 'Receivable';
+  if (category === 'Accounts Payable') return 'Payable';
+  if (type === 'Expense') return 'Expenses';
+  return 'Others';
+};
 
 export default function AccountForm({ editData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     accountName: '',
-    accountType: 'Asset',
-    category: 'Cash',
+    simplifiedType: 'Cash',
     description: '',
-    openingBalance: 0,
-    currency: 'PKR'
+    openingBalance: 0
   });
 
   const [errors, setErrors] = useState({});
@@ -18,11 +34,9 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
     if (editData) {
       setFormData({
         accountName: editData.accountName || '',
-        accountType: editData.accountType || 'Asset',
-        category: editData.category || 'Cash',
+        simplifiedType: REVERSE_MAPPING(editData.accountType, editData.category),
         description: editData.description || '',
-        openingBalance: editData.openingBalance || 0,
-        currency: editData.currency || 'PKR'
+        openingBalance: editData.openingBalance || 0
       });
     }
   }, [editData]);
@@ -34,7 +48,6 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
       [name]: value
     }));
 
-    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -65,6 +78,18 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
         : 'http://localhost:7000/api/financial/accounts';
       
       const method = editData ? 'PUT' : 'POST';
+
+      // Map simplified type to backend schema
+      const { type, category } = ACCOUNT_TYPE_MAPPING[formData.simplifiedType];
+      
+      const payload = {
+        accountName: formData.accountName,
+        accountType: type,
+        category: category,
+        description: formData.description,
+        openingBalance: Number(formData.openingBalance),
+        currency: 'PKR' // Fixed value as requested
+      };
       
       const response = await fetch(url, {
         method,
@@ -72,7 +97,7 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -86,17 +111,6 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const getCategoryOptions = (accountType) => {
-    const categories = {
-      'Asset': ['Cash', 'Bank', 'Accounts Receivable', 'Inventory', 'Equipment', 'Other'],
-      'Liability': ['Accounts Payable', 'Loans', 'Taxes Payable', 'Other'],
-      'Equity': ['Owner Capital', 'Retained Earnings', 'Other'],
-      'Revenue': ['Sales Revenue', 'Interest Income', 'Other Income', 'Other'],
-      'Expense': ['Salary Expense', 'Purchase Expense', 'Rent Expense', 'Utility Expense', 'Other']
-    };
-    return categories[accountType] || [];
   };
 
   return (
@@ -116,7 +130,7 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Account Information */}
+          {/* Account Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Account Name *
@@ -129,88 +143,56 @@ export default function AccountForm({ editData, onSubmit, onCancel }) {
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                 errors.accountName ? 'border-red-500' : 'border-gray-300'
               }`}
-              placeholder="Cash Account"
+              placeholder="e.g. Main Cash Register"
             />
             {errors.accountName && (
               <p className="mt-1 text-sm text-red-600">{errors.accountName}</p>
             )}
           </div>
 
-          {/* Account Type and Category */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Type *
-              </label>
-              <select
-                name="accountType"
-                value={formData.accountType}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Asset">Asset</option>
-                <option value="Liability">Liability</option>
-                <option value="Equity">Equity</option>
-                <option value="Revenue">Revenue</option>
-                <option value="Expense">Expense</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category *
-              </label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {getCategoryOptions(formData.accountType).map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Account Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Account Type *
+            </label>
+            <select
+              name="simplifiedType"
+              value={formData.simplifiedType}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="Cash">Cash</option>
+              <option value="Bank">Bank</option>
+              <option value="Receivable">Receivable</option>
+              <option value="Payable">Payable</option>
+              <option value="Expenses">Expenses</option>
+              <option value="Others">Others</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Select the type of account to create.
+            </p>
           </div>
 
-          {/* Balance and Currency */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Opening Balance *
-              </label>
-              <input
-                type="number"
-                name="openingBalance"
-                value={formData.openingBalance}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.openingBalance ? 'border-red-500' : 'border-gray-300'
-                }`}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-              {errors.openingBalance && (
-                <p className="mt-1 text-sm text-red-600">{errors.openingBalance}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
-              </label>
-              <select
-                name="currency"
-                value={formData.currency}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="PKR">PKR (Rupees)</option>
-              </select>
-            </div>
+          {/* Opening Balance */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Opening Balance (PKR) *
+            </label>
+            <input
+              type="number"
+              name="openingBalance"
+              value={formData.openingBalance}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.openingBalance ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+            />
+            {errors.openingBalance && (
+              <p className="mt-1 text-sm text-red-600">{errors.openingBalance}</p>
+            )}
           </div>
 
           {/* Description */}

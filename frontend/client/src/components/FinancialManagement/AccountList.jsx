@@ -26,11 +26,19 @@ export default function AccountList({ onEdit, onRefresh }) {
       if (selectedAccountType) params.append('accountType', selectedAccountType);
       if (selectedCategory) params.append('category', selectedCategory);
 
-      const response = await fetch(`http://localhost:7000/api/financial/accounts?${params}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:7000/api/financial/accounts?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setAccounts(data.accounts || []);
         setTotalPages(data.totalPages || 1);
+      } else if (response.status === 401) {
+        console.error('Unauthorized: Please log in again');
+        // Optionally redirect to login
       }
     } catch (error) {
       console.error('Error fetching accounts:', error);

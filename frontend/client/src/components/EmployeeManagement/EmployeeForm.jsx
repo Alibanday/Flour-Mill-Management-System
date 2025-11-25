@@ -837,41 +837,6 @@ export default function EmployeeForm({ employee, onClose, onSuccess }) {
               </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Employee Type *
-              </label>
-              <select
-                name="employeeType"
-                value={formData.employeeType}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Regular">Regular Employee</option>
-                <option value="Daily Wage">Daily Wage Employee</option>
-              </select>
-            </div>
-
-            {formData.employeeType === 'Daily Wage' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Daily Wage Rate (Rs.) *
-                </label>
-                <input
-                  type="number"
-                  name="dailyWageRate"
-                  value={formData.dailyWageRate}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter daily wage rate"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Amount to be paid per day for daily wage employees
-                </p>
-              </div>
-            )}
           </div>
         </div>
 

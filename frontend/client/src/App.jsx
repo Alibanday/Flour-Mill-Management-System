@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import UserManagementPage from './pages/UserManagementPage';
 import AccountsPage from './pages/AccountsPage';
 import EmployeesPage from './pages/EmployeesPage';
+import DailyWagersPage from './pages/DailyWagersPage';
 import BagSalesPage from './pages/BagSalesPage';
 import WheatSalesPage from './pages/WheatSalesPage';
 import ProductionPage from './pages/ProductionPage';
@@ -79,6 +80,16 @@ function App() {
           element={
             <GeneralManagerRoute>
               <EmployeesPage />
+            </GeneralManagerRoute>
+          }
+        />
+
+        {/* Daily Wagers - Admin and General Manager only */}
+        <Route
+          path="/daily-wagers"
+          element={
+            <GeneralManagerRoute>
+              <DailyWagersPage />
             </GeneralManagerRoute>
           }
         />

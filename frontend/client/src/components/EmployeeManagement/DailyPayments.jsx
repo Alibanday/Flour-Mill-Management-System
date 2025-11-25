@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSearch, FaCalendarAlt, FaMoneyBillWave, FaUser, FaSpinner } from 'react-icons/fa';
 
 const formatCurrency = (amount) => {
@@ -18,17 +18,33 @@ export default function DailyPayments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showPreviousPayments, setShowPreviousPayments] = useState(false);
   
   const [formData, setFormData] = useState({
     employee: '',
-    workDate: new Date().toISOString().split('T')[0],
-    paymentDate: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0],
     amount: '',
-    hoursWorked: 8,
-    wageRate: '',
     paymentMethod: 'Cash',
     description: ''
   });
+
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const employeeDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (employeeDropdownRef.current && !employeeDropdownRef.current.contains(event.target)) {
+        setShowEmployeeDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     fetchPayments();
@@ -58,8 +74,17 @@ export default function DailyPayments() {
     try {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
-      if (filterDate) params.append('startDate', filterDate);
-      if (filterDate) params.append('endDate', filterDate);
+      
+      // By default, show only today's payments unless "Show Previous" is clicked
+      if (!showPreviousPayments && !filterDate) {
+        const today = new Date().toISOString().split('T')[0];
+        params.append('startDate', today);
+        params.append('endDate', today);
+      } else if (filterDate) {
+        params.append('startDate', filterDate);
+        params.append('endDate', filterDate);
+      }
+      
       if (filterStatus !== 'all') params.append('paymentStatus', filterStatus);
       
       const response = await fetch(`http://localhost:7000/api/daily-wage-payments?${params}`, {
@@ -81,7 +106,7 @@ export default function DailyPayments() {
 
   useEffect(() => {
     fetchPayments();
-  }, [filterDate, filterStatus]);
+  }, [filterDate, filterStatus, showPreviousPayments]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -89,22 +114,39 @@ export default function DailyPayments() {
       ...prev,
       [name]: value
     }));
-
-    // Auto-fill wage rate when employee is selected
-    if (name === 'employee') {
-      const selectedEmployee = dailyWageEmployees.find(emp => emp._id === value);
-      if (selectedEmployee) {
-        setFormData(prev => ({
-          ...prev,
-          wageRate: selectedEmployee.dailyWageRate || '',
-          amount: selectedEmployee.dailyWageRate || ''
-        }));
-      }
-    }
   };
+
+  const handleEmployeeSearchChange = (e) => {
+    setEmployeeSearchTerm(e.target.value);
+    setShowEmployeeDropdown(true);
+  };
+
+  const handleEmployeeSelect = (employee) => {
+    setFormData(prev => ({
+      ...prev,
+      employee: employee._id
+    }));
+    setEmployeeSearchTerm(`${employee.firstName} ${employee.lastName} - ${employee.employeeId}`);
+    setShowEmployeeDropdown(false);
+  };
+
+  const filteredEmployees = dailyWageEmployees.filter(emp => {
+    if (!employeeSearchTerm) return true; // Show all when search is empty
+    const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+    const employeeId = emp.employeeId?.toLowerCase() || '';
+    const search = employeeSearchTerm.toLowerCase();
+    return fullName.includes(search) || employeeId.includes(search);
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate employee is selected
+    if (!formData.employee) {
+      alert('Please select an employee');
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -114,18 +156,24 @@ export default function DailyPayments() {
         : 'http://localhost:7000/api/daily-wage-payments';
       const method = editingPayment ? 'PUT' : 'POST';
 
+      const payload = {
+        employee: formData.employee,
+        workDate: formData.date,
+        paymentDate: formData.date,
+        amount: parseFloat(formData.amount),
+        wageRate: 0, // Set to 0 since we removed the field
+        hoursWorked: 8, // Default value since we removed the field
+        paymentMethod: formData.paymentMethod,
+        description: formData.description || ''
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          ...formData,
-          amount: parseFloat(formData.amount),
-          wageRate: parseFloat(formData.wageRate),
-          hoursWorked: parseFloat(formData.hoursWorked) || 8
-        })
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -148,16 +196,20 @@ export default function DailyPayments() {
 
   const handleEdit = (payment) => {
     setEditingPayment(payment);
+    const employeeId = payment.employee._id || payment.employee;
+    const selectedEmployee = dailyWageEmployees.find(emp => emp._id === employeeId);
+    const employeeName = selectedEmployee 
+      ? `${selectedEmployee.firstName} ${selectedEmployee.lastName} - ${selectedEmployee.employeeId}`
+      : '';
+    
     setFormData({
-      employee: payment.employee._id || payment.employee,
-      workDate: new Date(payment.workDate).toISOString().split('T')[0],
-      paymentDate: new Date(payment.paymentDate).toISOString().split('T')[0],
+      employee: employeeId,
+      date: new Date(payment.workDate || payment.paymentDate).toISOString().split('T')[0],
       amount: payment.amount,
-      hoursWorked: payment.hoursWorked || 8,
-      wageRate: payment.wageRate,
       paymentMethod: payment.paymentMethod,
       description: payment.description || ''
     });
+    setEmployeeSearchTerm(employeeName);
     setShowForm(true);
   };
 
@@ -190,14 +242,13 @@ export default function DailyPayments() {
   const resetForm = () => {
     setFormData({
       employee: '',
-      workDate: new Date().toISOString().split('T')[0],
-      paymentDate: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split('T')[0],
       amount: '',
-      hoursWorked: 8,
-      wageRate: '',
       paymentMethod: 'Cash',
       description: ''
     });
+    setEmployeeSearchTerm('');
+    setShowEmployeeDropdown(false);
   };
 
   const filteredPayments = payments.filter(payment => {
@@ -219,13 +270,28 @@ export default function DailyPayments() {
   };
 
   const totalAmount = filteredPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  
+  // Get current date for display
+  const getCurrentDate = () => {
+    return new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Daily Wage Payments</h2>
-          <p className="text-gray-600">Record and manage daily wage employee payments</p>
+          <p className="text-gray-600">
+            {showPreviousPayments || filterDate 
+              ? 'All payment records' 
+              : `Today's payments (${getCurrentDate()})`
+            }
+          </p>
         </div>
         <button
           onClick={() => {
@@ -242,7 +308,7 @@ export default function DailyPayments() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
             <div className="relative">
@@ -261,7 +327,10 @@ export default function DailyPayments() {
             <input
               type="date"
               value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
+              onChange={(e) => {
+                setFilterDate(e.target.value);
+                setShowPreviousPayments(false); // Reset to specific date mode
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -281,9 +350,25 @@ export default function DailyPayments() {
           <div className="flex items-end">
             <button
               onClick={() => {
+                setShowPreviousPayments(!showPreviousPayments);
+                setFilterDate(''); // Clear date filter when toggling
+              }}
+              className={`w-full px-4 py-2 rounded-md transition-colors ${
+                showPreviousPayments
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {showPreviousPayments ? 'Show Today Only' : 'Show Previous Payments'}
+            </button>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
                 setFilterDate('');
                 setFilterStatus('all');
                 setSearchTerm('');
+                setShowPreviousPayments(false);
               }}
               className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
             >
@@ -340,6 +425,7 @@ export default function DailyPayments() {
                   {editingPayment ? 'Edit Payment' : 'Record Daily Payment'}
                 </h3>
                 <button
+                  type="button"
                   onClick={() => {
                     setShowForm(false);
                     setEditingPayment(null);
@@ -352,88 +438,64 @@ export default function DailyPayments() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+                {/* Employee Search Dropdown */}
+                <div className="relative" ref={employeeDropdownRef}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Employee *
                   </label>
-                  <select
-                    name="employee"
-                    value={formData.employee}
+                  <div className="relative">
+                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={employeeSearchTerm}
+                      onChange={handleEmployeeSearchChange}
+                      onFocus={() => setShowEmployeeDropdown(true)}
+                      placeholder="Search employee by name or ID..."
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {showEmployeeDropdown && filteredEmployees.length > 0 && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                        {filteredEmployees.map(emp => (
+                          <div
+                            key={emp._id}
+                            onClick={() => handleEmployeeSelect(emp)}
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium text-gray-900">
+                              {emp.firstName} {emp.lastName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              ID: {emp.employeeId}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {!formData.employee && employeeSearchTerm && filteredEmployees.length === 0 && dailyWageEmployees.length > 0 && (
+                    <p className="mt-1 text-sm text-red-600">No employee found matching "{employeeSearchTerm}"</p>
+                  )}
+                  {formData.employee && (
+                    <p className="mt-1 text-sm text-green-600">✓ Employee selected</p>
+                  )}
+                </div>
+
+                {/* Date Field */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
                     onChange={handleInputChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select Employee</option>
-                    {dailyWageEmployees.map(emp => (
-                      <option key={emp._id} value={emp._id}>
-                        {emp.firstName} {emp.lastName} - {emp.employeeId} (Rate: {formatCurrency(emp.dailyWageRate || 0)})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Work Date *
-                    </label>
-                    <input
-                      type="date"
-                      name="workDate"
-                      value={formData.workDate}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Date *
-                    </label>
-                    <input
-                      type="date"
-                      name="paymentDate"
-                      value={formData.paymentDate}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Daily Wage Rate (Rs.) *
-                    </label>
-                    <input
-                      type="number"
-                      name="wageRate"
-                      value={formData.wageRate}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hours Worked
-                    </label>
-                    <input
-                      type="number"
-                      name="hoursWorked"
-                      value={formData.hoursWorked}
-                      onChange={handleInputChange}
-                      min="0"
-                      max="24"
-                      step="0.5"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
+                {/* Payment Amount and Method */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -448,6 +510,7 @@ export default function DailyPayments() {
                       min="0"
                       step="0.01"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="0.00"
                     />
                   </div>
                   <div>
@@ -490,7 +553,7 @@ export default function DailyPayments() {
                       setEditingPayment(null);
                       resetForm();
                     }}
-                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Cancel
                   </button>

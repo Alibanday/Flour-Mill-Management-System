@@ -13,7 +13,7 @@ const attendanceSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    enum: ['present', 'absent', 'late', 'half-day'],
+    enum: ['present', 'absent', 'late', 'half-day', 'leave'],
     default: 'absent'
   },
   checkIn: {
@@ -77,7 +77,8 @@ attendanceSchema.virtual('statusDisplay').get(function() {
     'present': 'Present',
     'absent': 'Absent',
     'late': 'Late',
-    'half-day': 'Half Day'
+    'half-day': 'Half Day',
+    'leave': 'Leave'
   };
   return statusMap[this.status] || this.status;
 });

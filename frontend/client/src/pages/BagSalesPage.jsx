@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaShoppingCart, FaPlus, FaEdit, FaTrash, FaEye, FaArrowLeft } from 'react-icons/fa';
+import { FaShoppingCart, FaPlus, FaEdit, FaTrash, FaEye, FaArrowLeft, FaSearch, FaFilter, FaChartLine, FaMoneyBillWave, FaReceipt, FaClock, FaSpinner } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import SalesFormEnhanced from '../components/SalesManagement/SalesFormEnhanced';
@@ -13,6 +13,10 @@ export default function BagSalesPage() {
     const [warehouses, setWarehouses] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [filterWarehouse, setFilterWarehouse] = useState('all');
+    const [filterDate, setFilterDate] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -141,145 +145,405 @@ export default function BagSalesPage() {
         }
     };
 
+    // Calculate statistics
+    const calculateStats = () => {
+        const today = new Date().toISOString().split('T')[0];
+        const todaySales = sales.filter(sale => {
+            const saleDate = new Date(sale.createdAt || sale.saleDate).toISOString().split('T')[0];
+            return saleDate === today;
+        });
+        
+        const totalSales = sales.length;
+        const todayCount = todaySales.length;
+        const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+        const todayRevenue = todaySales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
+        const pendingSales = sales.filter(sale => sale.status === 'Pending' || sale.status === 'pending').length;
+        const completedSales = sales.filter(sale => sale.status === 'Completed' || sale.status === 'completed').length;
+
+        return {
+            totalSales,
+            todayCount,
+            totalRevenue,
+            todayRevenue,
+            pendingSales,
+            completedSales
+        };
+    };
+
+    const stats = calculateStats();
+
+    // Filter sales
+    const filteredSales = sales.filter(sale => {
+        const matchesSearch = !searchTerm || 
+            sale.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            sale.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            sale.customer?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            sale.customer?.lastName?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesStatus = filterStatus === 'all' || 
+            (sale.status?.toLowerCase() === filterStatus.toLowerCase());
+
+        const matchesWarehouse = filterWarehouse === 'all' || 
+            (sale.warehouse?._id === filterWarehouse || sale.warehouse === filterWarehouse);
+
+        const matchesDate = !filterDate || 
+            new Date(sale.createdAt || sale.saleDate).toISOString().split('T')[0] === filterDate;
+
+        return matchesSearch && matchesStatus && matchesWarehouse && matchesDate;
+    });
+
+    const formatCurrency = (amount) => {
+        const value = Number(amount) || 0;
+        return `Rs. ${value.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
+    };
+
+    const getStatusColor = (status) => {
+        const statusLower = status?.toLowerCase();
+        if (statusLower === 'completed' || statusLower === 'paid') {
+            return 'bg-green-100 text-green-800 border border-green-200';
+        } else if (statusLower === 'pending' || statusLower === 'unpaid') {
+            return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+        } else if (statusLower === 'cancelled' || statusLower === 'failed') {
+            return 'bg-red-100 text-red-800 border border-red-200';
+        }
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
+    };
+
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading Bag Sales Management...</p>
+                    <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
+                    <p className="text-gray-600 font-medium">Loading Bag Sales Management...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
             {/* Header */}
-            <div className="bg-white shadow-sm border-b">
+            <div className="bg-white shadow-md border-b border-gray-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-16">
+                    <div className="flex items-center justify-between h-20">
                         <div className="flex items-center space-x-4">
                             <button
                                 onClick={() => navigate('/dashboard')}
-                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-700"
+                                className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                             >
                                 <FaArrowLeft className="mr-2" />
-                                Back
+                                Back to Dashboard
                             </button>
-                            <h1 className="text-2xl font-bold text-gray-900">Bag Sales Management</h1>
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900">Bag Sales Management</h1>
+                                <p className="text-sm text-gray-600 mt-1">Manage and track all bag sales transactions</p>
+                            </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                            <button
-                                onClick={() => {
-                                    setEditData(null);
-                                    setShowSalesForm(true);
-                                }}
-                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                            >
-                                <FaPlus className="mr-2" />
-                                New Bag Sale
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => {
+                                setEditData(null);
+                                setShowSalesForm(true);
+                            }}
+                            className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg hover:from-blue-700 hover:to-blue-800 transition-all transform hover:scale-105"
+                        >
+                            <FaPlus className="mr-2" />
+                            New Bag Sale
+                        </button>
                     </div>
                 </div>
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* Sales Table */}
-                <div className="bg-white rounded-lg shadow">
-                    <div className="px-6 py-4 border-b border-gray-200">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-gray-900">Bag Sales Records ({sales.length})</h3>
-                            <button
-                                onClick={() => {
-                                    setEditData(null);
-                                    setShowSalesForm(true);
-                                }}
-                                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                            >
-                                <FaPlus className="mr-2" />
-                                New Bag Sale
-                            </button>
+                {/* Statistics Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-blue-100 text-sm font-medium mb-1">Total Sales</p>
+                                <p className="text-3xl font-bold">{stats.totalSales}</p>
+                                <p className="text-blue-100 text-xs mt-2">All time records</p>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <FaReceipt className="text-3xl" />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="p-6">
-                        {sales.length === 0 ? (
-                            <p className="text-gray-500 text-center py-8">No bag sales records found. Create your first sale above.</p>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warehouse</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {sales.map((sale) => (
-                                            <tr key={sale._id} className="hover:bg-gray-50">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    {sale.invoiceNumber || 'N/A'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {sale.customer?.name || 'N/A'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {sale.warehouse?.name || sale.warehouse || 'N/A'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {sale.items?.length || 0} items
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                    Rs. {sale.totalAmount?.toFixed(2) || '0.00'}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${sale.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                        sale.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                            'bg-red-100 text-red-800'
-                                                        }`}>
-                                                        {sale.status || 'Pending'}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                                    {new Date(sale.createdAt).toLocaleDateString()}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <div className="flex space-x-2">
-                                                        <button
-                                                            onClick={() => navigate(`/sales/${sale._id}`)}
-                                                            className="text-green-600 hover:text-green-900"
-                                                            title="View Details"
-                                                        >
-                                                            <FaEye />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleEdit(sale)}
-                                                            className="text-blue-600 hover:text-blue-900"
-                                                            title="Edit"
-                                                        >
-                                                            <FaEdit />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(sale._id)}
-                                                            className="text-red-600 hover:text-red-900"
-                                                            title="Delete"
-                                                        >
-                                                            <FaTrash />
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-green-100 text-sm font-medium mb-1">Today's Sales</p>
+                                <p className="text-3xl font-bold">{stats.todayCount}</p>
+                                <p className="text-green-100 text-xs mt-2">{formatCurrency(stats.todayRevenue)}</p>
                             </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <FaClock className="text-3xl" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-purple-100 text-sm font-medium mb-1">Total Revenue</p>
+                                <p className="text-3xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                                <p className="text-purple-100 text-xs mt-2">All transactions</p>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <FaMoneyBillWave className="text-3xl" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-orange-100 text-sm font-medium mb-1">Completed</p>
+                                <p className="text-3xl font-bold">{stats.completedSales}</p>
+                                <p className="text-orange-100 text-xs mt-2">{stats.pendingSales} pending</p>
+                            </div>
+                            <div className="bg-white bg-opacity-20 rounded-lg p-4">
+                                <FaChartLine className="text-3xl" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters Section */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                            <FaFilter className="mr-2 text-gray-500" />
+                            Filters & Search
+                        </h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="relative">
+                            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search by invoice, customer..."
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                        <div>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            >
+                                <option value="all">All Status</option>
+                                <option value="completed">Completed</option>
+                                <option value="pending">Pending</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                        </div>
+                        <div>
+                            <select
+                                value={filterWarehouse}
+                                onChange={(e) => setFilterWarehouse(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                            >
+                                <option value="all">All Warehouses</option>
+                                {warehouses.map(wh => (
+                                    <option key={wh._id} value={wh._id}>{wh.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <input
+                                type="date"
+                                value={filterDate}
+                                onChange={(e) => setFilterDate(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+                    </div>
+                    {(searchTerm || filterStatus !== 'all' || filterWarehouse !== 'all' || filterDate) && (
+                        <div className="mt-4 flex justify-end">
+                            <button
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setFilterStatus('all');
+                                    setFilterWarehouse('all');
+                                    setFilterDate('');
+                                }}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                            >
+                                Clear All Filters
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Sales Table */}
+                <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900">Bag Sales Records</h3>
+                                <p className="text-sm text-gray-600 mt-1">
+                                    Showing {filteredSales.length} of {sales.length} sales
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                        {filteredSales.length === 0 ? (
+                            <div className="text-center py-16">
+                                <FaShoppingCart className="text-gray-300 text-6xl mx-auto mb-4" />
+                                <h3 className="text-lg font-medium text-gray-900 mb-2">No sales found</h3>
+                                <p className="text-gray-500 mb-6">
+                                    {sales.length === 0 
+                                        ? 'Get started by creating your first bag sale'
+                                        : 'Try adjusting your filters to see more results'
+                                    }
+                                </p>
+                                {sales.length === 0 && (
+                                    <button
+                                        onClick={() => {
+                                            setEditData(null);
+                                            setShowSalesForm(true);
+                                        }}
+                                        className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                                    >
+                                        <FaPlus className="mr-2" />
+                                        Create First Sale
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Invoice #
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Customer
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Warehouse
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Items
+                                        </th>
+                                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Amount
+                                        </th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Status
+                                        </th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Date
+                                        </th>
+                                        <th className="px-6 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredSales.map((sale) => (
+                                        <tr key={sale._id} className="hover:bg-blue-50 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                                        <FaReceipt className="text-blue-600" />
+                                                    </div>
+                                                    <div className="ml-3">
+                                                        <div className="text-sm font-semibold text-gray-900">
+                                                            {sale.invoiceNumber || 'N/A'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {sale.customer?.name || 
+                                                     (sale.customer?.firstName && sale.customer?.lastName 
+                                                        ? `${sale.customer.firstName} ${sale.customer.lastName}`
+                                                        : 'Walk-in Customer')}
+                                                </div>
+                                                {sale.customer?.phone && (
+                                                    <div className="text-sm text-gray-500">{sale.customer.phone}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                                                    {sale.warehouse?.name || sale.warehouse || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                <div className="flex items-center">
+                                                    <FaShoppingCart className="text-gray-400 mr-2" />
+                                                    {sale.items?.length || 0} items
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                <div className="text-sm font-bold text-gray-900">
+                                                    {formatCurrency(sale.totalAmount || 0)}
+                                                </div>
+                                                {sale.paymentMethod && (
+                                                    <div className="text-xs text-gray-500">
+                                                        {sale.paymentMethod}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(sale.status)}`}>
+                                                    {sale.status || 'Pending'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                                <div>
+                                                    {new Date(sale.createdAt || sale.saleDate).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric'
+                                                    })}
+                                                </div>
+                                                <div className="text-xs text-gray-400">
+                                                    {new Date(sale.createdAt || sale.saleDate).toLocaleTimeString('en-US', {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <div className="flex items-center justify-center space-x-3">
+                                                    <button
+                                                        onClick={() => navigate(`/sales/${sale._id}`)}
+                                                        className="text-green-600 hover:text-green-800 hover:bg-green-50 p-2 rounded-lg transition-colors"
+                                                        title="View Details"
+                                                    >
+                                                        <FaEye />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEdit(sale)}
+                                                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                                        title="Edit Sale"
+                                                    >
+                                                        <FaEdit />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(sale._id)}
+                                                        className="text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                                                        title="Delete Sale"
+                                                    >
+                                                        <FaTrash />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         )}
                     </div>
                 </div>

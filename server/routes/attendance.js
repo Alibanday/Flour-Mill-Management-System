@@ -14,7 +14,7 @@ router.use(protect);
 const validateAttendance = [
   body('employeeId').isMongoId().withMessage('Valid employee ID is required'),
   body('date').isISO8601().withMessage('Valid date is required'),
-  body('status').isIn(['present', 'absent', 'late', 'half-day']).withMessage('Valid status is required')
+  body('status').isIn(['present', 'absent', 'late', 'half-day', 'leave']).withMessage('Valid status is required')
 ];
 
 const handleValidationErrors = (req, res, next) => {
@@ -229,6 +229,130 @@ router.delete('/:id', asyncHandler(async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting attendance record',
+      error: error.message
+    });
+  }
+}));
+
+// Bulk mark attendance
+router.post('/bulk-mark', asyncHandler(async (req, res) => {
+  try {
+    const { date, attendanceRecords } = req.body;
+
+    if (!date || !attendanceRecords || !Array.isArray(attendanceRecords)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date and attendanceRecords array are required'
+      });
+    }
+
+    const results = {
+      created: [],
+      updated: [],
+      errors: []
+    };
+
+    for (const record of attendanceRecords) {
+      try {
+        const { employeeId, status, checkIn, checkOut, notes } = record;
+
+        if (!employeeId || !status) {
+          results.errors.push({
+            employeeId,
+            error: 'Employee ID and status are required'
+          });
+          continue;
+        }
+
+        // Validate status
+        const validStatuses = ['present', 'absent', 'late', 'half-day', 'leave'];
+        if (!validStatuses.includes(status)) {
+          results.errors.push({
+            employeeId,
+            error: 'Invalid status'
+          });
+          continue;
+        }
+
+        // Check if attendance already exists
+        const existingAttendance = await Attendance.findOne({
+          employee: employeeId,
+          date: new Date(date)
+        });
+
+        if (existingAttendance) {
+          // Update existing attendance
+          existingAttendance.status = status;
+          if (checkIn) existingAttendance.checkIn = new Date(`${date}T${checkIn}`);
+          if (checkOut) existingAttendance.checkOut = new Date(`${date}T${checkOut}`);
+          if (notes !== undefined) existingAttendance.notes = notes;
+          existingAttendance.updatedBy = req.user.id;
+
+          await existingAttendance.save();
+          results.updated.push(existingAttendance._id);
+        } else {
+          // Create new attendance
+          const attendance = new Attendance({
+            employee: employeeId,
+            date: new Date(date),
+            status,
+            checkIn: checkIn ? new Date(`${date}T${checkIn}`) : null,
+            checkOut: checkOut ? new Date(`${date}T${checkOut}`) : null,
+            notes,
+            markedBy: req.user.id
+          });
+
+          await attendance.save();
+          results.created.push(attendance._id);
+        }
+      } catch (error) {
+        results.errors.push({
+          employeeId: record.employeeId,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Bulk attendance marked: ${results.created.length} created, ${results.updated.length} updated, ${results.errors.length} errors`,
+      data: results
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error bulk marking attendance',
+      error: error.message
+    });
+  }
+}));
+
+// Get attendance for a specific date (to check what's already marked)
+router.get('/date/:date', asyncHandler(async (req, res) => {
+  try {
+    const { date } = req.params;
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const attendance = await Attendance.find({
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    })
+      .populate('employee', 'firstName lastName employeeId department position')
+      .sort({ 'employee.department': 1, 'employee.firstName': 1 });
+
+    res.json({
+      success: true,
+      data: attendance
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching attendance for date',
       error: error.message
     });
   }

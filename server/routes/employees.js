@@ -32,7 +32,7 @@ const validateEmployee = [
   body('position').notEmpty().withMessage('Position is required'),
   body('salary').isNumeric().withMessage('Salary must be a number'),
   body('hireDate').isISO8601().withMessage('Valid hire date is required'),
-  body('warehouse').notEmpty().withMessage('Warehouse is required')
+  body('warehouse').optional({ checkFalsy: true }).isMongoId().withMessage('Warehouse must be a valid MongoDB ID if provided')
 ];
 
 const handleValidationErrors = (req, res, next) => {

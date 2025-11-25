@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUsers, FaHome, FaSignOutAlt, FaUserCog, FaUserPlus, FaList, FaClock, FaMoneyBillWave } from 'react-icons/fa';
+import { FaUsers, FaHome, FaSignOutAlt, FaUserCog, FaUserPlus, FaList, FaClock, FaMoneyBillWave, FaBriefcase } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import EmployeeList from '../components/EmployeeManagement/EmployeeList';
 import EmployeeForm from '../components/EmployeeManagement/EmployeeForm';
+import DailyWagerForm from '../components/EmployeeManagement/DailyWagerForm';
+import DailyPayments from '../components/EmployeeManagement/DailyPayments';
 import EmployeeDetail from '../components/EmployeeManagement/EmployeeDetail';
 import EmployeeDashboard from '../components/EmployeeManagement/EmployeeDashboard';
 import EmployeeReports from '../components/EmployeeManagement/EmployeeReports';
 import AttendanceManagement from '../components/EmployeeManagement/AttendanceManagement';
 import PayrollManagement from '../components/EmployeeManagement/PayrollManagement';
-import DailyPayments from '../components/EmployeeManagement/DailyPayments';
 
 export default function EmployeesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('employees');
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [employeeSection, setEmployeeSection] = useState('employees'); // 'employees' or 'daily-wagers'
   const [showEmployeeForm, setShowEmployeeForm] = useState(false);
+  const [showDailyWagerForm, setShowDailyWagerForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
 
@@ -30,6 +33,7 @@ export default function EmployeesPage() {
     setShowEmployeeForm(true);
   };
 
+
   const handleEditEmployee = (employee) => {
     setEditingEmployee(employee);
     setShowEmployeeForm(true);
@@ -39,8 +43,17 @@ export default function EmployeesPage() {
     setViewingEmployee(employee);
   };
 
+  const handleRegisterDailyWager = () => {
+    setShowDailyWagerForm(true);
+  };
+
   const handleCloseForm = () => {
     setShowEmployeeForm(false);
+    setEditingEmployee(null);
+  };
+
+  const handleCloseDailyWagerForm = () => {
+    setShowDailyWagerForm(false);
     setEditingEmployee(null);
   };
 
@@ -49,14 +62,21 @@ export default function EmployeesPage() {
   };
 
 
-  const tabs = [
+  // Different tabs based on section
+  const employeeTabs = [
     { id: 'dashboard', name: 'Dashboard', icon: <FaUserCog className="mr-2" /> },
     { id: 'employees', name: 'Employees', icon: <FaUsers className="mr-2" /> },
     { id: 'attendance', name: 'Attendance', icon: <FaClock className="mr-2" /> },
     { id: 'payroll', name: 'Payroll', icon: <FaMoneyBillWave className="mr-2" /> },
-    { id: 'daily-payments', name: 'Daily Payments', icon: <FaMoneyBillWave className="mr-2" /> },
     { id: 'reports', name: 'Reports', icon: <FaList className="mr-2" /> }
   ];
+
+  const dailyWagerTabs = [
+    { id: 'daily-wagers', name: 'Daily Wagers', icon: <FaBriefcase className="mr-2" /> },
+    { id: 'daily-payments', name: 'Daily Payments', icon: <FaMoneyBillWave className="mr-2" /> }
+  ];
+
+  const tabs = employeeSection === 'employees' ? employeeTabs : dailyWagerTabs;
 
   return (
     <div className="min-h-screen w-full bg-cover bg-center bg-no-repeat bg-fixed relative"
@@ -67,13 +87,43 @@ export default function EmployeesPage() {
         <div className="px-6 py-3 flex items-center justify-between w-full">
           <div className="flex items-center">
             <div className="text-2xl font-bold text-blue-800 mr-10">FlourMill Pro</div>
-            <nav className="hidden md:flex space-x-8">
+            <nav className="hidden md:flex space-x-4">
               <button 
                 className="px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm flex items-center"
                 onClick={() => navigate("/dashboard")}
               >
                 <FaHome className="inline mr-2" />
                 Back to Dashboard
+              </button>
+              {/* Employees Button */}
+              <button
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 flex items-center ${
+                  employeeSection === 'employees'
+                    ? 'bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm'
+                }`}
+                onClick={() => {
+                  setEmployeeSection('employees');
+                  setActiveTab('dashboard');
+                }}
+              >
+                <FaUsers className="inline mr-2" />
+                Employees
+              </button>
+              {/* Daily Wagers Button */}
+              <button
+                className={`px-4 py-2 font-medium rounded-md transition duration-150 flex items-center ${
+                  employeeSection === 'daily-wagers'
+                    ? 'bg-blue-100 text-blue-600 border-b-2 border-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-indigo-600 bg-gray-200 hover:shadow-sm'
+                }`}
+                onClick={() => {
+                  setEmployeeSection('daily-wagers');
+                  setActiveTab('daily-wagers');
+                }}
+              >
+                <FaBriefcase className="inline mr-2" />
+                Daily Wagers
               </button>
             </nav>
           </div>
@@ -146,63 +196,69 @@ export default function EmployeesPage() {
             </div>
           </div>
 
-          {/* Quick Actions */}
-          {activeTab === 'employees' && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <button 
-                onClick={handleAddEmployee}
-                className="flex flex-col items-center justify-center p-4 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-700 transition-all duration-200"
-              >
-                <FaUserPlus className="h-8 w-8 mb-2" />
-                <span className="font-medium">Add Employee</span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('employees')}
-                className="flex flex-col items-center justify-center p-4 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 transition-all duration-200"
-              >
-                <FaList className="h-8 w-8 mb-2" />
-                <span className="font-medium">View Employees</span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('attendance')}
-                className="flex flex-col items-center justify-center p-4 bg-purple-600 text-white rounded-xl shadow-lg hover:bg-purple-700 transition-all duration-200"
-              >
-                <FaClock className="h-8 w-8 mb-2" />
-                <span className="font-medium">Attendance</span>
-              </button>
-              <button 
-                onClick={() => setActiveTab('payroll')}
-                className="flex flex-col items-center justify-center p-4 bg-orange-600 text-white rounded-xl shadow-lg hover:bg-orange-700 transition-all duration-200"
-              >
-                <FaMoneyBillWave className="h-8 w-8 mb-2" />
-                <span className="font-medium">Payroll</span>
-              </button>
-            </div>
-          )}
-
           {/* Tab Content */}
           <div className="bg-white rounded-xl shadow-lg border border-gray-200">
-            {activeTab === 'dashboard' && (
-              <EmployeeDashboard />
+            {employeeSection === 'employees' && (
+              <>
+                {activeTab === 'dashboard' && (
+                  <EmployeeDashboard />
+                )}
+                {activeTab === 'employees' && (
+                  <div className="p-6">
+                    <div className="flex justify-end mb-4">
+                      <button
+                        onClick={handleAddEmployee}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                      >
+                        <FaUserPlus className="mr-2" />
+                        Add Employee
+                      </button>
+                    </div>
+                    <EmployeeList 
+                      employeeType="Regular"
+                      onEditEmployee={handleEditEmployee}
+                      onAddEmployee={handleAddEmployee}
+                      onViewEmployee={handleViewEmployee}
+                    />
+                  </div>
+                )}
+                {activeTab === 'attendance' && (
+                  <AttendanceManagement />
+                )}
+                {activeTab === 'payroll' && (
+                  <PayrollManagement />
+                )}
+                {activeTab === 'reports' && (
+                  <EmployeeReports />
+                )}
+              </>
             )}
-            {activeTab === 'employees' && (
-              <EmployeeList 
-                onEditEmployee={handleEditEmployee}
-                onAddEmployee={handleAddEmployee}
-                onViewEmployee={handleViewEmployee}
-              />
-            )}
-            {activeTab === 'attendance' && (
-              <AttendanceManagement />
-            )}
-            {activeTab === 'payroll' && (
-              <PayrollManagement />
-            )}
-            {activeTab === 'daily-payments' && (
-              <DailyPayments />
-            )}
-            {activeTab === 'reports' && (
-              <EmployeeReports />
+
+            {employeeSection === 'daily-wagers' && (
+              <>
+                {activeTab === 'daily-wagers' && (
+                  <div className="p-6">
+                    <div className="flex justify-end mb-4">
+                      <button
+                        onClick={handleRegisterDailyWager}
+                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
+                      >
+                        <FaBriefcase className="mr-2" />
+                        Register Daily Wager
+                      </button>
+                    </div>
+                    <EmployeeList 
+                      employeeType="Daily Wage"
+                      onEditEmployee={handleEditEmployee}
+                      onAddEmployee={handleRegisterDailyWager}
+                      onViewEmployee={handleViewEmployee}
+                    />
+                  </div>
+                )}
+                {activeTab === 'daily-payments' && (
+                  <DailyPayments />
+                )}
+              </>
             )}
           </div>
 
@@ -217,6 +273,14 @@ export default function EmployeesPage() {
                 />
               </div>
             </div>
+          )}
+
+          {/* Daily Wager Form Modal */}
+          {showDailyWagerForm && (
+            <DailyWagerForm 
+              onClose={handleCloseDailyWagerForm}
+              onSuccess={handleCloseDailyWagerForm}
+            />
           )}
 
           {/* Employee Detail Modal */}

@@ -31,6 +31,7 @@ import dailyWagePaymentRoutes from "./routes/dailyWagePayments.js";
 import fileUpload from "express-fileupload";
 import connectWithRetry from "./config/database.js";
 import NotificationService from "./services/notificationService.js";
+import mongoose from "mongoose";
 
 // Initialize dotenv before accessing any environment variables
 dotenv.config();
@@ -99,25 +100,46 @@ app.get("/api/health", (_, res) => {
 
 const PORT = process.env.PORT || 7000;
 
-// Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-  
-  // Connect to MongoDB (but don't wait - let it connect in background)
-  connectWithRetry().then(() => {
-    console.log('✅ Database connection established');
-  }).catch((err) => {
-    console.error('❌ Database connection failed:', err.message);
-  });
+// Start server only after database connection is established
+const startServer = async () => {
+  try {
+    console.log('🔄 Connecting to database before starting server...');
+    
+    // Wait for database connection before starting server
+    const connection = await connectWithRetry();
+    
+    // Check if connection was successful (readyState === 1 means connected)
+    if (connection && mongoose.connection.readyState === 1) {
+      console.log('✅ Database connection verified');
+      
+      // Only start server after database connection is ready
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log('✅ Server is ready to accept requests');
 
-  // Lightweight scheduler for notifications (runs every 60s in dev)
-  const intervalMs = parseInt(process.env.NOTIFICATION_CHECK_INTERVAL_MS || '60000');
-  setInterval(async () => {
-    try {
-      await NotificationService.runAllChecks();
-    } catch (e) {
-      console.warn('Notification checks failed:', e.message);
+        // Lightweight scheduler for notifications (runs every 60s in dev)
+        const intervalMs = parseInt(process.env.NOTIFICATION_CHECK_INTERVAL_MS || '60000');
+        setInterval(async () => {
+          try {
+            await NotificationService.runAllChecks();
+          } catch (e) {
+            console.warn('Notification checks failed:', e.message);
+          }
+        }, intervalMs);
+      });
+    } else {
+      console.error('❌ Database connection failed - server will not start');
+      console.error('⚠️  Please check your MongoDB connection and try again');
+      console.error('💡 Make sure MongoDB is running and MONGO_URL is set correctly in .env');
+      process.exit(1);
     }
-  }, intervalMs);
-});
+  } catch (error) {
+    console.error('❌ Failed to start server:', error.message);
+    console.error('⚠️  Server will not start until database connection is established');
+    process.exit(1);
+  }
+};
+
+// Start the application
+startServer();

@@ -158,6 +158,7 @@ export const getAllEmployees = async (req, res) => {
       status,
       warehouse,
       position,
+      employeeType,
       sortBy = 'createdAt',
       sortOrder = 'desc'
     } = req.query;
@@ -191,6 +192,10 @@ export const getAllEmployees = async (req, res) => {
       filter.position = { $regex: position, $options: 'i' };
     }
 
+    if (employeeType && employeeType !== 'all') {
+      filter.employeeType = employeeType;
+    }
+
     // Build sort object
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -222,10 +227,12 @@ export const getAllEmployees = async (req, res) => {
       success: true,
       data: employeesWithVirtuals,
       pagination: {
-        current: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit))
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / parseInt(limit)),
+        totalRecords: total,
+        totalEmployees: total,
+        hasNext: parseInt(page) * parseInt(limit) < total,
+        hasPrev: parseInt(page) > 1
       }
     });
   } catch (error) {

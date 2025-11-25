@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaSpinner, FaEye } from 'react-icons/fa';
 
-export default function EmployeeList({ onEditEmployee, onAddEmployee, onViewEmployee }) {
+export default function EmployeeList({ employeeType, onEditEmployee, onAddEmployee, onViewEmployee }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,7 +31,8 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee, onViewEmpl
         limit: 10,
         ...(searchTerm && { search: searchTerm }),
         ...(filterRole && { department: filterRole }),
-        ...(filterStatus && { status: filterStatus })
+        ...(filterStatus && { status: filterStatus }),
+        ...(employeeType && { employeeType: employeeType })
       });
 
       console.log('Fetching employees from:', `http://localhost:7000/api/employees/all?${params}`);
@@ -57,8 +58,8 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee, onViewEmpl
       
       if (data.success) {
         setEmployees(data.data);
-        setTotalPages(data.pagination.totalPages);
-        setTotalEmployees(data.pagination.totalEmployees);
+        setTotalPages(data.pagination?.totalPages || data.pagination?.pages || 1);
+        setTotalEmployees(data.pagination?.totalEmployees || data.pagination?.total || data.pagination?.totalRecords || 0);
       } else {
         throw new Error(data.message || 'Failed to fetch employees');
       }
@@ -72,9 +73,16 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee, onViewEmpl
     }
   };
 
+  // Reset to page 1 when employeeType or filters change (but not currentPage)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [employeeType, searchTerm, filterRole, filterStatus]);
+
+  // Fetch employees when any dependency changes
   useEffect(() => {
     fetchEmployees();
-  }, [currentPage, searchTerm, filterRole, filterStatus]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, searchTerm, filterRole, filterStatus, employeeType]);
 
   const handleDeleteEmployee = async (employeeId) => {
     if (window.confirm('Are you sure you want to delete this employee?')) {
@@ -160,16 +168,29 @@ export default function EmployeeList({ onEditEmployee, onAddEmployee, onViewEmpl
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Employee List</h2>
-          <p className="text-gray-600">Manage your workforce ({totalEmployees} employees)</p>
+          <h2 className="text-2xl font-bold text-gray-900">
+            {employeeType === 'Daily Wage' ? 'Daily Wagers' : 'Regular Employees'}
+          </h2>
+          <p className="text-gray-600">
+            {employeeType === 'Daily Wage' 
+              ? `Manage daily wager workforce (${totalEmployees} daily wagers)`
+              : `Manage your regular workforce (${totalEmployees} employees)`
+            }
+          </p>
         </div>
-        <button
-          onClick={onAddEmployee}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-        >
-          <FaPlus className="mr-2" />
-          Add Employee
-        </button>
+        {onAddEmployee && (
+          <button
+            onClick={onAddEmployee}
+            className={`px-4 py-2 rounded-lg hover:opacity-90 transition-colors flex items-center ${
+              employeeType === 'Daily Wage' 
+                ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            <FaPlus className="mr-2" />
+            {employeeType === 'Daily Wage' ? 'Register Daily Wager' : 'Add Employee'}
+          </button>
+        )}
       </div>
 
       {/* Filters */}
