@@ -3,12 +3,15 @@ import { body, validationResult } from 'express-validator';
 import asyncHandler from 'express-async-handler';
 import ReportService from '../services/reportService.js';
 import Report from '../model/Report.js';
-import { protect } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Apply authentication middleware to all routes
 router.use(protect);
+
+// Restrict all report routes to Admin and General Manager only
+router.use(authorize('Admin', 'General Manager'));
 
 // Validation middleware
 const validateDateRange = [

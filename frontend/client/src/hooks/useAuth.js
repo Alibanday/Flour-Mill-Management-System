@@ -125,7 +125,6 @@ export const useAuth = () => {
         'purchase.read',
         'warehouse.read',
         'inventory.read',
-        'reports.read',
         'financial.read',
         'gatepass.read'
       ],
@@ -133,15 +132,13 @@ export const useAuth = () => {
         'production.create', 'production.read', 'production.update',
         'warehouse.read', 'inventory.read', 'inventory.update',
         'gatepass.create', 'gatepass.read',
-        'reports.read',
         'financial.read',
         'purchase.create', 'purchase.read'
       ],
       'Warehouse Manager': [
         'warehouse.create', 'warehouse.read', 'warehouse.update',
         'inventory.create', 'inventory.read', 'inventory.update',
-        'gatepass.create', 'gatepass.read', 'gatepass.update',
-        'reports.read'
+        'gatepass.create', 'gatepass.read', 'gatepass.update'
       ],
       // Legacy roles for backward compatibility
       'Manager': [

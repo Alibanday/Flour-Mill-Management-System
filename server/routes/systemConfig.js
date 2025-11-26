@@ -7,7 +7,7 @@ import { protect } from '../middleware/auth.js';
 const router = express.Router();
 
 // Apply authentication middleware to all routes
-// router.use(protect); // Temporarily disabled for testing
+router.use(protect);
 
 // Validation middleware
 const validateConfigUpdate = [
@@ -57,18 +57,8 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Get current system configuration (FR 53) - Base route
+// Get current system configuration - Base route
 router.get('/', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const config = await SystemConfigService.getConfiguration();
     
@@ -85,18 +75,8 @@ router.get('/', asyncHandler(async (req, res) => {
   }
 }));
 
-// Get current system configuration (FR 53) - All route
+// Get current system configuration - All route
 router.get('/all', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const config = await SystemConfigService.getConfiguration();
     
@@ -115,18 +95,9 @@ router.get('/all', asyncHandler(async (req, res) => {
 
 // Get user-specific configuration
 router.get('/user', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
-    const config = await SystemConfigService.getUserConfiguration(req.user.id);
+    const userId = req.user._id || req.user.id;
+    const config = await SystemConfigService.getUserConfiguration(userId);
     
     res.json({
       success: true,
@@ -143,16 +114,6 @@ router.get('/user', asyncHandler(async (req, res) => {
 
 // Update system configuration (Admin only)
 router.put('/', validateConfigUpdate, handleValidationErrors, asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     // Check if user is admin
     if (req.user.role !== 'Admin') {
@@ -162,7 +123,8 @@ router.put('/', validateConfigUpdate, handleValidationErrors, asyncHandler(async
       });
     }
 
-    const updatedConfig = await SystemConfigService.updateConfiguration(req.body, req.user.id);
+    const userId = req.user._id || req.user.id;
+    const updatedConfig = await SystemConfigService.updateConfiguration(req.body, userId);
     
     res.json({
       success: true,
@@ -182,16 +144,6 @@ router.put('/', validateConfigUpdate, handleValidationErrors, asyncHandler(async
 router.patch('/theme', [
   body('theme').isIn(['light', 'dark', 'auto']).withMessage('Invalid theme')
 ], handleValidationErrors, asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const { theme } = req.body;
     const updatedConfig = await SystemConfigService.applyTheme(theme);
@@ -212,16 +164,6 @@ router.patch('/theme', [
 
 // Reset configuration to defaults (Admin only)
 router.post('/reset', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     // Check if user is admin
     if (req.user.role !== 'Admin') {
@@ -231,7 +173,8 @@ router.post('/reset', asyncHandler(async (req, res) => {
       });
     }
 
-    const resetConfig = await SystemConfigService.resetToDefaults(req.user.id);
+    const userId = req.user._id || req.user.id;
+    const resetConfig = await SystemConfigService.resetToDefaults(userId);
     
     res.json({
       success: true,
@@ -247,80 +190,8 @@ router.post('/reset', asyncHandler(async (req, res) => {
   }
 }));
 
-// Get system metadata
+// Get system metadata (available options for frontend forms)
 router.get('/metadata', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
-  try {
-    const metadata = await SystemConfigService.getMetadata();
-    
-    res.json({
-      success: true,
-      data: metadata
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching system metadata',
-      error: error.message
-    });
-  }
-}));
-
-// Check maintenance mode status
-router.get('/maintenance', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
-  try {
-    const [isMaintenanceMode, maintenanceMessage] = await Promise.all([
-      SystemConfigService.isMaintenanceMode(),
-      SystemConfigService.getMaintenanceMessage()
-    ]);
-    
-    res.json({
-      success: true,
-      data: {
-        maintenanceMode: isMaintenanceMode,
-        message: maintenanceMessage
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error checking maintenance mode',
-      error: error.message
-    });
-  }
-}));
-
-// Get configuration metadata (available options)
-router.get('/metadata', asyncHandler(async (req, res) => {
-    // Mock user for testing
-    if (!req.user) {
-      req.user = {
-        _id: '507f1f77bcf86cd799439011',
-        email: 'admin@example.com',
-        role: 'Admin',
-        firstName: 'Admin',
-        lastName: 'User'
-      };
-    }
   try {
     const metadata = {
       themes: ['light', 'dark', 'auto'],
@@ -365,6 +236,30 @@ router.get('/metadata', asyncHandler(async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching configuration metadata',
+      error: error.message
+    });
+  }
+}));
+
+// Check maintenance mode status
+router.get('/maintenance', asyncHandler(async (req, res) => {
+  try {
+    const [isMaintenanceMode, maintenanceMessage] = await Promise.all([
+      SystemConfigService.isMaintenanceMode(),
+      SystemConfigService.getMaintenanceMessage()
+    ]);
+    
+    res.json({
+      success: true,
+      data: {
+        maintenanceMode: isMaintenanceMode,
+        message: maintenanceMessage
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error checking maintenance mode',
       error: error.message
     });
   }

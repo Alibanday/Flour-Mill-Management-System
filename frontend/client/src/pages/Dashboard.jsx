@@ -9,8 +9,6 @@ import {
 } from "react-icons/fa";
 import { useAuth } from '../hooks/useAuth';
 import NotificationBell from '../components/Notifications/NotificationBell';
-import ThemeToggle from '../components/UI/ThemeToggle';
-import LanguageToggle from '../components/UI/LanguageToggle';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -22,7 +20,7 @@ export default function Dashboard() {
   const isSalesMgr = isSalesManager();
   const canAccessGatePass = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager() || isSalesManager();
   const canAccessBagFoodPurchase = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager() || isSalesManager();
-  const canSeeReports = isAdmin() || isGeneralManager() || isSalesManager();
+  const canSeeReports = isAdmin() || isGeneralManager();
   const canSeeNotifications = isAdmin() || isGeneralManager() || isSalesManager();
   const canSeeSupplierManagement = isAdmin() || isGeneralManager();
   const canSeeUserManagement = isAdmin() || isGeneralManager();
@@ -200,7 +198,6 @@ export default function Dashboard() {
 
   const mastersMenu = getMastersMenu();
   const functionButtons = getFunctionButtons();
-  const stats = getStats();
 
   return (
     <div
@@ -225,12 +222,6 @@ export default function Dashboard() {
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            {/* Language Toggle */}
-            <LanguageToggle />
-
-            {/* Theme Toggle */}
-            <ThemeToggle />
-
             {/* Notifications Bell - Admin and Manager only */}
             {(isAdmin() || isManager()) && <NotificationBell />}
 
@@ -294,18 +285,6 @@ export default function Dashboard() {
                   </li>
                 )}
 
-                {/* System Configuration - Admin only */}
-                {isAdmin() && (
-                  <li>
-                    <button
-                      onClick={() => navigate("/system-config")}
-                      className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors bg-transparent"
-                    >
-                      <FaCog className="mr-3" />
-                      {t('navigation.systemConfiguration')}
-                    </button>
-                  </li>
-                )}
                 {/* Inventory Management - All roles */}
                 <li>
                   <button
@@ -463,21 +442,6 @@ export default function Dashboard() {
                 <FaBell className="text-lg" />
                 <span>{t('navigation.notificationsUtilities')}</span>
               </button>
-            </div>
-          )}
-
-          {/* Role-based Stats Overview */}
-          {stats.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 w-full">
-              {stats.map((stat, index) => (
-                <DashboardCard
-                  key={index}
-                  title={stat.title}
-                  value={stat.value}
-                  icon={stat.icon}
-                  trend={stat.trend}
-                />
-              ))}
             </div>
           )}
 

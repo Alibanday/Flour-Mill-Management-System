@@ -149,7 +149,7 @@ export const GeneralManagerRoute = ({ children }) => {
 export const SalesManagerRoute = ({ children }) => {
   return (
     <PermissionRoute 
-      requiredPermissions={['sales.create', 'customer.create', 'reports.read']}
+      requiredPermissions={['sales.create', 'customer.create']}
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
