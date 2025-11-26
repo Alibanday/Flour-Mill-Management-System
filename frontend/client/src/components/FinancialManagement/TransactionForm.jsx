@@ -3,19 +3,14 @@ import { FaSave, FaTimes, FaMoneyBillWave, FaCalendarAlt } from 'react-icons/fa'
 
 export default function TransactionForm({ accounts, editData, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
-    transactionType: 'Payment',
+    transactionType: 'Payment', // Fixed for expenses
     description: '',
     amount: 0,
-    currency: 'PKR',
-    debitAccount: '',
-    creditAccount: '',
-    warehouse: '',
+    expenseAccount: '', // Expense account (will be debit account)
+    transactionDate: new Date().toISOString().split('T')[0], // Current date
     paymentMethod: 'Cash',
     paymentStatus: 'Completed',
-    isPayable: false,
-    isReceivable: false,
-    dueDate: '',
-    notes: ''
+    warehouse: '' // Warehouse (required by model)
   });
 
   const [errors, setErrors] = useState({});
@@ -27,19 +22,14 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
     fetchWarehouses();
     if (editData) {
       setFormData({
-        transactionType: editData.transactionType || 'Payment',
+        transactionType: 'Payment',
         description: editData.description || '',
         amount: editData.amount || 0,
-        currency: editData.currency || 'PKR',
-        debitAccount: editData.debitAccount?._id || editData.debitAccount || '',
-        creditAccount: editData.creditAccount?._id || editData.creditAccount || '',
-        warehouse: editData.warehouse?._id || editData.warehouse || '',
+        expenseAccount: editData.debitAccount?._id || editData.debitAccount || '',
+        transactionDate: editData.transactionDate ? new Date(editData.transactionDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         paymentMethod: editData.paymentMethod || 'Cash',
         paymentStatus: editData.paymentStatus || 'Completed',
-        isPayable: editData.isPayable || false,
-        isReceivable: editData.isReceivable || false,
-        dueDate: editData.dueDate ? new Date(editData.dueDate).toISOString().split('T')[0] : '',
-        notes: editData.notes || ''
+        warehouse: editData.warehouse?._id || editData.warehouse || ''
       });
     }
   }, [editData]);
@@ -55,7 +45,12 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
       });
       if (response.ok) {
         const data = await response.json();
-        setWarehouses(data.data || []);
+        const warehousesList = data.data || [];
+        setWarehouses(warehousesList);
+        // Auto-select first warehouse if not editing and warehouses are available
+        if (!editData && warehousesList.length > 0) {
+          setFormData(prev => ({ ...prev, warehouse: warehousesList[0]._id }));
+        }
       }
     } catch (error) {
       console.error('Error fetching warehouses:', error);
@@ -65,16 +60,32 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
 
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
+  };
+
+  // Get expense accounts
+  const expenseAccounts = accounts ? accounts.filter(acc => acc.accountType === 'Expense') : [];
+  
+  // Get Cash or Bank account based on payment method
+  const getPaymentAccount = () => {
+    if (!accounts) return null;
+    if (formData.paymentMethod === 'Cash') {
+      // Find Cash account
+      return accounts.find(acc => acc.category === 'Cash' && acc.accountType === 'Asset');
+    } else if (formData.paymentMethod === 'Bank Transfer') {
+      // Find Bank account
+      return accounts.find(acc => acc.category === 'Bank' && acc.accountType === 'Asset');
+    }
+    return null;
   };
 
   const validateForm = () => {
@@ -86,17 +97,14 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
     if (formData.amount <= 0) {
       newErrors.amount = 'Amount must be greater than 0';
     }
-    if (!formData.debitAccount) {
-      newErrors.debitAccount = 'Debit account is required';
+    if (!formData.expenseAccount) {
+      newErrors.expenseAccount = 'Expense account is required';
     }
-    if (!formData.creditAccount) {
-      newErrors.creditAccount = 'Credit account is required';
+    if (!formData.transactionDate) {
+      newErrors.transactionDate = 'Date is required';
     }
-    if (formData.debitAccount === formData.creditAccount) {
-      newErrors.creditAccount = 'Debit and credit accounts must be different';
-    }
-    if (!formData.warehouse) {
-      newErrors.warehouse = 'Warehouse is required';
+    if (!getPaymentAccount()) {
+      newErrors.paymentMethod = `No ${formData.paymentMethod === 'Cash' ? 'Cash' : 'Bank'} account found. Please create one first.`;
     }
 
     setErrors(newErrors);
@@ -109,16 +117,44 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
 
     setIsSubmitting(true);
     try {
+      const paymentAccount = getPaymentAccount();
+      if (!paymentAccount) {
+        setErrors({ submit: `No ${formData.paymentMethod === 'Cash' ? 'Cash' : 'Bank'} account found. Please create one first.` });
+        setIsSubmitting(false);
+        return;
+      }
+
       const url = editData 
         ? `http://localhost:7000/api/financial/transactions/${editData._id}`
         : 'http://localhost:7000/api/financial/transactions';
       
       const method = editData ? 'PUT' : 'POST';
       
+      // For expense transactions:
+      // Debit Account: Expense Account (money going out as expense)
+      // Credit Account: Cash or Bank Account (money coming from)
+      // Auto-select first warehouse if not set
+      let warehouseId = formData.warehouse;
+      if (!warehouseId && warehouses.length > 0) {
+        warehouseId = warehouses[0]._id;
+      }
+      if (!warehouseId) {
+        setErrors({ submit: 'No warehouse available. Please create a warehouse first.' });
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload = {
-        ...formData,
+        transactionType: 'Payment',
+        description: formData.description,
         amount: Number(formData.amount),
-        transactionDate: new Date().toISOString()
+        transactionDate: new Date(formData.transactionDate).toISOString(),
+        debitAccount: formData.expenseAccount, // Expense account
+        creditAccount: paymentAccount._id, // Cash or Bank account
+        paymentMethod: formData.paymentMethod,
+        paymentStatus: formData.paymentStatus,
+        currency: 'PKR',
+        warehouse: warehouseId
       };
 
       const response = await fetch(url, {
@@ -143,18 +179,13 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
     }
   };
 
-  const getAccountOptions = (accountType) => {
-    if (!accounts) return [];
-    return accounts.filter(account => account.accountType === accountType);
-  };
-
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
       <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900 flex items-center">
             <FaMoneyBillWave className="mr-2" />
-            {editData ? 'Edit Transaction' : 'New Transaction'}
+            {editData ? 'Edit Expense Transaction' : 'New Expense Transaction'}
           </h2>
           <button
             onClick={onCancel}
@@ -165,49 +196,89 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Transaction Type and Description */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Transaction Type *
-              </label>
-              <select
-                name="transactionType"
-                value={formData.transactionType}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Payment">Payment</option>
-                <option value="Receipt">Receipt</option>
-                <option value="Purchase">Purchase</option>
-                <option value="Sale">Sale</option>
-                <option value="Salary">Salary</option>
-                <option value="Transfer">Transfer</option>
-                <option value="Adjustment">Adjustment</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
+          {/* Transaction Type - Fixed */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Transaction Type
+            </label>
+            <input
+              type="text"
+              value="Expense"
+              disabled
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed"
+            />
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount *
-              </label>
+          {/* Expense Account */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Expense Account *
+            </label>
+            <select
+              name="expenseAccount"
+              value={formData.expenseAccount}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.expenseAccount ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Select Expense Account</option>
+              {expenseAccounts.map((account) => (
+                <option key={account._id} value={account._id}>
+                  {account.accountName} ({account.accountNumber})
+                </option>
+              ))}
+            </select>
+            {errors.expenseAccount && (
+              <p className="mt-1 text-sm text-red-600">{errors.expenseAccount}</p>
+            )}
+            {expenseAccounts.length === 0 && (
+              <p className="mt-1 text-sm text-yellow-600">No expense accounts found. Please create one first.</p>
+            )}
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Amount *
+            </label>
+            <input
+              type="number"
+              name="amount"
+              value={formData.amount}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.amount ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="0.00"
+              min="0.01"
+              step="0.01"
+            />
+            {errors.amount && (
+              <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+            )}
+          </div>
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date *
+            </label>
+            <div className="relative">
+              <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <input
-                type="number"
-                name="amount"
-                value={formData.amount}
+                type="date"
+                name="transactionDate"
+                value={formData.transactionDate}
                 onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.amount ? 'border-red-500' : 'border-gray-300'
+                className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.transactionDate ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="0.00"
-                min="0.01"
-                step="0.01"
               />
-              {errors.amount && (
-                <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
-              )}
             </div>
+            {errors.transactionDate && (
+              <p className="mt-1 text-sm text-red-600">{errors.transactionDate}</p>
+            )}
           </div>
 
           {/* Description */}
@@ -230,200 +301,43 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
             )}
           </div>
 
-          {/* Account Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Debit Account *
-              </label>
-              <select
-                name="debitAccount"
-                value={formData.debitAccount}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.debitAccount ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select Debit Account</option>
-                {getAccountOptions('Asset').map((account) => (
-                  <option key={account._id} value={account._id}>
-                    {account.accountName} ({account.accountNumber})
-                  </option>
-                ))}
-              </select>
-              {errors.debitAccount && (
-                <p className="mt-1 text-sm text-red-600">{errors.debitAccount}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Credit Account *
-              </label>
-              <select
-                name="creditAccount"
-                value={formData.creditAccount}
-                onChange={handleInputChange}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.creditAccount ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select Credit Account</option>
-                {getAccountOptions('Liability').map((account) => (
-                  <option key={account._id} value={account._id}>
-                    {account.accountName} ({account.accountNumber})
-                  </option>
-                ))}
-                {getAccountOptions('Equity').map((account) => (
-                  <option key={account._id} value={account._id}>
-                    {account.accountName} ({account.accountNumber})
-                  </option>
-                ))}
-                {getAccountOptions('Revenue').map((account) => (
-                  <option key={account._id} value={account._id}>
-                    {account.accountName} ({account.accountNumber})
-                  </option>
-                ))}
-              </select>
-              {errors.creditAccount && (
-                <p className="mt-1 text-sm text-red-600">{errors.creditAccount}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Payment Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Method *
-              </label>
-              <select
-                name="paymentMethod"
-                value={formData.paymentMethod}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Cash">Cash</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Credit Card">Credit Card</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Status
-              </label>
-              <select
-                name="paymentStatus"
-                value={formData.paymentStatus}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Pending">Pending</option>
-                <option value="Completed">Completed</option>
-                <option value="Failed">Failed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Payable/Receivable Tracking */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="isPayable"
-                checked={formData.isPayable}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 text-sm text-gray-700">Accounts Payable</label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                name="isReceivable"
-                checked={formData.isReceivable}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 text-sm text-gray-700">Accounts Receivable</label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Due Date
-              </label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Warehouse */}
+          {/* Payment Method */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Warehouse *
+              Payment Method *
             </label>
             <select
-              name="warehouse"
-              value={formData.warehouse}
+              name="paymentMethod"
+              value={formData.paymentMethod}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.warehouse ? 'border-red-500' : 'border-gray-300'
+                errors.paymentMethod ? 'border-red-500' : 'border-gray-300'
               }`}
-              disabled={warehousesLoading}
             >
-              <option value="">Select Warehouse</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse._id} value={warehouse._id}>
-                  {warehouse.name} - {warehouse.location}
-                </option>
-              ))}
+              <option value="Cash">Cash</option>
+              <option value="Bank Transfer">Bank Transfer</option>
             </select>
-            {errors.warehouse && (
-              <p className="mt-1 text-sm text-red-600">{errors.warehouse}</p>
-            )}
-            {warehousesLoading && (
-              <p className="mt-1 text-xs text-gray-500">Loading warehouses...</p>
+            {errors.paymentMethod && (
+              <p className="mt-1 text-sm text-red-600">{errors.paymentMethod}</p>
             )}
           </div>
 
-          {/* Currency */}
+          {/* Payment Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Currency
+              Payment Status *
             </label>
             <select
-              name="currency"
-              value={formData.currency}
+              name="paymentStatus"
+              value={formData.paymentStatus}
               onChange={handleInputChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="PKR">PKR (Rupees)</option>
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+              <option value="Failed">Failed</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleInputChange}
-              rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Additional notes..."
-            />
           </div>
 
           {/* Submit Error */}

@@ -279,24 +279,132 @@ class ReportService {
       const start = new Date(startDate);
       const end = new Date(endDate);
 
-      // Get sales revenue
+      // Get sales revenue with populated items
       const sales = await Sale.find({
         saleDate: { $gte: start, $lte: end }
-      });
+      })
+      .populate('items.product', 'name code category')
+      .populate('warehouse', 'name');
 
       const totalRevenue = sales.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0);
 
-      // Get cost of goods sold (COGS)
-      const bagPurchases = await BagPurchase.find({
-        purchaseDate: { $gte: start, $lte: end }
-      });
+      // Calculate Cost of Goods Sold (COGS) based on actual items sold
+      // Fetch all purchases up to the end date (for efficiency)
+      const allBagPurchases = await BagPurchase.find({
+        purchaseDate: { $lte: end }
+      }).sort({ purchaseDate: 1 });
 
-      const foodPurchases = await FoodPurchase.find({
-        purchaseDate: { $gte: start, $lte: end }
-      });
+      const allFoodPurchases = await FoodPurchase.find({
+        purchaseDate: { $lte: end }
+      }).sort({ purchaseDate: 1 });
 
-      const totalCOGS = bagPurchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0) +
-                       foodPurchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
+      let totalCOGS = 0;
+      const cogsBreakdown = [];
+
+      // Helper function to calculate average purchase price for a product
+      const getAveragePurchasePrice = (productName, unit, saleDate, isBagProduct) => {
+        let totalQuantity = 0;
+        let totalCost = 0;
+
+        if (isBagProduct) {
+          // Filter bag purchases before sale date
+          const relevantPurchases = allBagPurchases.filter(p => p.purchaseDate <= saleDate);
+          
+          for (const purchase of relevantPurchases) {
+            if (purchase.bags && purchase.bags instanceof Map) {
+              purchase.bags.forEach((bagData, productType) => {
+                // Match by product name similarity or exact match
+                if (productType.toLowerCase().includes(productName.toLowerCase()) ||
+                    productName.toLowerCase().includes(productType.toLowerCase()) ||
+                    productType === productName) {
+                  const qty = bagData.quantity || 0;
+                  const unitPrice = bagData.unitPrice || 0;
+                  if (qty > 0 && unitPrice > 0) {
+                    totalQuantity += qty;
+                    totalCost += (qty * unitPrice);
+                  }
+                }
+              });
+            } else if (purchase.bags && typeof purchase.bags === 'object') {
+              Object.keys(purchase.bags).forEach((productType) => {
+                const bagData = purchase.bags[productType];
+                if (productType.toLowerCase().includes(productName.toLowerCase()) ||
+                    productName.toLowerCase().includes(productType.toLowerCase()) ||
+                    productType === productName) {
+                  const qty = bagData.quantity || 0;
+                  const unitPrice = bagData.unitPrice || 0;
+                  if (qty > 0 && unitPrice > 0) {
+                    totalQuantity += qty;
+                    totalCost += (qty * unitPrice);
+                  }
+                }
+              });
+            }
+          }
+        } else {
+          // Filter food purchases before sale date
+          const relevantPurchases = allFoodPurchases.filter(p => p.purchaseDate <= saleDate);
+          
+          for (const purchase of relevantPurchases) {
+            for (const foodItem of purchase.foodItems || []) {
+              // Match by product name
+              if (foodItem.name.toLowerCase().includes(productName.toLowerCase()) ||
+                  productName.toLowerCase().includes(foodItem.name.toLowerCase()) ||
+                  foodItem.name === productName) {
+                const qty = foodItem.quantity || 0;
+                const unitPrice = foodItem.unitPrice || 0;
+                if (qty > 0 && unitPrice > 0) {
+                  totalQuantity += qty;
+                  totalCost += (qty * unitPrice);
+                }
+              }
+            }
+          }
+        }
+
+        return totalQuantity > 0 ? totalCost / totalQuantity : 0;
+      };
+
+      // Calculate COGS for each sale item
+      for (const sale of sales) {
+        for (const saleItem of sale.items || []) {
+          const productName = saleItem.productName || saleItem.product?.name || '';
+          const quantitySold = saleItem.quantity || 0;
+          const unit = saleItem.unit || 'units';
+          
+          if (quantitySold <= 0) continue;
+
+          // Determine if it's a bag product or wheat/food product
+          const isBagProduct = unit.includes('bag') || unit.includes('pcs') || unit === 'units';
+          const isWheatProduct = productName.toLowerCase().includes('wheat') || 
+                                 saleItem.product?.category?.toLowerCase().includes('wheat') ||
+                                 unit === 'kg' || unit === 'tons';
+
+          if (isBagProduct || isWheatProduct) {
+            const averagePurchasePrice = getAveragePurchasePrice(
+              productName, 
+              unit, 
+              sale.saleDate, 
+              isBagProduct
+            );
+
+            if (averagePurchasePrice > 0) {
+              const itemCOGS = averagePurchasePrice * quantitySold;
+              totalCOGS += itemCOGS;
+              
+              cogsBreakdown.push({
+                productName,
+                quantitySold,
+                unit,
+                averagePurchasePrice,
+                itemCOGS
+              });
+            } else {
+              console.warn(`No purchase found for product: ${productName} (${unit})`);
+            }
+          }
+        }
+      }
 
       // Get salaries (separate category)
       const salaries = await FinancialTransaction.find({
@@ -348,10 +456,11 @@ class ReportService {
         },
         data: {
           sales,
-          bagPurchases,
-          foodPurchases,
+          bagPurchases: allBagPurchases.filter(p => p.purchaseDate >= start && p.purchaseDate <= end),
+          foodPurchases: allFoodPurchases.filter(p => p.purchaseDate >= start && p.purchaseDate <= end),
           expenses,
-          salaries
+          salaries,
+          cogsBreakdown
         },
         summary,
         filters: { startDate, endDate }

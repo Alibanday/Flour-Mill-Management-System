@@ -245,51 +245,6 @@ export default function FinancialDashboard({ onEdit }) {
             </div>
           </div>
         </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-          <div className="space-y-3">
-            <button
-              onClick={() => onEdit(null, 'transaction')}
-              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
-              <div className="flex items-center">
-                <FaMoneyBillWave className="w-5 h-5 text-blue-600 mr-3" />
-                <div>
-                  <p className="font-medium text-gray-900">Record Transaction</p>
-                  <p className="text-sm text-gray-500">Add new financial transaction</p>
-                </div>
-              </div>
-            </button>
-            
-            <button
-              onClick={() => onEdit(null, 'account')}
-              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
-              <div className="flex items-center">
-                <FaCalculator className="w-5 h-5 text-green-600 mr-3" />
-                <div>
-                  <p className="font-medium text-gray-900">Create Account</p>
-                  <p className="text-sm text-gray-500">Set up new financial account</p>
-                </div>
-              </div>
-            </button>
-            
-            <button
-              onClick={() => onEdit(null, 'salary')}
-              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
-            >
-              <div className="flex items-center">
-                <FaUsers className="w-5 h-5 text-purple-600 mr-3" />
-                <div>
-                  <p className="font-medium text-gray-900">Process Salary</p>
-                  <p className="text-sm text-gray-500">Calculate and process employee salary</p>
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Recent Activity */}

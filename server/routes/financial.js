@@ -723,12 +723,17 @@ router.get("/dashboard", protect, async (req, res) => {
     );
     const totalRevenue = salesTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 
-    // Calculate Total Expenses (from Purchase transactions)
+    // Calculate Total Expenses (from Purchase transactions and Payment transactions with Expense accounts)
     const purchaseTransactions = transactions.filter(t => 
       t.transactionType === 'Purchase' && 
       t.debitAccount?.category === 'Purchase Expense'
     );
-    const totalExpenses = purchaseTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+    const expensePaymentTransactions = transactions.filter(t => 
+      t.transactionType === 'Payment' && 
+      t.debitAccount?.accountType === 'Expense'
+    );
+    const allExpenseTransactions = [...purchaseTransactions, ...expensePaymentTransactions];
+    const totalExpenses = allExpenseTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
 
     // Calculate Net Profit/Loss
     const netProfit = totalRevenue - totalExpenses;
