@@ -63,7 +63,30 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
       .map(item => {
         const quantity = item.currentStock ?? item.quantity ?? item.weight ?? 0;
         const name = item.name || item.product?.name || item.productName || 'Unnamed Item';
-        const unit = item.unit || item.product?.unit || item.measurementUnit || 'units';
+        const originalUnit = item.unit || item.product?.unit || item.measurementUnit || 'units';
+        const category = item.category || item.product?.category || '';
+        
+        // Determine display unit based on item type
+        const nameLower = name.toLowerCase();
+        const categoryLower = category.toLowerCase();
+        
+        let displayUnit = originalUnit;
+        
+        // Check if it's wheat
+        if (nameLower.includes('wheat') || 
+            (categoryLower.includes('raw materials') && nameLower.includes('grain'))) {
+          displayUnit = 'kg';
+        }
+        // Check if it's a bag (Packaging category or bag-related names)
+        else if (categoryLower === 'packaging' || 
+                 nameLower.includes('ata') || 
+                 nameLower.includes('maida') || 
+                 nameLower.includes('suji') || 
+                 nameLower.includes('fine') ||
+                 nameLower.includes('bag')) {
+          displayUnit = 'units';
+        }
+        
         const warehouseId =
           (typeof item.warehouse === 'object' ? item.warehouse?._id : item.warehouse) || formData.fromWarehouse;
         const warehouseName =
@@ -74,7 +97,8 @@ const StockTransferForm = ({ warehouses, inventory, onSubmit, onClose }) => {
           _id: item._id,
           name,
           quantity,
-          unit,
+          unit: displayUnit, // Use display unit for dropdown
+          originalUnit, // Keep original unit for backend submission
           warehouseId,
           warehouseName: warehouseName || 'Selected Warehouse'
         };

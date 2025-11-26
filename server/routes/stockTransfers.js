@@ -111,7 +111,7 @@ const processReceiveInventory = async (transfer, receivedItems, userId, receiptN
 };
 
 // Get all stock transfers
-router.get("/all", authorize("'Admin'", "'Manager'", "'Employee'"), async (req, res) => {
+router.get("/all", authorize("Admin", "Manager", "Employee", "General Manager"), async (req, res) => {
   try {
     const { page = 1, limit = 10, search, status, fromWarehouse, toWarehouse, transferType } = req.query;
     
@@ -158,8 +158,75 @@ router.get("/all", authorize("'Admin'", "'Manager'", "'Employee'"), async (req, 
   }
 });
 
+// Get transfer statistics (must be before /:id route)
+router.get("/stats/overview", authorize("Admin", "Manager", "General Manager"), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    let matchQuery = {};
+    if (startDate && endDate) {
+      matchQuery['transferDetails.transferDate'] = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+    
+    const stats = await StockTransfer.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          totalValue: { $sum: '$totalValue' },
+          totalQuantity: { $sum: '$totalQuantity' }
+        }
+      }
+    ]);
+    
+    const totalTransfers = await StockTransfer.countDocuments(matchQuery);
+    const totalValue = await StockTransfer.aggregate([
+      { $match: matchQuery },
+      { $group: { _id: null, total: { $sum: '$totalValue' } } }
+    ]);
+    
+    res.json({
+      success: true,
+      data: {
+        totalTransfers,
+        totalValue: totalValue[0]?.total || 0,
+        statusBreakdown: stats
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get transfer trends (must be before /:id route)
+router.get("/stats/trends", authorize("Admin", "Manager", "General Manager"), async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Start date and end date are required' 
+      });
+    }
+    
+    const trends = await StockTransfer.getTransferStats(startDate, endDate);
+    
+    res.json({
+      success: true,
+      data: trends
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get transfer by ID
-router.get("/:id", authorize("'Admin'", "'Manager'", "'Employee'"), async (req, res) => {
+router.get("/:id", authorize("Admin", "Manager", "Employee", "General Manager"), async (req, res) => {
   try {
     const transfer = await StockTransfer.findById(req.params.id)
       .populate('fromWarehouse', 'name')
@@ -182,7 +249,7 @@ router.get("/:id", authorize("'Admin'", "'Manager'", "'Employee'"), async (req, 
 
 // Create new stock transfer
 router.post("/create", [
-  authorize("'Admin'", "'Manager'", "'Employee'"),
+  authorize("Admin", "Manager", "Employee", "General Manager"),
   body('fromWarehouse').isMongoId().withMessage('Valid from warehouse ID is required'),
   body('toWarehouse').isMongoId().withMessage('Valid to warehouse ID is required'),
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
@@ -286,7 +353,7 @@ router.post("/create", [
 });
 
 // Approve stock transfer
-router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
+router.patch("/:id/approve", authorize("Admin", "Manager", "General Manager"), [
   body('approvalNotes').optional().isString().withMessage('Approval notes must be a string')
 ], async (req, res) => {
   try {
@@ -295,7 +362,7 @@ router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
       return res.status(400).json({ success: false, errors: errors.array() });
     }
     
-    const transfer = await StockTransfer.findById(req.params.id);
+    let transfer = await StockTransfer.findById(req.params.id);
     if (!transfer) {
       return res.status(404).json({ success: false, message: 'Transfer not found' });
     }
@@ -310,9 +377,17 @@ router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
     // Validate stock availability again before approval
     await StockTransfer.validateStockAvailability(transfer.fromWarehouse, transfer.items);
     
+    // Step 1: Approve the transfer
     await transfer.approveTransfer(req.user.id, req.body.approvalNotes);
-    await processDispatchInventory(transfer, req.user.id, req.body.approvalNotes || 'Auto dispatch after approval');
+    console.log(`✅ Transfer ${transfer.transferNumber} approved, status: ${transfer.status}`);
     
+    // Step 2: Dispatch (deduct from source warehouse)
+    await processDispatchInventory(transfer, req.user.id, req.body.approvalNotes || 'Auto dispatch after approval');
+    // Reload transfer after dispatch to get latest state
+    transfer = await StockTransfer.findById(transfer._id);
+    console.log(`✅ Transfer ${transfer.transferNumber} dispatched, status: ${transfer.status}`);
+    
+    // Step 3: Receive (add to destination warehouse)
     const autoReceivedItems = transfer.items.map(item => ({
       inventoryItem: item.inventoryItem,
       actualQuantity: item.requestedQuantity
@@ -325,11 +400,45 @@ router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
       'Auto receive after approval',
       false
     );
+    // Reload transfer after receive to get latest state
+    transfer = await StockTransfer.findById(transfer._id);
+    console.log(`✅ Transfer ${transfer.transferNumber} received, status: ${transfer.status}`);
+    
+    // Step 4: Auto-complete the transfer (since it's an internal/automatic transfer)
+    await transfer.completeTransfer();
+    console.log(`✅ Transfer ${transfer.transferNumber} completed, status: ${transfer.status}`);
+    
+    // Final refresh to get the completed transfer with all populated fields
+    let completedTransfer = await StockTransfer.findById(transfer._id)
+      .populate('fromWarehouse', 'name')
+      .populate('toWarehouse', 'name')
+      .populate('items.inventoryItem', 'name code')
+      .populate('createdBy', 'firstName lastName')
+      .populate('approval.approvedBy', 'firstName lastName')
+      .populate('dispatch.dispatchedBy', 'firstName lastName')
+      .populate('receipt.receivedBy', 'firstName lastName');
+    
+    // Ensure status is 'Completed' - if not, set it explicitly
+    if (completedTransfer.status !== 'Completed') {
+      completedTransfer.status = 'Completed';
+      await completedTransfer.save();
+      // Reload again to get the updated status
+      completedTransfer = await StockTransfer.findById(transfer._id)
+        .populate('fromWarehouse', 'name')
+        .populate('toWarehouse', 'name')
+        .populate('items.inventoryItem', 'name code')
+        .populate('createdBy', 'firstName lastName')
+        .populate('approval.approvedBy', 'firstName lastName')
+        .populate('dispatch.dispatchedBy', 'firstName lastName')
+        .populate('receipt.receivedBy', 'firstName lastName');
+    }
+    
+    console.log(`✅ Final transfer status: ${completedTransfer.status}`);
         
     res.json({
       success: true,
-      message: 'Transfer approved and stock moved successfully',
-      data: transfer
+      message: 'Transfer approved, stock moved, and transfer completed successfully',
+      data: completedTransfer
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -337,7 +446,7 @@ router.patch("/:id/approve", authorize("'Admin'", "'Manager'"), [
 });
 
 // Dispatch stock transfer
-router.patch("/:id/dispatch", authorize("'Admin'", "'Manager'", "'Employee'"), [
+router.patch("/:id/dispatch", authorize("Admin", "Manager", "Employee", "General Manager"), [
   body('dispatchNotes').optional().isString().withMessage('Dispatch notes must be a string')
 ], async (req, res) => {
   try {
@@ -371,7 +480,7 @@ router.patch("/:id/dispatch", authorize("'Admin'", "'Manager'", "'Employee'"), [
 });
 
 // Receive stock transfer
-router.patch("/:id/receive", authorize("'Admin'", "'Manager'", "'Employee'"), [
+router.patch("/:id/receive", authorize("Admin", "Manager", "Employee", "General Manager"), [
   body('receivedItems').isArray().withMessage('Received items must be an array'),
   body('receivedItems.*.inventoryItem').isMongoId().withMessage('Valid inventory item ID is required'),
   body('receivedItems.*.actualQuantity').isNumeric().withMessage('Actual quantity must be a number'),
@@ -408,7 +517,7 @@ router.patch("/:id/receive", authorize("'Admin'", "'Manager'", "'Employee'"), [
 });
 
 // Complete stock transfer
-router.patch("/:id/complete", authorize("'Admin'", "'Manager'"), async (req, res) => {
+router.patch("/:id/complete", authorize("Admin", "Manager", "General Manager"), async (req, res) => {
   try {
     const transfer = await StockTransfer.findById(req.params.id);
     if (!transfer) {
@@ -435,7 +544,7 @@ router.patch("/:id/complete", authorize("'Admin'", "'Manager'"), async (req, res
 });
 
 // Cancel stock transfer
-router.patch("/:id/cancel", authorize("'Admin'", "'Manager'"), [
+router.patch("/:id/cancel", authorize("Admin", "Manager", "General Manager"), [
   body('reason').notEmpty().withMessage('Cancellation reason is required')
 ], async (req, res) => {
   try {
@@ -465,73 +574,6 @@ router.patch("/:id/cancel", authorize("'Admin'", "'Manager'"), [
       success: true,
       message: 'Transfer cancelled successfully',
       data: transfer
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Get transfer statistics
-router.get("/stats/overview", authorize("'Admin'", "'Manager'"), async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    
-    let matchQuery = {};
-    if (startDate && endDate) {
-      matchQuery['transferDetails.transferDate'] = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-    
-    const stats = await StockTransfer.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 },
-          totalValue: { $sum: '$totalValue' },
-          totalQuantity: { $sum: '$totalQuantity' }
-        }
-      }
-    ]);
-    
-    const totalTransfers = await StockTransfer.countDocuments(matchQuery);
-    const totalValue = await StockTransfer.aggregate([
-      { $match: matchQuery },
-      { $group: { _id: null, total: { $sum: '$totalValue' } } }
-    ]);
-    
-    res.json({
-      success: true,
-      data: {
-        totalTransfers,
-        totalValue: totalValue[0]?.total || 0,
-        statusBreakdown: stats
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Get transfer trends
-router.get("/stats/trends", authorize("'Admin'", "'Manager'"), async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
-    
-    if (!startDate || !endDate) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Start date and end date are required' 
-      });
-    }
-    
-    const trends = await StockTransfer.getTransferStats(startDate, endDate);
-    
-    res.json({
-      success: true,
-      data: trends
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -96,15 +96,12 @@ const StockTransferList = ({
   const getAvailableActions = (transfer) => {
     const actions = [];
     
-    if (transfer.status === 'Pending' && hasPermission(['Admin', 'Manager'])) {
-      actions.push({ type: 'approve', label: 'Approve', color: 'text-green-600 hover:text-green-900' });
+    // Single button for pending transfers: "Approve & Complete"
+    if (transfer.status === 'Pending' && hasPermission(['Admin', 'Manager', 'General Manager'])) {
+      actions.push({ type: 'approve', label: 'Approve & Complete', color: 'text-green-600 hover:text-green-900' });
     }
     
-    if (transfer.status === 'Delivered' && hasPermission(['Admin', 'Manager'])) {
-      actions.push({ type: 'complete', label: 'Complete', color: 'text-green-600 hover:text-green-900' });
-    }
-    
-    if (['Pending', 'Approved', 'Dispatched'].includes(transfer.status) && hasPermission(['Admin', 'Manager'])) {
+    if (['Pending', 'Approved', 'Dispatched'].includes(transfer.status) && hasPermission(['Admin', 'Manager', 'General Manager'])) {
       actions.push({ type: 'cancel', label: 'Cancel', color: 'text-red-600 hover:text-red-900' });
     }
     
@@ -368,7 +365,7 @@ const StockTransferList = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {actionType === 'approve' && 'Approve Transfer'}
+              {actionType === 'approve' && 'Approve & Complete Transfer'}
               {actionType === 'dispatch' && 'Dispatch Transfer'}
               {actionType === 'receive' && 'Receive Transfer'}
               {actionType === 'complete' && 'Complete Transfer'}
@@ -377,9 +374,14 @@ const StockTransferList = ({
             
             {actionType === 'approve' && (
               <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                  <p className="text-sm text-blue-800">
+                    This will approve the transfer, move stock from source to destination warehouse, and mark it as completed.
+                  </p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Approval Notes
+                    Approval Notes (Optional)
                   </label>
                   <textarea
                     value={actionData.notes || ''}
@@ -467,7 +469,7 @@ const StockTransferList = ({
                 onClick={handleActionSubmit}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                {actionType === 'approve' && 'Approve'}
+                {actionType === 'approve' && 'Approve & Complete'}
                 {actionType === 'dispatch' && 'Dispatch'}
                 {actionType === 'receive' && 'Receive'}
                 {actionType === 'complete' && 'Complete'}
