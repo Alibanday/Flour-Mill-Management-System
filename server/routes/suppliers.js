@@ -87,6 +87,18 @@ router.get("/", async (req, res) => {
 // @access  Admin, Manager
 router.post("/", authorize("Admin", "Manager"), async (req, res) => {
   try {
+    // Check if email already exists
+    if (req.body.email) {
+      const existingSupplier = await Supplier.findOne({ email: req.body.email.toLowerCase().trim() });
+      if (existingSupplier) {
+        return res.status(400).json({
+          success: false,
+          message: `A supplier with email "${req.body.email}" already exists`,
+          field: 'email'
+        });
+      }
+    }
+
     // Generate supplier code automatically
     const supplierType = req.body.supplierType || 'Private';
     const prefix = supplierType === 'Government' ? 'GOV' : 'PRV';
@@ -104,9 +116,31 @@ router.post("/", authorize("Admin", "Manager"), async (req, res) => {
     
     const supplierCode = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
 
+    // Check if supplier code already exists (shouldn't happen, but just in case)
+    const existingCode = await Supplier.findOne({ supplierCode });
+    if (existingCode) {
+      // Try next number
+      nextNumber += 1;
+      const newSupplierCode = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+      const existingCode2 = await Supplier.findOne({ supplierCode: newSupplierCode });
+      if (existingCode2) {
+        // Find the highest number
+        const highestSupplier = await Supplier.findOne({ 
+          supplierCode: { $regex: `^${prefix}` } 
+        }).sort({ supplierCode: -1 });
+        if (highestSupplier) {
+          const highestNumber = parseInt(highestSupplier.supplierCode.replace(prefix, ''));
+          nextNumber = highestNumber + 1;
+        }
+      }
+    }
+
+    const finalSupplierCode = `${prefix}${nextNumber.toString().padStart(3, '0')}`;
+
     const supplierData = {
       ...req.body,
-      supplierCode,
+      email: req.body.email ? req.body.email.toLowerCase().trim() : req.body.email,
+      supplierCode: finalSupplierCode,
       createdBy: req.user._id,
     };
 
@@ -122,6 +156,18 @@ router.post("/", authorize("Admin", "Manager"), async (req, res) => {
     });
   } catch (error) {
     console.error("Create supplier error:", error);
+    
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000) {
+      const field = error.keyPattern ? Object.keys(error.keyPattern)[0] : 'field';
+      const value = error.keyValue ? Object.values(error.keyValue)[0] : 'value';
+      return res.status(400).json({
+        success: false,
+        message: `A supplier with this ${field === 'email' ? 'email' : 'supplier code'} already exists`,
+        field: field
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: "Server error",

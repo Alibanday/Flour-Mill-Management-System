@@ -158,7 +158,7 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
       setError(null);
 
       const url = isEditing 
-        ? 'http://localhost:7000/api/suppliers/${editingSupplier._id}`
+        ? `http://localhost:7000/api/suppliers/${editingSupplier._id}`
         : 'http://localhost:7000/api/suppliers';
       
       const method = isEditing ? 'PUT' : 'POST';
@@ -174,6 +174,11 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
 
       if (!response.ok) {
         const errorData = await response.json();
+        // Handle field-specific errors (e.g., duplicate email)
+        if (errorData.field === 'email') {
+          setError(`Email Error: ${errorData.message || 'This email is already registered to another supplier'}`);
+          return;
+        }
         throw new Error(errorData.message || 'Failed to save supplier');
       }
 

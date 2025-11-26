@@ -206,6 +206,174 @@ export default function CustomerDetailPage() {
     ? Number(customer.creditUsed) 
     : calculatedOutstanding;
 
+  // Print payment receipt
+  const printPaymentReceipt = (paymentAmount, outstandingBefore, outstandingAfter) => {
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const currentTime = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const receiptNumber = `RCP-${Date.now()}`;
+    
+    const customerName = `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || customer.customerName || 'N/A';
+    const customerPhone = customer.phone || 'N/A';
+    const customerEmail = customer.email || 'N/A';
+    const customerAddress = formatAddress(customer.address);
+    
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Payment Receipt - ${receiptNumber}</title>
+          <style>
+            @page { size: A4; margin: 1cm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #000; line-height: 1.4; }
+            .invoice-container { max-width: 100%; padding: 20px; }
+            .invoice-header { border-bottom: 3px solid #10b981; padding-bottom: 20px; margin-bottom: 25px; }
+            .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+            .company-info h1 { font-size: 28px; color: #059669; margin-bottom: 5px; font-weight: 700; }
+            .company-info .subtitle { font-size: 13px; color: #6b7280; }
+            .invoice-info { text-align: right; }
+            .invoice-info h2 { font-size: 24px; color: #10b981; margin-bottom: 5px; font-weight: 700; }
+            .invoice-info .invoice-number { font-size: 14px; color: #111827; font-weight: 600; }
+            .invoice-info .invoice-date { font-size: 11px; color: #6b7280; margin-top: 5px; }
+            .parties-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+            .party-box { background: #f0fdf4; padding: 15px; border-left: 4px solid #10b981; border-radius: 3px; }
+            .party-box h3 { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+            .party-box p { font-size: 11px; color: #111827; margin: 3px 0; }
+            .party-box .name { font-weight: 600; font-size: 13px; color: #111827; }
+            .payment-section { margin-bottom: 25px; }
+            .payment-section h3 { font-size: 14px; color: #111827; margin-bottom: 15px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+            .payment-details { background: #ecfdf5; padding: 20px; border-radius: 5px; border: 2px solid #10b981; }
+            .payment-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #d1fae5; }
+            .payment-row:last-child { border-bottom: none; }
+            .payment-row .label { color: #6b7280; font-weight: 500; }
+            .payment-row .value { color: #111827; font-weight: 600; font-size: 13px; }
+            .payment-row .amount { color: #059669; font-weight: 700; font-size: 16px; }
+            .payment-row .outstanding-before { color: #dc2626; font-weight: 600; }
+            .payment-row .outstanding-after { color: #059669; font-weight: 600; }
+            .totals-section { margin-top: 25px; }
+            .totals-box { background: #f3f4f6; padding: 20px; border-radius: 5px; border-left: 4px solid #10b981; }
+            .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+            .total-row:last-child { border-bottom: none; font-weight: 700; font-size: 15px; color: #059669; border-top: 2px solid #10b981; padding-top: 15px; margin-top: 10px; }
+            .total-row .label { color: #6b7280; font-size: 13px; }
+            .total-row .value { color: #111827; font-weight: 600; font-size: 14px; }
+            .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; background: #d1fae5; color: #059669; }
+            .notes-section { margin-top: 25px; padding-top: 15px; border-top: 1px solid #e5e7eb; }
+            .notes-section h3 { font-size: 12px; color: #6b7280; margin-bottom: 5px; font-weight: 600; }
+            .notes-section p { font-size: 11px; color: #111827; }
+            .invoice-footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; }
+            .invoice-footer p { font-size: 10px; color: #6b7280; margin: 3px 0; }
+            @media print { 
+              .no-print { display: none !important; } 
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+              .invoice-container { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-container">
+            <div class="invoice-header">
+              <div class="header-top">
+                <div class="company-info">
+                  <h1>FLOUR MILL</h1>
+                  <div class="subtitle">Payment Receipt</div>
+                </div>
+                <div class="invoice-info">
+                  <h2>RECEIPT</h2>
+                  <div class="invoice-number">Receipt #: ${receiptNumber}</div>
+                  <div class="invoice-date">Date: ${currentDate} | Time: ${currentTime}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="parties-section">
+              <div class="party-box">
+                <h3>Customer Information</h3>
+                <p class="name">${customerName}</p>
+                ${customerPhone !== 'N/A' ? `<p>Phone: ${customerPhone}</p>` : ''}
+                ${customerEmail !== 'N/A' ? `<p>Email: ${customerEmail}</p>` : ''}
+                ${customerAddress !== 'N/A' ? `<p>${customerAddress}</p>` : ''}
+              </div>
+              <div class="party-box">
+                <h3>Payment Information</h3>
+                <p><strong>Receipt Number:</strong></p>
+                <p>${receiptNumber}</p>
+                <p style="margin-top: 10px;"><strong>Payment Date:</strong></p>
+                <p>${currentDate} at ${currentTime}</p>
+                <p style="margin-top: 10px;"><span class="status-badge">PAID</span></p>
+              </div>
+            </div>
+            
+            <div class="payment-section">
+              <h3>Payment Details</h3>
+              <div class="payment-details">
+                <div class="payment-row">
+                  <span class="label">Payment Amount:</span>
+                  <span class="amount">Rs. ${paymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div class="payment-row">
+                  <span class="label">Outstanding Balance (Before):</span>
+                  <span class="outstanding-before">Rs. ${outstandingBefore.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div class="payment-row">
+                  <span class="label">Outstanding Balance (After):</span>
+                  <span class="outstanding-after">Rs. ${outstandingAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="totals-section">
+              <div class="totals-box">
+                <div class="total-row">
+                  <span class="label">Amount Paid:</span>
+                  <span class="value">Rs. ${paymentAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div class="total-row">
+                  <span class="label">Previous Outstanding:</span>
+                  <span class="value">Rs. ${outstandingBefore.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div class="total-row">
+                  <span class="label">Remaining Outstanding:</span>
+                  <span class="value">Rs. ${outstandingAfter.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="notes-section">
+              <h3>Important Notes</h3>
+              <p>• This receipt confirms the payment has been received and recorded in our system.</p>
+              <p>• Please keep this receipt for your records.</p>
+              <p>• For any queries, please contact us with the receipt number: <strong>${receiptNumber}</strong></p>
+            </div>
+            
+            <div class="invoice-footer">
+              <p><strong>Thank you for your payment!</strong></p>
+              <p>Generated on ${currentDate} at ${currentTime}</p>
+              <p>This is a computer-generated receipt</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.afterprint = () => printWindow.close();
+      }, 250);
+    };
+  };
+
   const handleRecordPayment = async (event) => {
     event.preventDefault();
     setPaymentError(null);
@@ -221,6 +389,8 @@ export default function CustomerDetailPage() {
       setPaymentError('Payment amount cannot exceed outstanding balance.');
       return;
     }
+
+    const outstandingBefore = outstandingBalance;
 
     try {
       setPaymentProcessing(true);
@@ -240,12 +410,25 @@ export default function CustomerDetailPage() {
       }
 
       const result = await response.json();
-      if (result?.data) {
-        setCustomer(result.data);
+      let updatedCustomer = result.data;
+      if (updatedCustomer) {
+        setCustomer(updatedCustomer);
       }
+
+      // Calculate outstanding balance after payment
+      const outstandingAfter = updatedCustomer?.creditUsed !== undefined && updatedCustomer.creditUsed !== null
+        ? Number(updatedCustomer.creditUsed)
+        : Math.max(0, outstandingBefore - amountValue);
 
       setPaymentAmount('');
       setPaymentSuccess('Payment recorded successfully.');
+      
+      // Print payment receipt immediately
+      setTimeout(() => {
+        printPaymentReceipt(amountValue, outstandingBefore, outstandingAfter);
+      }, 300);
+      
+      // Reload customer data to refresh the page after printing
       await loadCustomerData();
     } catch (paymentErr) {
       console.error('❌ Error recording payment:', paymentErr);
@@ -467,8 +650,8 @@ export default function CustomerDetailPage() {
             </div>
             <div className="bg-red-50 rounded-md p-4 border border-red-200">
               <p className="text-xs uppercase text-gray-500">Total Due/Remaining</p>
-              <p className="text-lg font-semibold text-red-600">{formatCurrency(totalDue)}</p>
-              <p className="text-xs text-gray-500 mt-1">Calculated from sales</p>
+              <p className="text-lg font-semibold text-red-600">{formatCurrency(outstandingBalance)}</p>
+              <p className="text-xs text-gray-500 mt-1">From customer record</p>
             </div>
             <div className="bg-yellow-50 rounded-md p-4 border border-yellow-200">
               <p className="text-xs uppercase text-gray-500">Outstanding Balance</p>
@@ -505,14 +688,6 @@ export default function CustomerDetailPage() {
               <p className="text-lg font-semibold text-gray-900">{customer.totalOrders || 0}</p>
             </div>
           </div>
-          {outstandingBalance !== totalDue && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800">
-                <strong>Note:</strong> Outstanding balance (Rs. {outstandingBalance.toFixed(2)}) differs from calculated total due (Rs. {totalDue.toFixed(2)}). 
-                This may be due to payments recorded outside of sales or data synchronization.
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Record Payment */}
