@@ -7,9 +7,12 @@ import {
   FaUser, FaTruck, FaBoxes, FaTools, FaUserTie
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import { toast } from 'react-toastify';
 import GatePassForm from '../components/GatePass/GatePassForm';
 import GatePassList from '../components/GatePass/GatePassList';
 import ActivePasses from '../components/GatePass/ActivePasses';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function GatePassPage() {
   const navigate = useNavigate();
@@ -189,21 +192,209 @@ export default function GatePassPage() {
 
   const handleWhatsAppShare = async (gatePassId) => {
     try {
-      const response = await fetch(`http://localhost:7000/api/gate-pass/${gatePassId}/whatsapp-shared`, {
-        method: 'PATCH',
+      // First, fetch the gate pass details
+      const gatePassResponse = await fetch(`http://localhost:7000/api/gate-pass/${gatePassId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
 
-      if (response.ok) {
-        fetchGatePasses();
-      } else {
-        const data = await response.json();
-        alert(data.message || 'Failed to update WhatsApp status');
+      if (!gatePassResponse.ok) {
+        throw new Error('Failed to fetch gate pass details');
       }
+
+      const gatePassData = await gatePassResponse.json();
+      const gatePass = gatePassData.data || gatePassData;
+
+      // Get the contact number
+      const issuedToContact = gatePass.issuedTo?.contact || '';
+      const phoneNumber = issuedToContact.replace(/[^\d+]/g, '').replace(/^0+/, '') || '';
+      
+      // Check if we have a contact number
+      if (!phoneNumber) {
+        toast.error('Contact number not found. Cannot open WhatsApp.');
+        return;
+      }
+      
+      // Ask for confirmation
+      const confirmed = window.confirm(
+        `Do you want to open WhatsApp and share the Gate Pass PDF with ${gatePass.issuedTo?.name || 'the customer'}?\n\n` +
+        `Contact: ${issuedToContact}\n` +
+        `WhatsApp will open with this number automatically.`
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+
+      // Generate PDF using jsPDF
+      const doc = new jsPDF();
+      
+      // Company Header
+      doc.setFontSize(20);
+      doc.setTextColor(124, 58, 237); // Purple color
+      doc.text('FLOUR MILL', 105, 20, { align: 'center' });
+      doc.setFontSize(16);
+      doc.setTextColor(147, 51, 234);
+      doc.text('GATE PASS', 105, 30, { align: 'center' });
+      
+      // Gate Pass Number and Date
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont(undefined, 'bold');
+      doc.text(`Gate Pass #: ${gatePass.gatePassNumber || 'N/A'}`, 20, 45);
+      doc.setFont(undefined, 'normal');
+      
+      const gatePassDate = gatePass.validFrom 
+        ? new Date(gatePass.validFrom).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      doc.text(`Date: ${gatePassDate}`, 150, 45, { align: 'right' });
+      
+      // Issued To Section
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text('Issued To:', 20, 60);
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      const issuedToName = gatePass.issuedTo?.name || 'N/A';
+      const issuedToCompany = gatePass.issuedTo?.company || '';
+      
+      doc.text(issuedToName, 20, 67);
+      doc.text(`Contact: ${issuedToContact}`, 20, 74);
+      if (issuedToCompany) {
+        doc.text(`Company: ${issuedToCompany}`, 20, 81);
+      }
+      
+      // Gate Pass Details
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text('Gate Pass Details:', 110, 60);
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      
+      doc.text(`Type: ${gatePass.type || 'N/A'}`, 110, 67);
+      doc.text(`Purpose: ${gatePass.purpose || 'N/A'}`, 110, 74);
+      
+      const validUntil = gatePass.validUntil 
+        ? new Date(gatePass.validUntil).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        : 'N/A';
+      doc.text(`Valid Until: ${validUntil}`, 110, 81);
+      
+      const warehouseName = gatePass.warehouse?.name || 'N/A';
+      const warehouseLocation = gatePass.warehouse?.location || 'N/A';
+      doc.text(`Warehouse: ${warehouseName}`, 110, 88);
+      if (warehouseLocation !== 'N/A') {
+        doc.text(`Location: ${warehouseLocation}`, 110, 95);
+      }
+      
+      // Items Table using autoTable
+      let startY = 105;
+      if (gatePass.items && gatePass.items.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Items to Dispatch:', 20, startY);
+        startY += 8;
+        
+        // Prepare table data
+        const tableData = gatePass.items.map((item, index) => [
+          (index + 1).toString(),
+          (item.description || 'N/A').toString(),
+          (item.quantity || 0).toLocaleString(),
+          (item.unit || 'units').toString(),
+          `Rs. ${(item.value || 0).toLocaleString()}`
+        ]);
+        
+        // Use autoTable for better formatting
+        if (typeof doc.autoTable === 'function') {
+          doc.autoTable({
+            startY: startY,
+            head: [['#', 'Description', 'Quantity', 'Unit', 'Value']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [124, 58, 237], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [249, 250, 251] },
+            styles: { fontSize: 9, cellPadding: 3 },
+            columnStyles: {
+              0: { cellWidth: 10, halign: 'center' },
+              1: { cellWidth: 80 },
+              2: { cellWidth: 25, halign: 'right' },
+              3: { cellWidth: 25, halign: 'center' },
+              4: { cellWidth: 30, halign: 'right' }
+            }
+          });
+          startY = doc.lastAutoTable.finalY + 10;
+        } else {
+          // Fallback if autoTable is not available
+          doc.setFontSize(10);
+          gatePass.items.forEach((item, index) => {
+            doc.text(`${index + 1}. ${item.description || 'N/A'} - ${item.quantity || 0} ${item.unit || 'units'} - Rs. ${(item.value || 0).toLocaleString()}`, 20, startY);
+            startY += 7;
+            if (startY > 270) {
+              doc.addPage();
+              startY = 20;
+            }
+          });
+        }
+      } else {
+        startY = 105;
+      }
+      
+      // Footer
+      const footerY = startY + 10;
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128);
+      doc.text('This gate pass is valid for stock dispatch only.', 105, footerY, { align: 'center' });
+      doc.text('Please ensure all items are verified before dispatch.', 105, footerY + 6, { align: 'center' });
+      
+      // Generate PDF blob
+      const pdfBlob = doc.output('blob');
+      const fileName = `GatePass-${gatePass.gatePassNumber || 'AUTO'}-${Date.now()}.pdf`;
+      
+      // Download PDF automatically
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(pdfUrl);
+      
+      // Open WhatsApp with the customer number pre-filled
+      // Format: wa.me/phoneNumber (without +, spaces, or special characters)
+      // Remove leading zeros if present and ensure country code
+      let whatsappNumber = phoneNumber.replace(/^\+/, ''); // Remove + if present
+      if (whatsappNumber.startsWith('0')) {
+        whatsappNumber = '92' + whatsappNumber.substring(1); // Add Pakistan country code if starts with 0
+      } else if (!whatsappNumber.startsWith('92') && whatsappNumber.length === 10) {
+        whatsappNumber = '92' + whatsappNumber; // Add Pakistan country code if 10 digits
+      }
+      
+      const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast.success('PDF downloaded. WhatsApp opened with customer number. Please attach the PDF file.', { autoClose: 5000 });
+      
+      // Mark as shared in the database
+      try {
+        const shareResponse = await fetch(`http://localhost:7000/api/gate-pass/${gatePassId}/whatsapp-shared`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        
+        if (shareResponse.ok) {
+          fetchGatePasses();
+        }
+      } catch (shareErr) {
+        console.error('Failed to update WhatsApp shared status:', shareErr);
+      }
+      
     } catch (err) {
-      alert('Error updating WhatsApp status: ' + err.message);
+      console.error('Error sharing via WhatsApp:', err);
+      toast.error('Error generating PDF: ' + err.message);
     }
   };
 
