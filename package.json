@@ -8,6 +8,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "create-admin": "node server/scripts/createAdmin.js"
   }
 }

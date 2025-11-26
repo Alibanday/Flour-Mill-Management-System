@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FaCalculator, FaChartLine, FaPlus, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaCalculator, FaChartLine, FaPlus, FaSearch, FaFilter, FaExchangeAlt } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import AccountForm from '../components/FinancialManagement/AccountForm';
 import AccountList from '../components/FinancialManagement/AccountList';
 import FinancialDashboard from '../components/FinancialManagement/FinancialDashboard';
+import TransactionLedger from '../components/FinancialManagement/TransactionLedger';
+import AccountLedger from '../components/FinancialManagement/AccountLedger';
 
 export default function FinancialManagementPage() {
   const { user } = useAuth();
@@ -12,6 +14,8 @@ export default function FinancialManagementPage() {
   const [editData, setEditData] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('tabs'); // 'tabs' or 'ledger'
+  const [selectedAccount, setSelectedAccount] = useState(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -60,9 +64,44 @@ export default function FinancialManagementPage() {
     handleFormClose();
   };
 
+  const [initializing, setInitializing] = useState(false);
+
+  const handleInitializeDefaultAccounts = async () => {
+    if (!window.confirm('This will create default accounts (Cash, Bank, Sales Revenue, etc.) if they don\'t exist. Continue?')) {
+      return;
+    }
+
+    setInitializing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:7000/api/financial/accounts/initialize', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert('Default accounts initialized successfully!');
+        await fetchAccounts();
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.message || 'Failed to initialize accounts'}`);
+      }
+    } catch (error) {
+      console.error('Error initializing accounts:', error);
+      alert('Error initializing accounts. Please try again.');
+    } finally {
+      setInitializing(false);
+    }
+  };
+
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: FaChartLine },
-    { id: 'accounts', label: 'Accounts', icon: FaCalculator }
+    { id: 'accounts', label: 'Accounts', icon: FaCalculator },
+    { id: 'transactions', label: 'Transaction Ledger', icon: FaExchangeAlt }
   ];
 
   if (loading) {
@@ -87,13 +126,22 @@ export default function FinancialManagementPage() {
             </div>
             <div className="flex space-x-3">
               {activeTab === 'accounts' && (
-                <button
-                  onClick={() => setShowAccountForm(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <FaPlus className="mr-2" />
-                  New Account
-                </button>
+                <>
+                  <button
+                    onClick={handleInitializeDefaultAccounts}
+                    disabled={initializing}
+                    className="inline-flex items-center px-4 py-2 border border-green-600 text-sm font-medium rounded-md shadow-sm text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  >
+                    {initializing ? 'Initializing...' : 'Initialize Default Accounts'}
+                  </button>
+                  <button
+                    onClick={() => setShowAccountForm(true)}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <FaPlus className="mr-2" />
+                    New Account
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -133,11 +181,33 @@ export default function FinancialManagementPage() {
           />
         )}
         
-        {activeTab === 'accounts' && (
+        {activeTab === 'accounts' && viewMode === 'tabs' && (
           <AccountList 
             onEdit={(data) => handleEdit(data, 'account')}
             onRefresh={fetchAccounts}
+            onViewLedger={(account) => {
+              setSelectedAccount(account);
+              setViewMode('ledger');
+            }}
           />
+        )}
+
+        {activeTab === 'accounts' && viewMode === 'ledger' && selectedAccount && (
+          <AccountLedger
+            account={selectedAccount}
+            accounts={accounts}
+            onBack={() => {
+              setViewMode('tabs');
+              setSelectedAccount(null);
+            }}
+            onViewLedger={(account) => {
+              setSelectedAccount(account);
+            }}
+          />
+        )}
+
+        {activeTab === 'transactions' && (
+          <TransactionLedger />
         )}
       </div>
 

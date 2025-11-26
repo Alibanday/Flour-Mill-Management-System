@@ -16,7 +16,7 @@ const validateSupplier = [
   body("supplierCode").trim().notEmpty().withMessage("Supplier code is required"),
   body("name").trim().notEmpty().withMessage("Supplier name is required"),
   body("contactPerson").trim().notEmpty().withMessage("Contact person is required"),
-  body("email").isEmail().withMessage("Valid email is required"),
+  body("email").optional({ checkFalsy: true, values: 'falsy' }).isEmail().withMessage("Valid email is required if provided"),
   body("phone").trim().notEmpty().withMessage("Phone number is required"),
   body("address.street").trim().notEmpty().withMessage("Street address is required"),
   body("address.city").trim().notEmpty().withMessage("City is required"),
@@ -139,7 +139,7 @@ router.post("/", authorize("Admin", "Manager"), async (req, res) => {
 
     const supplierData = {
       ...req.body,
-      email: req.body.email ? req.body.email.toLowerCase().trim() : req.body.email,
+      email: req.body.email && req.body.email.trim() ? req.body.email.toLowerCase().trim() : undefined,
       supplierCode: finalSupplierCode,
       createdBy: req.user._id,
     };
@@ -343,14 +343,19 @@ router.put("/:id", authorize("Admin", "Manager"), validateSupplier, async (req, 
     }
 
     // Check if email or supplier code is being changed and if it already exists
-    if (req.body.email && req.body.email !== supplier.email) {
-      const existingEmail = await Supplier.findOne({ email: req.body.email, _id: { $ne: req.params.id } });
+    if (req.body.email && req.body.email.trim() && req.body.email !== supplier.email) {
+      const existingEmail = await Supplier.findOne({ email: req.body.email.toLowerCase().trim(), _id: { $ne: req.params.id } });
       if (existingEmail) {
         return res.status(400).json({
           success: false,
           message: "Email already exists",
         });
       }
+    }
+    
+    // Handle email: if empty string, set to undefined; if provided, normalize it
+    if (req.body.email !== undefined) {
+      req.body.email = req.body.email && req.body.email.trim() ? req.body.email.toLowerCase().trim() : undefined;
     }
 
     if (req.body.supplierCode && req.body.supplierCode !== supplier.supplierCode) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaUser, FaBuilding, FaMapMarkerAlt, FaPhone, FaEnvelope, FaCreditCard } from 'react-icons/fa';
+import { FaSave, FaTimes, FaUser, FaBuilding, FaMapMarkerAlt, FaPhone, FaEnvelope } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 
 const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCancel }) => {
@@ -17,7 +17,6 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
       country: 'Pakistan',
     },
     supplierType: 'Private',
-    taxNumber: '',
     status: 'Active',
     rating: 3,
     notes: '',
@@ -48,7 +47,6 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
           country: editingSupplier.address?.country || 'Pakistan',
         },
         supplierType: editingSupplier.supplierType || 'Private',
-        taxNumber: editingSupplier.taxNumber || '',
         status: editingSupplier.status || 'Active',
         rating: editingSupplier.rating || 3,
         notes: editingSupplier.notes || '',
@@ -115,10 +113,7 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
       setError('Contact person is required');
       return false;
     }
-    if (!formData.email.trim()) {
-      setError('Email is required');
-      return false;
-    }
+    // Email is optional - no validation needed
     if (!formData.phone.trim()) {
       setError('Phone number is required');
       return false;
@@ -207,7 +202,6 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
           country: 'Pakistan',
         },
         supplierType: 'Private',
-        taxNumber: '',
         status: 'Active',
         rating: 3,
         notes: '',
@@ -239,7 +233,6 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
           country: 'Pakistan',
         },
         supplierType: 'Private',
-        taxNumber: '',
         status: 'Active',
         rating: 3,
         notes: '',
@@ -331,7 +324,7 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <FaEnvelope className="inline h-4 w-4 mr-2" />
-                Email *
+                Email
               </label>
               <input
                 type="email"
@@ -339,8 +332,7 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
                 value={formData.email}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter email address"
-                required
+                placeholder="Enter email address (optional)"
               />
             </div>
 
@@ -377,20 +369,6 @@ const SupplierForm = ({ suppliers, setSuppliers, editingSupplier = null, onCance
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <FaCreditCard className="inline h-4 w-4 mr-2" />
-                Tax Number
-              </label>
-              <input
-                type="text"
-                name="taxNumber"
-                value={formData.taxNumber}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter tax number (optional)"
-              />
-            </div>
           </div>
 
           {/* Address Information */}

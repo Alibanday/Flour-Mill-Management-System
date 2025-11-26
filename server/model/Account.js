@@ -7,6 +7,13 @@ const AccountSchema = new mongoose.Schema({
     unique: true,
     trim: true
   },
+  accountCode: {
+    type: String,
+    unique: true,
+    sparse: true, // Allows multiple null values
+    trim: true,
+    index: true
+  },
   accountName: {
     type: String,
     required: true,
@@ -60,9 +67,12 @@ const AccountSchema = new mongoose.Schema({
 
 // Index for efficient queries
 AccountSchema.index({ accountNumber: 1 });
+AccountSchema.index({ accountCode: 1 });
 AccountSchema.index({ accountType: 1 });
 AccountSchema.index({ category: 1 });
 AccountSchema.index({ warehouse: 1 });
+// Composite index for account lookup
+AccountSchema.index({ category: 1, accountType: 1, warehouse: 1 });
 
 const Account = mongoose.model("Account", AccountSchema);
 

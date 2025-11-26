@@ -498,16 +498,16 @@ class ReportService {
       const vendorOutstanding = [];
 
       for (const supplier of suppliers) {
-        // Get bag purchases
+        // Get bag purchases (only Pending and Partial status, not Paid)
         const bagPurchases = await BagPurchase.find({
           supplier: supplier._id,
-          paymentStatus: { $in: ['pending', 'partial'] }
+          paymentStatus: { $in: ['Pending', 'Partial'] }
         });
 
-        // Get food purchases
+        // Get food purchases (only Pending and Partial status, not Completed)
         const foodPurchases = await FoodPurchase.find({
           supplier: supplier._id,
-          paymentStatus: { $in: ['pending', 'partial'] }
+          paymentStatus: { $in: ['Pending', 'Partial'] }
         });
 
         const totalOutstanding = bagPurchases.reduce((sum, purchase) => sum + (purchase.dueAmount || 0), 0) +

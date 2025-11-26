@@ -595,61 +595,6 @@ export default function WheatSalesForm({
             </div>
           </div>
 
-          {/* Discount */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Discount
-            </label>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <select
-                  value={formData.discount.type}
-                  onChange={(e) => handleDiscountChange('type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="none">None</option>
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="fixed">Fixed Amount</option>
-                </select>
-              </div>
-              {formData.discount.type !== 'none' && (
-                <div>
-                  <input
-                    type="number"
-                    value={formData.discount.value || 0}
-                    onChange={(e) => handleDiscountChange('value', e.target.value)}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder={formData.discount.type === 'percentage' ? 'Percentage' : 'Amount'}
-                  />
-                </div>
-              )}
-              {formData.discount.amount > 0 && (
-                <div className="flex items-center text-gray-700">
-                  <span className="text-sm">Discount: Rs. {formData.discount.amount.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Tax */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tax (Rs.)
-            </label>
-            <input
-              type="number"
-              name="tax"
-              value={formData.tax}
-              onChange={handleNumberChange}
-              min="0"
-              step="0.01"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter tax amount"
-            />
-          </div>
-
           {/* Payment Details */}
           <div className="border-t border-gray-200 pt-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Details</h3>
@@ -687,6 +632,69 @@ export default function WheatSalesForm({
                   <option value="Partial">Partial</option>
                   <option value="Total Paid">Total Paid</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Discount */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Discount
+              </label>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <select
+                    value={formData.discount.type}
+                    onChange={(e) => handleDiscountChange('type', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="none">None</option>
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed">Fixed Amount</option>
+                  </select>
+                </div>
+                {formData.discount.type !== 'none' && (
+                  <div>
+                    <input
+                      type="number"
+                      value={formData.discount.value || 0}
+                      onChange={(e) => handleDiscountChange('value', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={formData.discount.type === 'percentage' ? 'Percentage' : 'Amount'}
+                    />
+                  </div>
+                )}
+                {formData.discount.amount > 0 && (
+                  <div className="flex items-center text-gray-700">
+                    <span className="text-sm">Discount: Rs. {formData.discount.amount.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tax */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tax (Rs.)
+              </label>
+              <input
+                type="number"
+                name="tax"
+                value={formData.tax}
+                onChange={handleNumberChange}
+                min="0"
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter tax amount"
+              />
+            </div>
+
+            {/* Total Amount Display */}
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Total Amount:</span>
+                <span className="text-lg font-bold text-blue-600">Rs. {totalAmount.toFixed(2)}</span>
               </div>
             </div>
 

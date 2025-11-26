@@ -92,31 +92,45 @@ export default function SupplierManagementPage() {
 
         // Calculate outstanding balance for each supplier
         suppliers.forEach(supplier => {
-          // Regular purchases
+          // Regular purchases - only include Pending or Partial status, use remainingAmount if available
           const regularDue = allPurchases
-            .filter(p => p.supplier?.name === supplier.name || p.supplier?._id?.toString() === supplier._id?.toString())
+            .filter(p => {
+              const matchesSupplier = p.supplier?.name === supplier.name || p.supplier?._id?.toString() === supplier._id?.toString();
+              const hasOutstanding = p.paymentStatus === 'Pending' || p.paymentStatus === 'Partial';
+              return matchesSupplier && hasOutstanding;
+            })
             .reduce((sum, p) => {
+              // Use remainingAmount if available, otherwise calculate from totalAmount - paidAmount
+              if (p.remainingAmount !== undefined && p.remainingAmount !== null) {
+                return sum + Math.max(0, parseFloat(p.remainingAmount) || 0);
+              }
               const total = parseFloat(p.totalAmount) || 0;
               const paid = parseFloat(p.paidAmount) || 0;
               return sum + Math.max(0, total - paid);
             }, 0);
 
-          // Bag purchases
+          // Bag purchases - only include Pending or Partial status, use dueAmount directly
           const bagDue = allBagPurchases
-            .filter(p => p.supplier?._id?.toString() === supplier._id?.toString() || p.supplier?.toString() === supplier._id?.toString())
+            .filter(p => {
+              const matchesSupplier = p.supplier?._id?.toString() === supplier._id?.toString() || p.supplier?.toString() === supplier._id?.toString();
+              const hasOutstanding = p.paymentStatus === 'Pending' || p.paymentStatus === 'Partial';
+              return matchesSupplier && hasOutstanding;
+            })
             .reduce((sum, p) => {
-              const total = parseFloat(p.totalAmount) || 0;
-              const paid = parseFloat(p.paidAmount) || 0;
-              return sum + Math.max(0, total - paid);
+              // Use dueAmount field directly (already calculated by backend)
+              return sum + Math.max(0, parseFloat(p.dueAmount) || 0);
             }, 0);
 
-          // Food purchases
+          // Food purchases - only include Pending or Partial status, use dueAmount directly
           const foodDue = allFoodPurchases
-            .filter(p => p.supplier?._id?.toString() === supplier._id?.toString() || p.supplier?.toString() === supplier._id?.toString())
+            .filter(p => {
+              const matchesSupplier = p.supplier?._id?.toString() === supplier._id?.toString() || p.supplier?.toString() === supplier._id?.toString();
+              const hasOutstanding = p.paymentStatus === 'Pending' || p.paymentStatus === 'Partial';
+              return matchesSupplier && hasOutstanding;
+            })
             .reduce((sum, p) => {
-              const total = parseFloat(p.totalAmount) || 0;
-              const paid = parseFloat(p.paidAmount) || 0;
-              return sum + Math.max(0, total - paid);
+              // Use dueAmount field directly (already calculated by backend)
+              return sum + Math.max(0, parseFloat(p.dueAmount) || 0);
             }, 0);
 
           balances[supplier._id] = regularDue + bagDue + foodDue;

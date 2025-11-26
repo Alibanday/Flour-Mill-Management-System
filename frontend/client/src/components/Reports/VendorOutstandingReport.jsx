@@ -41,7 +41,301 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
 
 
   const printReport = () => {
-    window.print();
+    if (!reportData) {
+      alert('Please generate the report before printing.');
+      return;
+    }
+
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const currentTime = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    // Format currency helper
+    const formatCurrency = (amount) => {
+      return `Rs. ${(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    };
+
+    // Safe text helper
+    const safeText = (text) => {
+      if (!text) return 'N/A';
+      return String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+
+    // Generate vendor rows
+    const vendorRows = reportData.data.map((vendor) => {
+      const isOverdue = new Date(vendor.lastPurchaseDate) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const statusText = isOverdue ? 'Overdue' : 'Pending';
+      const statusClass = isOverdue ? 'status-overdue' : 'status-pending';
+      
+      return `
+        <tr>
+          <td>${safeText(vendor.supplier.name)}</td>
+          <td>${safeText(vendor.supplier.contactPerson)}</td>
+          <td>${safeText(vendor.supplier.phone)}</td>
+          <td class="text-right">${formatCurrency(vendor.totalOutstanding)}</td>
+          <td>${new Date(vendor.lastPurchaseDate).toLocaleDateString('en-US')}</td>
+          <td class="${statusClass}">${statusText}</td>
+        </tr>
+      `;
+    }).join('');
+
+    // Generate summary cards HTML
+    const summaryCards = `
+      <div class="summary-card">
+        <div class="summary-label">Total Vendors</div>
+        <div class="summary-value">${reportData.summary.totalVendors || 0}</div>
+      </div>
+      <div class="summary-card highlight">
+        <div class="summary-label">Total Outstanding</div>
+        <div class="summary-value highlight-value">${formatCurrency(reportData.summary.totalOutstanding)}</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Average Outstanding</div>
+        <div class="summary-value">${formatCurrency(reportData.summary.averageOutstanding)}</div>
+      </div>
+      <div class="summary-card warning">
+        <div class="summary-label">Overdue Vendors</div>
+        <div class="summary-value warning-value">${reportData.summary.overdueVendors || 0}</div>
+      </div>
+    `;
+
+    // Create print window with professional layout
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Vendor Outstanding Report - ${currentDate}</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 1cm;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              font-size: 12px;
+              color: #000;
+              line-height: 1.4;
+              padding: 10px;
+            }
+            .print-header {
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            .print-header h1 {
+              font-size: 24px;
+              color: #1e40af;
+              margin-bottom: 5px;
+              font-weight: 700;
+            }
+            .print-header .subtitle {
+              font-size: 14px;
+              color: #6b7280;
+              margin-bottom: 10px;
+            }
+            .print-header .date {
+              font-size: 11px;
+              color: #9ca3af;
+            }
+            .summary-section {
+              background: #f3f4f6;
+              padding: 15px;
+              border-radius: 5px;
+              margin-bottom: 20px;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 15px;
+              margin-bottom: 15px;
+            }
+            .summary-card {
+              background: white;
+              padding: 12px;
+              border-left: 4px solid #2563eb;
+              border-radius: 3px;
+            }
+            .summary-card.highlight {
+              border-left-color: #dc2626;
+            }
+            .summary-card.warning {
+              border-left-color: #f59e0b;
+            }
+            .summary-label {
+              font-size: 10px;
+              color: #6b7280;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 5px;
+              font-weight: 600;
+            }
+            .summary-value {
+              font-size: 18px;
+              font-weight: 700;
+              color: #111827;
+            }
+            .summary-value.highlight-value {
+              color: #dc2626;
+            }
+            .summary-value.warning-value {
+              color: #f59e0b;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+              font-size: 11px;
+            }
+            th {
+              background-color: #1e40af;
+              color: white;
+              padding: 10px 8px;
+              text-align: left;
+              font-weight: 600;
+              font-size: 10px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              border: 1px solid #1e3a8a;
+            }
+            td {
+              padding: 8px;
+              border: 1px solid #e5e7eb;
+              color: #111827;
+            }
+            tr:nth-child(even) {
+              background-color: #f9fafb;
+            }
+            tr:hover {
+              background-color: #f3f4f6;
+            }
+            .text-right {
+              text-align: right;
+              font-weight: 600;
+            }
+            .status-pending {
+              color: #f59e0b;
+              font-weight: 600;
+            }
+            .status-overdue {
+              color: #dc2626;
+              font-weight: 700;
+            }
+            .footer {
+              margin-top: 30px;
+              padding-top: 15px;
+              border-top: 2px solid #e5e7eb;
+              text-align: center;
+              font-size: 10px;
+              color: #6b7280;
+            }
+            .no-data {
+              text-align: center;
+              padding: 40px;
+              color: #6b7280;
+              font-style: italic;
+            }
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+              table {
+                page-break-inside: auto;
+              }
+              tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+              }
+              thead {
+                display: table-header-group;
+              }
+              tfoot {
+                display: table-footer-group;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-header">
+            <h1>Vendor Outstanding Report</h1>
+            <div class="subtitle">Flour Mill Management System</div>
+            <div class="date">Generated on ${currentDate} at ${currentTime}</div>
+          </div>
+
+          <div class="summary-section">
+            <h2 style="font-size: 14px; font-weight: 600; margin-bottom: 15px; color: #111827;">Summary</h2>
+            <div class="summary-grid">
+              ${summaryCards}
+            </div>
+          </div>
+
+          <div style="margin-top: 25px;">
+            <h2 style="font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #111827; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+              Vendor Outstanding Details
+            </h2>
+            ${reportData.data && reportData.data.length > 0 ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Vendor Name</th>
+                    <th>Contact Person</th>
+                    <th>Phone</th>
+                    <th>Outstanding Amount</th>
+                    <th>Last Purchase</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${vendorRows}
+                </tbody>
+                <tfoot>
+                  <tr style="background-color: #1e40af; color: white; font-weight: 700;">
+                    <td colspan="3" style="text-align: right; padding: 12px 8px;">TOTAL OUTSTANDING:</td>
+                    <td class="text-right" style="color: white;">${formatCurrency(reportData.summary.totalOutstanding)}</td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            ` : `
+              <div class="no-data">
+                <p>No outstanding payments found. All vendors are up to date with their payments.</p>
+              </div>
+            `}
+          </div>
+
+          <div class="footer">
+            Flour Mill Management System · This report contains confidential financial information
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.afterprint = () => printWindow.close();
+      }, 250);
+    };
   };
 
   return (

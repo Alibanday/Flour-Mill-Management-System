@@ -6,11 +6,12 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
     transactionType: 'Payment',
     description: '',
     amount: 0,
-    currency: 'Rs.',
+    currency: 'PKR',
     debitAccount: '',
     creditAccount: '',
+    warehouse: '',
     paymentMethod: 'Cash',
-    paymentStatus: 'Pending',
+    paymentStatus: 'Completed',
     isPayable: false,
     isReceivable: false,
     dueDate: '',
@@ -19,18 +20,22 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(false);
 
   useEffect(() => {
+    fetchWarehouses();
     if (editData) {
       setFormData({
         transactionType: editData.transactionType || 'Payment',
         description: editData.description || '',
         amount: editData.amount || 0,
-        currency: editData.currency || 'Rs.',
-        debitAccount: editData.debitAccount || '',
-        creditAccount: editData.creditAccount || '',
+        currency: editData.currency || 'PKR',
+        debitAccount: editData.debitAccount?._id || editData.debitAccount || '',
+        creditAccount: editData.creditAccount?._id || editData.creditAccount || '',
+        warehouse: editData.warehouse?._id || editData.warehouse || '',
         paymentMethod: editData.paymentMethod || 'Cash',
-        paymentStatus: editData.paymentStatus || 'Pending',
+        paymentStatus: editData.paymentStatus || 'Completed',
         isPayable: editData.isPayable || false,
         isReceivable: editData.isReceivable || false,
         dueDate: editData.dueDate ? new Date(editData.dueDate).toISOString().split('T')[0] : '',
@@ -38,6 +43,26 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
       });
     }
   }, [editData]);
+
+  const fetchWarehouses = async () => {
+    try {
+      setWarehousesLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:7000/api/warehouses', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setWarehouses(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    } finally {
+      setWarehousesLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -90,13 +115,19 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
       
       const method = editData ? 'PUT' : 'POST';
       
+      const payload = {
+        ...formData,
+        amount: Number(formData.amount),
+        transactionDate: new Date().toISOString()
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       if (response.ok) {
@@ -336,21 +367,48 @@ export default function TransactionForm({ accounts, editData, onSubmit, onCancel
             </div>
           </div>
 
+          {/* Warehouse */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Warehouse *
+            </label>
+            <select
+              name="warehouse"
+              value={formData.warehouse}
+              onChange={handleInputChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.warehouse ? 'border-red-500' : 'border-gray-300'
+              }`}
+              disabled={warehousesLoading}
+            >
+              <option value="">Select Warehouse</option>
+              {warehouses.map((warehouse) => (
+                <option key={warehouse._id} value={warehouse._id}>
+                  {warehouse.name} - {warehouse.location}
+                </option>
+              ))}
+            </select>
+            {errors.warehouse && (
+              <p className="mt-1 text-sm text-red-600">{errors.warehouse}</p>
+            )}
+            {warehousesLoading && (
+              <p className="mt-1 text-xs text-gray-500">Loading warehouses...</p>
+            )}
+          </div>
+
           {/* Currency */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Currency
-              </label>
-              <select
-                name="currency"
-                value={formData.currency}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="Rs.">Rs. (Rupees)</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Currency
+            </label>
+            <select
+              name="currency"
+              value={formData.currency}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="PKR">PKR (Rupees)</option>
+            </select>
           </div>
 
           {/* Notes */}

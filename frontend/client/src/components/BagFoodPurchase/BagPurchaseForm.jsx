@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes, FaPrint, FaPlus, FaTrash, FaFileAlt } from 'react-icons/fa';
+import { FaSave, FaTimes, FaPrint, FaPlus, FaTrash } from 'react-icons/fa';
 import api from '../../services/api';
 
 export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }) {
@@ -33,7 +33,6 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [printInvoice, setPrintInvoice] = useState(false);
-  const [generateGatepass, setGenerateGatepass] = useState(false);
 
   const isEditing = !!purchase;
 
@@ -560,58 +559,6 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
     };
   };
 
-  // Create gatepass after purchase is saved
-  const createGatePass = async (savedPurchase, purchaseItems) => {
-    try {
-      const selectedSupplier = suppliers.find(s => s._id === formData.supplier);
-      const selectedWarehouse = warehouses.find(w => w._id === formData.warehouse);
-
-      const supplierName = selectedSupplier?.name || 'Supplier';
-      const supplierContact = selectedSupplier?.contactPerson?.phone ||
-        selectedSupplier?.phone ||
-        selectedSupplier?.contact ||
-        'N/A';
-
-      // Build items list from purchase items
-      const gatePassItems = purchaseItems.map((item) => {
-        const product = products.find(p => p._id === item.productId);
-        return {
-          description: `${product?.name || 'Product'} - ${item.weightCategory}kg (${item.quantity} bags)`,
-          quantity: item.quantity,
-          unit: `${item.weightCategory}kg bags`,
-          value: item.total
-        };
-      });
-
-      const gatePassData = {
-        type: 'Material',
-        purpose: 'Goods Receiving - Bag Purchase',
-        issuedTo: {
-          name: supplierName,
-          contact: supplierContact,
-          company: supplierName
-        },
-        items: gatePassItems,
-        validFrom: new Date(),
-        validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Valid for 7 days
-        warehouse: formData.warehouse,
-        status: 'Active',
-        relatedPurchase: savedPurchase._id || savedPurchase.id,
-        notes: `Auto-generated for Bag Purchase ${savedPurchase.purchaseNumber || savedPurchase._id}`
-      };
-
-      const response = await api.post('http://localhost:7000/api/gate-pass', gatePassData);
-
-      if (response.data && response.data.success) {
-        console.log('✅ Gate pass created:', response.data.data.gatePassNumber);
-        return response.data.data;
-      }
-    } catch (error) {
-      console.error('Error creating gate pass:', error);
-      throw new Error('Failed to create gate pass: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
   // Handle form submission
   const handleSubmit = async (e) => {
     if (e) {
@@ -665,31 +612,9 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       const savedPurchase = await onSave(purchaseData);
       console.log('✅ Purchase saved:', savedPurchase);
 
-      let gatePassNumber = null;
-
-      // Handle generate gatepass action (do this first so notification is sent to warehouse manager)
-      if (generateGatepass) {
-        try {
-          const gatePass = await createGatePass(savedPurchase, validItems);
-          gatePassNumber = gatePass.gatePassNumber;
-          console.log('✅ Gate pass created:', gatePassNumber);
-          console.log('✅ Notification sent to warehouse manager');
-        } catch (gatePassError) {
-          console.error('Gate pass creation error:', gatePassError);
-          alert(`Purchase saved but gate pass creation failed: ${gatePassError.message}`);
-          // Continue even if gatepass creation fails
-        }
-      }
-
       // Show success message
-      if (generateGatepass && gatePassNumber) {
-        const message = `Purchase saved successfully!\n\nGate Pass ${gatePassNumber} has been generated and sent to the warehouse manager of the selected warehouse.\n\n${printInvoice ? 'Invoice will be printed now.' : ''}`;
-        alert(message);
-      } else if (printInvoice) {
+      if (printInvoice) {
         alert('Purchase saved successfully! Invoice will be printed now.');
-      } else if (generateGatepass && !gatePassNumber) {
-        // Gatepass was requested but failed
-        alert('Purchase saved successfully! However, gate pass creation failed. Please create it manually.');
       } else {
         alert('Purchase saved successfully!');
       }
@@ -1065,7 +990,7 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
           {/* Action Selection */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              Select Actions (both can be selected):
+              Select Action:
             </label>
             <div className="space-y-3">
               <label className="flex items-center p-3 bg-white border-2 border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 transition-colors">
@@ -1080,27 +1005,11 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
                   <span className="text-gray-700 font-medium">Print Invoice</span>
                 </div>
               </label>
-              <label className="flex items-center p-3 bg-white border-2 border-gray-300 rounded-lg cursor-pointer hover:border-green-400 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={generateGatepass}
-                  onChange={(e) => setGenerateGatepass(e.target.checked)}
-                  className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                />
-                <div className="ml-3 flex items-center">
-                  <FaFileAlt className="mr-2 text-green-600" />
-                  <span className="text-gray-700 font-medium">Generate Gatepass</span>
-                </div>
-              </label>
             </div>
             <p className="mt-3 text-xs text-gray-500">
-              {!printInvoice && !generateGatepass
-                ? 'Select at least one action. The purchase will be saved regardless.'
-                : printInvoice && generateGatepass
-                  ? 'The purchase will be saved, invoice will be printed, and a gate pass will be generated and sent to the warehouse manager.'
-                  : printInvoice
-                    ? 'The purchase will be saved and the invoice will be printed.'
-                    : 'The purchase will be saved and a gate pass will be automatically generated and sent to the warehouse manager.'}
+              {printInvoice
+                ? 'The purchase will be saved and the invoice will be printed.'
+                : 'The purchase will be saved. You can optionally print the invoice.'}
             </p>
           </div>
 

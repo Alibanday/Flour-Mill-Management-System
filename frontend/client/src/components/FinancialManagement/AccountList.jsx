@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaEye } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaSearch, FaFilter, FaEye, FaFileAlt } from 'react-icons/fa';
 
-export default function AccountList({ onEdit, onRefresh }) {
+export default function AccountList({ onEdit, onRefresh, onViewLedger }) {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -219,6 +219,11 @@ export default function AccountList({ onEdit, onRefresh }) {
                         <div className="text-sm text-gray-500">
                           {account.accountNumber}
                         </div>
+                        {account.accountCode && (
+                          <div className="text-xs text-blue-600 font-medium mt-1">
+                            Code: {account.accountCode}
+                          </div>
+                        )}
                         {account.description && (
                           <div className="text-xs text-gray-400 mt-1">
                             {account.description}
@@ -254,6 +259,15 @@ export default function AccountList({ onEdit, onRefresh }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
+                        {onViewLedger && (
+                          <button
+                            onClick={() => onViewLedger(account)}
+                            className="text-green-600 hover:text-green-900 p-1"
+                            title="View Account Ledger"
+                          >
+                            <FaFileAlt />
+                          </button>
+                        )}
                         <button
                           onClick={() => onEdit(account)}
                           className="text-blue-600 hover:text-blue-900 p-1"

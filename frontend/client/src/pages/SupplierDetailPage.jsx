@@ -209,21 +209,35 @@ export default function SupplierDetailPage() {
   }, [purchases, bagPurchases, foodPurchases]);
 
   const totalDue = useMemo(() => {
-    const regularDue = purchases.reduce((sum, p) => {
-      const total = parseFloat(p.totalAmount) || 0;
-      const paid = parseFloat(p.paidAmount) || 0;
-      return sum + Math.max(0, total - paid);
-    }, 0);
-    const bagDue = bagPurchases.reduce((sum, p) => {
-      const total = parseFloat(p.totalAmount) || 0;
-      const paid = parseFloat(p.paidAmount) || 0;
-      return sum + Math.max(0, total - paid);
-    }, 0);
-    const foodDue = foodPurchases.reduce((sum, p) => {
-      const total = parseFloat(p.totalAmount) || 0;
-      const paid = parseFloat(p.paidAmount) || 0;
-      return sum + Math.max(0, total - paid);
-    }, 0);
+    // Regular purchases - only include Pending or Partial status, use remainingAmount if available
+    const regularDue = purchases
+      .filter(p => p.paymentStatus === 'Pending' || p.paymentStatus === 'Partial')
+      .reduce((sum, p) => {
+        // Use remainingAmount if available, otherwise calculate from totalAmount - paidAmount
+        if (p.remainingAmount !== undefined && p.remainingAmount !== null) {
+          return sum + Math.max(0, parseFloat(p.remainingAmount) || 0);
+        }
+        const total = parseFloat(p.totalAmount) || 0;
+        const paid = parseFloat(p.paidAmount) || 0;
+        return sum + Math.max(0, total - paid);
+      }, 0);
+    
+    // Bag purchases - only include Pending or Partial status, use dueAmount directly
+    const bagDue = bagPurchases
+      .filter(p => p.paymentStatus === 'Pending' || p.paymentStatus === 'Partial')
+      .reduce((sum, p) => {
+        // Use dueAmount field directly (already calculated by backend)
+        return sum + Math.max(0, parseFloat(p.dueAmount) || 0);
+      }, 0);
+    
+    // Food purchases - only include Pending or Partial status, use dueAmount directly
+    const foodDue = foodPurchases
+      .filter(p => p.paymentStatus === 'Pending' || p.paymentStatus === 'Partial')
+      .reduce((sum, p) => {
+        // Use dueAmount field directly (already calculated by backend)
+        return sum + Math.max(0, parseFloat(p.dueAmount) || 0);
+      }, 0);
+    
     return regularDue + bagDue + foodDue;
   }, [purchases, bagPurchases, foodPurchases]);
 

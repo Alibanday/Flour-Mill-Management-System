@@ -8,7 +8,7 @@ import Sale from "../model/Sale.js";
 import Purchase from "../model/Purchase.js";
 import BagPurchase from "../model/BagPurchase.js";
 import { protect, authorize } from "../middleware/auth.js";
-import { initializeDefaultAccounts } from "../utils/financialUtils.js";
+import { initializeDefaultAccounts, getAccountByCode } from "../utils/financialUtils.js";
 
 const router = express.Router();
 
@@ -545,17 +545,132 @@ router.get("/payables-receivables", protect, async (req, res) => {
   }
 });
 
-// Initialize default accounts
-router.post("/initialize-accounts", protect, authorize("Admin", "Manager"), async (req, res) => {
+// Initialize default accounts (Admin/Manager only)
+router.post("/accounts/initialize", protect, authorize("Admin", "General Manager"), async (req, res) => {
   try {
-    const accounts = await initializeDefaultAccounts(req.user.id);
+    const accounts = await initializeDefaultAccounts(req.user._id || req.user.id);
     res.json({
       success: true,
       message: "Default accounts initialized successfully",
       accounts
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+});
+
+// Get default accounts
+router.get("/accounts/default", protect, async (req, res) => {
+  try {
+    const defaultAccountCodes = [
+      'MAIN_CASH',
+      'MAIN_BANK',
+      'ACCOUNTS_RECEIVABLE',
+      'ACCOUNTS_PAYABLE',
+      'SALES_REVENUE',
+      'PURCHASE_EXPENSE'
+    ];
+    
+    const accounts = await Account.find({
+      accountCode: { $in: defaultAccountCodes },
+      status: 'Active'
+    }).sort({ accountCode: 1 });
+    
+    res.json({
+      success: true,
+      accounts
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+});
+
+// Get account by code
+router.get("/accounts/code/:code", protect, async (req, res) => {
+  try {
+    const account = await Account.findOne({
+      accountCode: req.params.code,
+      status: 'Active'
+    });
+    
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        message: 'Account not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      account
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
+  }
+});
+
+// Get account ledger (all transactions for an account)
+router.get("/accounts/:id/ledger", protect, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, startDate, endDate } = req.query;
+    const accountId = req.params.id;
+    
+    // Date range query
+    let dateQuery = {};
+    if (startDate || endDate) {
+      dateQuery.transactionDate = {};
+      if (startDate) dateQuery.transactionDate.$gte = new Date(startDate);
+      if (endDate) dateQuery.transactionDate.$lte = new Date(endDate);
+    }
+    
+    // Find all transactions where this account is debit or credit
+    const query = {
+      ...dateQuery,
+      $or: [
+        { debitAccount: accountId },
+        { creditAccount: accountId }
+      ]
+    };
+    
+    const transactions = await Transaction.find(query)
+      .populate('debitAccount', 'accountNumber accountName accountType category')
+      .populate('creditAccount', 'accountNumber accountName accountType category')
+      .populate('createdBy', 'firstName lastName')
+      .sort({ transactionDate: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await Transaction.countDocuments(query);
+    
+    // Get account details
+    const account = await Account.findById(accountId);
+    
+    res.json({
+      success: true,
+      account,
+      transactions,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(total / limit),
+        totalTransactions: total,
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 });
 
