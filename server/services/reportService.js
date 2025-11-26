@@ -298,15 +298,7 @@ class ReportService {
       const totalCOGS = bagPurchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0) +
                        foodPurchases.reduce((sum, purchase) => sum + (purchase.totalAmount || 0), 0);
 
-      // Get expenses
-      const expenses = await FinancialTransaction.find({
-        date: { $gte: start, $lte: end },
-        transactionType: 'expense'
-      });
-
-      const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
-
-      // Get salaries
+      // Get salaries (separate category)
       const salaries = await FinancialTransaction.find({
         date: { $gte: start, $lte: end },
         transactionType: 'expense',
@@ -314,6 +306,15 @@ class ReportService {
       });
 
       const totalSalaries = salaries.reduce((sum, salary) => sum + (salary.amount || 0), 0);
+
+      // Get expenses (excluding salaries to avoid double counting)
+      const expenses = await FinancialTransaction.find({
+        date: { $gte: start, $lte: end },
+        transactionType: 'expense',
+        category: { $ne: 'salaries' } // Exclude salaries
+      });
+
+      const totalExpenses = expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
       // Calculate profit/loss
       const grossProfit = totalRevenue - totalCOGS;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaShoppingCart, FaPlus, FaEdit, FaTrash, FaEye, FaArrowLeft, FaSearch, FaFilter, FaChartLine, FaMoneyBillWave, FaReceipt, FaClock, FaSpinner } from 'react-icons/fa';
+import { FaShoppingCart, FaPlus, FaEdit, FaTrash, FaEye, FaArrowLeft, FaSearch, FaFilter, FaChartLine, FaMoneyBillWave, FaReceipt, FaClock, FaSpinner, FaPrint } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import SalesFormEnhanced from '../components/SalesManagement/SalesFormEnhanced';
@@ -143,6 +143,12 @@ export default function BagSalesPage() {
             console.error('Error deleting sale:', error);
             alert('Error deleting sale. Please try again.');
         }
+    };
+
+    const handlePrintInvoiceAndGatepass = (saleId) => {
+        // Navigate to detail page - user can click "Print Both" button there
+        // This is the cleanest approach since all print logic is already there
+        navigate(`/sales/${saleId}`);
     };
 
     // Calculate statistics
@@ -523,6 +529,13 @@ export default function BagSalesPage() {
                                                         title="View Details"
                                                     >
                                                         <FaEye />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handlePrintInvoiceAndGatepass(sale._id)}
+                                                        className="text-purple-600 hover:text-purple-800 hover:bg-purple-50 p-2 rounded-lg transition-colors"
+                                                        title="Print Invoice & Gatepass"
+                                                    >
+                                                        <FaPrint />
                                                     </button>
                                                     <button
                                                         onClick={() => handleEdit(sale)}

@@ -470,7 +470,6 @@ export default function BagFoodPurchasePage() {
                 purchases={foodPurchases}
                 loading={loading}
                 error={error}
-                onEdit={handleEdit}
                 onDelete={(item) => handleDelete(item, 'food')}
               />
             )}

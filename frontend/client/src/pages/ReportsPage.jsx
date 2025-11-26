@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FaChartLine, FaEye } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaChartLine, FaEye, FaHome } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import SalesReport from '../components/Reports/SalesReport';
 import InventoryReport from '../components/Reports/InventoryReport';
@@ -10,6 +11,7 @@ import VendorOutstandingReport from '../components/Reports/VendorOutstandingRepo
 import ReportHistory from '../components/Reports/ReportHistory';
 
 const ReportsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('sales');
   const [showHistory, setShowHistory] = useState(false);
@@ -86,6 +88,13 @@ const ReportsPage = () => {
               </p>
             </div>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <FaHome className="mr-2" />
+                Back to Dashboard
+              </button>
               <button
                 onClick={() => setShowHistory(!showHistory)}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   FaWarehouse, FaBoxes, FaExclamationTriangle,
   FaSearch, FaRedo, FaUser, FaSignOutAlt,
-  FaIdCard, FaTruck, FaArrowRight
+  FaIdCard, FaTruck, FaArrowRight, FaEye, FaCheckCircle
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
@@ -21,6 +21,7 @@ export default function WarehouseManagerDashboard() {
   const [warehouseData, setWarehouseData] = useState(null);
   const [stockData, setStockData] = useState([]);
   const [gatePasses, setGatePasses] = useState([]);
+  const [dispatchingGatePassId, setDispatchingGatePassId] = useState(null);
 
   // Use ref to track if data has been initialized to prevent infinite loops
   const hasInitialized = useRef(false);
@@ -401,6 +402,27 @@ export default function WarehouseManagerDashboard() {
     }
   };
 
+  const handleViewGatePassDetails = (gatePassId) => {
+    navigate(`/gate-pass/${gatePassId}`);
+  };
+
+  const handleDispatchGatePass = async (gatePassId) => {
+    const notes = window.prompt('Enter dispatch notes (optional):', '');
+    try {
+      setDispatchingGatePassId(gatePassId);
+      await api.patch(`http://localhost:7000/api/gate-pass/${gatePassId}/confirm-dispatch`, {
+        notes: notes || ''
+      });
+      toast.success('Stock dispatch confirmed for this gate pass');
+      await fetchGatePasses();
+    } catch (error) {
+      console.error('Error confirming dispatch:', error.response?.data || error.message);
+      toast.error(error.response?.data?.message || 'Failed to confirm stock dispatch');
+    } finally {
+      setDispatchingGatePassId(null);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -645,6 +667,7 @@ export default function WarehouseManagerDashboard() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valid Until</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -687,6 +710,31 @@ export default function WarehouseManagerDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
                             {gatePass.validUntil ? new Date(gatePass.validUntil).toLocaleDateString() : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => handleViewGatePassDetails(gatePass._id)}
+                              className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                              View Details
+                            </button>
+                            {gatePass.status === 'Active' && !gatePass.stockDispatch?.confirmed && (
+                              <button
+                                onClick={() => handleDispatchGatePass(gatePass._id)}
+                                className="px-3 py-1 text-xs font-semibold text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50"
+                                disabled={dispatchingGatePassId === gatePass._id}
+                              >
+                                {dispatchingGatePassId === gatePass._id ? 'Dispatching...' : 'Dispatch Stock'}
+                              </button>
+                            )}
+                            {gatePass.stockDispatch?.confirmed && (
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+                                <FaCheckCircle className="mr-1" />
+                                Dispatched
+                              </span>
+                            )}
                           </div>
                         </td>
                       </tr>

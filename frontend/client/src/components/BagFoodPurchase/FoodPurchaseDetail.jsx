@@ -1,23 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { FaTimes, FaPrint, FaEdit, FaTrash, FaWarehouse, FaUser, FaCalendar, FaMoneyBillWave, FaFileInvoice } from 'react-icons/fa';
+import { FaTimes, FaPrint, FaTrash, FaWarehouse, FaUser, FaCalendar, FaMoneyBillWave, FaFileInvoice, FaTruck } from 'react-icons/fa';
 
-export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdit, onDelete }) {
+export default function FoodPurchaseDetail({ purchaseId, purchase, onClose, onDelete }) {
   const [purchaseData, setPurchaseData] = useState(purchase || null);
   const [loading, setLoading] = useState(!purchase);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (purchaseId && !purchase) {
+    if (purchase) {
+      setPurchaseData(purchase);
+      setLoading(false);
+    }
+  }, [purchase]);
+
+  useEffect(() => {
+    if (!purchaseId) return;
+
+    const needsFetch =
+      !purchase ||
+      typeof purchase.warehouse !== 'object' ||
+      typeof purchase.supplier !== 'object' ||
+      !purchase.foodItems ||
+      purchase.foodItems.length === 0;
+
+    if (needsFetch) {
       fetchPurchase();
     }
-  }, [purchaseId]);
+  }, [purchaseId, purchase]);
 
   const fetchPurchase = async () => {
     setLoading(true);
     setError(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:7000/api/bag-purchases/${purchaseId}`, {
+      const response = await fetch(`http://localhost:7000/api/food-purchases/${purchaseId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -36,49 +52,11 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
     }
   };
 
-  // Helper: get all products from bags Map/object
-  const getAllProducts = (purchase) => {
-    if (!purchase) return [];
-    const bags = purchase.bags || {};
-    const products = [];
-    
-    // Handle Map structure (Mongoose Map)
-    if (bags instanceof Map || bags.constructor?.name === 'Map') {
-      bags.forEach((bagData, productName) => {
-        if (bagData && (bagData.quantity || 0) > 0) {
-          products.push({
-            name: productName,
-            quantity: bagData.quantity || 0,
-            unit: bagData.unit || 'bags',
-            unitPrice: bagData.unitPrice || 0,
-            totalPrice: bagData.totalPrice || 0
-          });
-        }
-      });
-    } 
-    // Handle plain object structure
-    else if (bags && typeof bags === 'object') {
-      Object.entries(bags).forEach(([productName, bagData]) => {
-        if (bagData && (bagData.quantity || 0) > 0) {
-          products.push({
-            name: productName,
-            quantity: bagData.quantity || 0,
-            unit: bagData.unit || 'bags',
-            unitPrice: bagData.unitPrice || 0,
-            totalPrice: bagData.totalPrice || 0
-          });
-        }
-      });
-    }
-    
-    return products;
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'Draft': return 'bg-gray-100 text-gray-800';
       case 'Pending': return 'bg-yellow-100 text-yellow-800';
-      case 'Received': return 'bg-blue-100 text-blue-800';
+      case 'Approved': return 'bg-blue-100 text-blue-800';
       case 'Completed': return 'bg-green-100 text-green-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -89,7 +67,16 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
     switch (status) {
       case 'Pending': return 'bg-red-100 text-red-800';
       case 'Partial': return 'bg-yellow-100 text-yellow-800';
-      case 'Paid': return 'bg-green-100 text-green-800';
+      case 'Completed': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getDeliveryStatusColor = (status) => {
+    switch (status) {
+      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'In Transit': return 'bg-blue-100 text-blue-800';
+      case 'Delivered': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -121,10 +108,10 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
     );
   }
 
-  const products = getAllProducts(purchaseData);
-  const totalQuantity = products.reduce((sum, p) => sum + (p.quantity || 0), 0);
-  const totalAmount = purchaseData.totalPrice || purchaseData.totalAmount || 
-                      products.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
+  const foodItems = purchaseData.foodItems || [];
+  const totalQuantity = purchaseData.totalQuantity || foodItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totalAmount = purchaseData.totalAmount || purchaseData.totalPrice || 
+                      foodItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   const paidAmount = purchaseData.paidAmount || 0;
   const dueAmount = purchaseData.dueAmount || purchaseData.remainingAmount || (totalAmount - paidAmount);
   const supplier = purchaseData.supplier;
@@ -137,7 +124,7 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
     : 'Unknown User';
 
   // Print professional invoice
-  const printBagPurchaseInvoice = (purchase) => {
+  const printWheatPurchaseInvoice = (purchase) => {
     const supplierData = purchase.supplier && typeof purchase.supplier === 'object' ? purchase.supplier : {};
     const warehouseData = purchase.warehouse && typeof purchase.warehouse === 'object' ? purchase.warehouse : {};
     
@@ -148,15 +135,14 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
     const warehouseName = warehouseData.name || 'N/A';
     const warehouseLocation = warehouseData.location || 'N/A';
     
-    // Get all products from purchase
-    const productsList = getAllProducts(purchase);
-    const totalQuantity = productsList.reduce((sum, p) => sum + (p.quantity || 0), 0);
+    const foodItems = purchase.foodItems || [];
+    const totalQuantity = purchase.totalQuantity || foodItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
     
     const subtotal = purchase.subtotal || purchase.totalAmount || purchase.totalPrice || 
-                     productsList.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
+                     foodItems.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
     const tax = purchase.tax || 0;
     const discount = purchase.discount || 0;
-    const totalAmount = purchase.totalAmount || purchase.totalPrice || subtotal + tax - discount;
+    const totalAmount = purchase.totalAmount || purchase.totalPrice || (subtotal + tax - discount);
     const paidAmount = purchase.paidAmount || 0;
     const dueAmount = purchase.dueAmount || purchase.remainingAmount || (totalAmount - paidAmount);
     
@@ -177,23 +163,27 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
         })
       : currentDate;
     
-    const invoiceRows = productsList.map((product, index) => `
+    const invoiceRows = foodItems.length > 0 ? foodItems.map((item, index) => `
       <tr>
         <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
-        <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${product.name}</td>
-        <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${product.unit}</td>
-        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${product.quantity.toLocaleString()}</td>
-        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">Rs. ${product.unitPrice.toLocaleString()}</td>
-        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Rs. ${product.totalPrice.toLocaleString()}</td>
+        <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${item.name || 'N/A'}</td>
+        <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${item.unit || 'kg'}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${(item.quantity || 0).toLocaleString()}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">Rs. ${(item.unitPrice || 0).toLocaleString()}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Rs. ${(item.totalPrice || 0).toLocaleString()}</td>
       </tr>
-    `).join('');
+    `).join('') : `
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">No items</td>
+      </tr>
+    `;
     
     const printWindow = window.open('', '_blank');
     const printContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Bag Purchase Invoice - ${purchase.purchaseNumber || 'N/A'}</title>
+          <title>Wheat Purchase Invoice - ${purchase.purchaseNumber || 'N/A'}</title>
           <style>
             @page { size: A4; margin: 1cm; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -218,7 +208,6 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
             thead { background: #1e40af; color: white; }
             thead th { padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
             thead th:nth-child(1) { text-align: center; width: 50px; }
-            thead th:nth-child(3),
             thead th:nth-child(4),
             thead th:nth-child(5),
             thead th:nth-child(6) { text-align: right; }
@@ -236,6 +225,9 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
             .payment-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; }
             .payment-row .paid { color: #059669; font-weight: 600; }
             .payment-row .due { color: #dc2626; font-weight: 600; }
+            .delivery-info { background: #f0fdf4; padding: 15px; border-left: 4px solid #16a34a; border-radius: 3px; margin-top: 15px; }
+            .delivery-info h3 { font-size: 12px; color: #166534; margin-bottom: 10px; font-weight: 600; }
+            .delivery-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; }
             .notes-section { margin-top: 25px; padding-top: 15px; border-top: 1px solid #e5e7eb; }
             .notes-section h3 { font-size: 12px; color: #6b7280; margin-bottom: 5px; font-weight: 600; }
             .notes-section p { font-size: 11px; color: #111827; }
@@ -254,7 +246,7 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
               <div class="header-top">
                 <div class="company-info">
                   <h1>FLOUR MILL</h1>
-                  <div class="subtitle">Bag Purchase Invoice</div>
+                  <div class="subtitle">Wheat Purchase Invoice</div>
                 </div>
                 <div class="invoice-info">
                   <h2>INVOICE</h2>
@@ -270,17 +262,19 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                 <p class="name">${supplierName}</p>
                 <p>Contact: ${supplierContact}</p>
                 <p>${supplierAddress}</p>
+                ${purchase.purchaseType ? `<p>Type: ${purchase.purchaseType}</p>` : ''}
               </div>
               <div class="party-box">
                 <h3>Delivery Information</h3>
                 <p class="name">${warehouseName}</p>
                 <p>Location: ${warehouseLocation}</p>
                 <p>Purchase Date: ${purchaseDate}</p>
+                ${purchase.expectedDeliveryDate ? `<p>Expected Delivery: ${new Date(purchase.expectedDeliveryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
               </div>
             </div>
             
             <div class="products-section">
-              <h3>Products Purchased</h3>
+              <h3>Product Details</h3>
               <table>
                 <thead>
                   <tr>
@@ -334,7 +328,7 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
               <h3>Payment Details</h3>
               <div class="payment-row">
                 <span>Payment Status:</span>
-                <span style="font-weight: 600; color: ${purchase.paymentStatus === 'Paid' ? '#059669' : purchase.paymentStatus === 'Partial' ? '#d97706' : '#dc2626'};">
+                <span style="font-weight: 600; color: ${purchase.paymentStatus === 'Completed' ? '#059669' : purchase.paymentStatus === 'Partial' ? '#d97706' : '#dc2626'};">
                   ${purchase.paymentStatus || 'Pending'}
                 </span>
               </div>
@@ -355,6 +349,24 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
               </div>
               ` : ''}
             </div>
+            
+            ${purchase.deliveryStatus ? `
+            <div class="delivery-info">
+              <h3>Delivery Details</h3>
+              <div class="delivery-row">
+                <span>Delivery Status:</span>
+                <span style="font-weight: 600; color: ${purchase.deliveryStatus === 'Delivered' ? '#059669' : purchase.deliveryStatus === 'In Transit' ? '#2563eb' : '#d97706'};">
+                  ${purchase.deliveryStatus}
+                </span>
+              </div>
+              ${purchase.expectedDeliveryDate ? `
+              <div class="delivery-row">
+                <span>Expected Delivery:</span>
+                <span>${new Date(purchase.expectedDeliveryDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
             
             ${purchase.notes ? `
             <div class="notes-section">
@@ -390,21 +402,12 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
         {/* Header */}
         <div className="flex justify-between items-start mb-6 pb-4 border-b">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Bag Purchase Details</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Wheat Purchase Details</h2>
             <p className="text-sm text-gray-500 mt-1">Purchase Number: {purchaseData.purchaseNumber}</p>
           </div>
           <div className="flex space-x-2">
-            {onEdit && (
-              <button
-                onClick={() => onEdit(purchaseData)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-              >
-                <FaEdit className="mr-2" />
-                Edit
-              </button>
-            )}
             <button
-              onClick={() => printBagPurchaseInvoice(purchaseData)}
+              onClick={() => printWheatPurchaseInvoice(purchaseData)}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 flex items-center"
             >
               <FaPrint className="mr-2" />
@@ -451,6 +454,12 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                       <span className="ml-2 text-gray-900">{supplier.email}</span>
                     </div>
                   )}
+                  {supplier.supplierType && (
+                    <div>
+                      <span className="text-gray-600">Type:</span>
+                      <span className="ml-2 text-gray-900">{supplier.supplierType}</span>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -487,19 +496,19 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                   {new Date(purchaseData.purchaseDate).toLocaleDateString()}
                 </span>
               </div>
+              {purchaseData.expectedDeliveryDate && (
+                <div>
+                  <span className="text-gray-600">Expected Delivery:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(purchaseData.expectedDeliveryDate).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
               {purchaseData.deliveryDate && (
                 <div>
                   <span className="text-gray-600">Delivery Date:</span>
                   <span className="ml-2 text-gray-900">
                     {new Date(purchaseData.deliveryDate).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
-              {purchaseData.receivedDate && (
-                <div>
-                  <span className="text-gray-600">Received Date:</span>
-                  <span className="ml-2 text-gray-900">
-                    {new Date(purchaseData.receivedDate).toLocaleDateString()}
                   </span>
                 </div>
               )}
@@ -524,6 +533,14 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                   {purchaseData.paymentStatus || 'Unknown'}
                 </span>
               </div>
+              {purchaseData.deliveryStatus && (
+                <div>
+                  <span className="text-gray-600">Delivery Status:</span>
+                  <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${getDeliveryStatusColor(purchaseData.deliveryStatus)}`}>
+                    {purchaseData.deliveryStatus}
+                  </span>
+                </div>
+              )}
               <div>
                 <span className="text-gray-600">Created By:</span>
                 <span className="ml-2 text-gray-900">{createdByName}</span>
@@ -532,15 +549,18 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
           </div>
         </div>
 
-        {/* Products Table */}
+        {/* Food Items Table */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Products</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Food Items</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white border border-gray-200 rounded-lg">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Product Name
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Category
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Unit
@@ -554,42 +574,55 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Total Price (Rs.)
                   </th>
+                  {foodItems.some(item => item.quality) && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Quality
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {products.length === 0 ? (
+                {foodItems.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="px-4 py-4 text-center text-gray-500">
-                      No products found
+                    <td colSpan={foodItems.some(item => item.quality) ? "7" : "6"} className="px-4 py-4 text-center text-gray-500">
+                      No food items found
                     </td>
                   </tr>
                 ) : (
-                  products.map((product, index) => (
+                  foodItems.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {product.name}
+                        {item.name || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {product.unit}
+                        {item.category || 'N/A'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        {product.quantity.toLocaleString()}
+                        {item.unit || 'kg'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        Rs. {product.unitPrice.toLocaleString()}
+                        {(item.quantity || 0).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        Rs. {(item.unitPrice || 0).toLocaleString()}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        Rs. {product.totalPrice.toLocaleString()}
+                        Rs. {(item.totalPrice || 0).toLocaleString()}
                       </td>
+                      {foodItems.some(item => item.quality) && (
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {item.quality || '-'}
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
                 <tr className="bg-gray-50 font-semibold">
-                  <td colSpan="2" className="px-4 py-3 text-sm text-gray-900">
+                  <td colSpan={foodItems.some(item => item.quality) ? "3" : "2"} className="px-4 py-3 text-sm text-gray-900">
                     Total
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
-                    {totalQuantity.toLocaleString()} bags
+                    {totalQuantity.toLocaleString()} {foodItems.length > 0 ? foodItems[0].unit || 'units' : 'units'}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600">
                     -
@@ -597,6 +630,9 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
                   <td className="px-4 py-3 text-sm text-gray-900">
                     Rs. {totalAmount.toLocaleString()}
                   </td>
+                  {foodItems.some(item => item.quality) && (
+                    <td className="px-4 py-3 text-sm text-gray-600">-</td>
+                  )}
                 </tr>
               </tbody>
             </table>
@@ -629,11 +665,63 @@ export default function BagPurchaseDetail({ purchaseId, purchase, onClose, onEdi
               <div className="text-lg font-medium text-gray-900">{purchaseData.paymentMethod}</div>
             </div>
           )}
+          {(purchaseData.tax > 0 || purchaseData.discount > 0) && (
+            <div className="mt-4 pt-4 border-t border-blue-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                {purchaseData.tax > 0 && (
+                  <div>
+                    <span className="text-gray-600">Tax:</span>
+                    <span className="ml-2 font-medium text-gray-900">Rs. {(purchaseData.tax || 0).toLocaleString()}</span>
+                  </div>
+                )}
+                {purchaseData.discount > 0 && (
+                  <div>
+                    <span className="text-gray-600">Discount:</span>
+                    <span className="ml-2 font-medium text-gray-900">Rs. {(purchaseData.discount || 0).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Delivery Information */}
+        {purchaseData.deliveryStatus && (
+          <div className="bg-green-50 rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <FaTruck className="mr-2" />
+              Delivery Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Delivery Status:</span>
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-semibold ${getDeliveryStatusColor(purchaseData.deliveryStatus)}`}>
+                  {purchaseData.deliveryStatus}
+                </span>
+              </div>
+              {purchaseData.expectedDeliveryDate && (
+                <div>
+                  <span className="text-gray-600">Expected Delivery:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(purchaseData.expectedDeliveryDate).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              {purchaseData.deliveryDate && (
+                <div>
+                  <span className="text-gray-600">Actual Delivery Date:</span>
+                  <span className="ml-2 text-gray-900">
+                    {new Date(purchaseData.deliveryDate).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Notes */}
         {purchaseData.notes && (
-          <div className="bg-gray-50 rounded-lg p-4">
+          <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Notes</h3>
             <p className="text-sm text-gray-600 whitespace-pre-wrap">{purchaseData.notes}</p>
           </div>

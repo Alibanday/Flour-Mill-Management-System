@@ -12,8 +12,6 @@ import {
   FaPrint,
   FaPassport
 } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 
 const formatCurrency = (amount) => {
   const numericValue = Number(amount) || 0;
@@ -186,88 +184,249 @@ export default function SaleDetailPage() {
   const printInvoice = () => {
     if (!sale) return;
     
-    const doc = new jsPDF();
+    const saleDate = sale.saleDate 
+      ? new Date(sale.saleDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
     
-    // Company Header
-    doc.setFontSize(20);
-    doc.text('FLOUR MILL MANAGEMENT SYSTEM', 105, 20, { align: 'center' });
-    doc.setFontSize(16);
-    doc.text('SALES INVOICE', 105, 30, { align: 'center' });
-    
-    // Invoice Details
-    doc.setFontSize(10);
-    doc.text(`Invoice #: ${sale.invoiceNumber || 'N/A'}`, 20, 45);
-    doc.text(`Date: ${sale.saleDate ? new Date(sale.saleDate).toLocaleDateString() : new Date().toLocaleDateString()}`, 20, 52);
-    
-    // Customer Details
-    doc.setFontSize(12);
-    doc.text('Bill To:', 20, 65);
-    doc.setFontSize(10);
-    doc.text(customer.name || customer.customerName || 'N/A', 20, 72);
-    if (customer.contact?.phone || customer.phone) {
-      doc.text(`Phone: ${customer.contact?.phone || customer.phone}`, 20, 79);
-    }
-    if (customer.contact?.email || customer.email) {
-      doc.text(`Email: ${customer.contact?.email || customer.email}`, 20, 86);
-    }
-    if (customer.contact?.address || customer.address) {
-      const address = customer.contact?.address || customer.address;
-      const addressStr = typeof address === 'string' ? address : formatValue(address);
-      doc.text(`Address: ${addressStr}`, 20, 93);
-    }
-    
-    // Items Table
-    const itemsData = saleItems.map(item => [
-      item.name || 'N/A',
-      item.quantity.toString(),
-      item.unit || 'units',
-      `Rs. ${(item.unitPrice || 0).toFixed(2)}`,
-      `Rs. ${(item.totalPrice || 0).toFixed(2)}`
-    ]);
-    
-    doc.autoTable({
-      startY: 100,
-      head: [['Product', 'Qty', 'Unit', 'Unit Price', 'Total']],
-      body: itemsData,
-      theme: 'grid'
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const currentTime = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
     
-    // Totals
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(10);
-    doc.text(`Subtotal: Rs. ${(subtotal || 0).toFixed(2)}`, 150, finalY, { align: 'right' });
-    if (discount > 0) {
-      doc.text(`Discount: Rs. ${(discount || 0).toFixed(2)}`, 150, finalY + 7, { align: 'right' });
-    }
-    if (tax > 0) {
-      doc.text(`Tax: Rs. ${(tax || 0).toFixed(2)}`, 150, finalY + 14, { align: 'right' });
-    }
-    doc.setFontSize(12);
-    doc.setFont(undefined, 'bold');
-    doc.text(`Total: Rs. ${(totalAmount || 0).toFixed(2)}`, 150, finalY + 21, { align: 'right' });
+    const customerName = customer.name || customer.customerName || 'Walk-in Customer';
+    const customerPhone = customer.contact?.phone || customer.phone || 'N/A';
+    const customerEmail = customer.contact?.email || customer.email || '';
+    const customerAddress = (() => {
+      const addr = customer.contact?.address || customer.address;
+      if (!addr) return '';
+      if (typeof addr === 'string') return addr;
+      return formatValue(addr);
+    })();
     
-    // Payment Info
-    doc.setFont(undefined, 'normal');
-    doc.setFontSize(10);
-    doc.text(`Payment Method: ${sale.paymentMethod || payment.method || 'N/A'}`, 20, finalY + 30);
-    doc.text(`Payment Status: ${sale.paymentStatus || 'N/A'}`, 20, finalY + 37);
-    if (paidAmount > 0) {
-      doc.text(`Paid Amount: Rs. ${(paidAmount || 0).toFixed(2)}`, 20, finalY + 44);
-    }
-    if (dueAmount > 0) {
-      doc.text(`Due Amount: Rs. ${(dueAmount || 0).toFixed(2)}`, 20, finalY + 51);
-    }
+    const warehouseName = warehouse.name || warehouse.warehouseName || 'N/A';
+    const warehouseLocation = warehouse.location || warehouse.address || 'N/A';
     
-    // Warehouse Info
-    if (warehouse.name || warehouse.warehouseName) {
-      doc.text(`Warehouse: ${warehouse.name || warehouse.warehouseName}`, 20, finalY + 58);
-    }
+    const invoiceRows = saleItems.map((item, index) => `
+      <tr>
+        <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+        <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${item.name || 'N/A'}</td>
+        <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${item.unit || 'units'}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${(item.quantity || 0).toLocaleString()}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">Rs. ${(item.unitPrice || 0).toLocaleString()}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Rs. ${(item.totalPrice || 0).toLocaleString()}</td>
+      </tr>
+    `).join('');
     
-    // Footer
-    doc.setFontSize(8);
-    doc.text('Thank you for your business!', 105, 280, { align: 'center' });
+    const totalQuantity = saleItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
     
-    doc.save(`Invoice-${sale.invoiceNumber || 'N/A'}.pdf`);
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Sales Invoice - ${sale.invoiceNumber || 'N/A'}</title>
+          <style>
+            @page { size: A4; margin: 1cm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #000; line-height: 1.4; }
+            .invoice-container { max-width: 100%; padding: 20px; }
+            .invoice-header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px; }
+            .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+            .company-info h1 { font-size: 28px; color: #1e40af; margin-bottom: 5px; font-weight: 700; }
+            .company-info .subtitle { font-size: 13px; color: #6b7280; }
+            .invoice-info { text-align: right; }
+            .invoice-info h2 { font-size: 24px; color: #2563eb; margin-bottom: 5px; font-weight: 700; }
+            .invoice-info .invoice-number { font-size: 14px; color: #111827; font-weight: 600; }
+            .invoice-info .invoice-date { font-size: 11px; color: #6b7280; margin-top: 5px; }
+            .parties-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+            .party-box { background: #f9fafb; padding: 15px; border-left: 4px solid #2563eb; border-radius: 3px; }
+            .party-box h3 { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+            .party-box p { font-size: 11px; color: #111827; margin: 3px 0; }
+            .party-box .name { font-weight: 600; font-size: 13px; color: #111827; }
+            .products-section { margin-bottom: 25px; }
+            .products-section h3 { font-size: 14px; color: #111827; margin-bottom: 10px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: auto; }
+            thead { background: #1e40af; color: white; }
+            thead th { padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+            thead th:nth-child(1) { text-align: center; width: 50px; }
+            thead th:nth-child(3),
+            thead th:nth-child(4),
+            thead th:nth-child(5),
+            thead th:nth-child(6) { text-align: right; }
+            tbody tr { border-bottom: 1px solid #e5e7eb; page-break-inside: avoid; }
+            tbody tr:nth-child(even) { background: #f9fafb; }
+            tbody td { padding: 10px 8px; font-size: 11px; color: #111827; }
+            .totals-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+            .totals-box { background: #f3f4f6; padding: 15px; border-radius: 5px; }
+            .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+            .total-row:last-child { border-bottom: none; font-weight: 700; font-size: 14px; color: #1e40af; }
+            .total-row .label { color: #6b7280; }
+            .total-row .value { color: #111827; font-weight: 600; }
+            .payment-info { background: #eff6ff; padding: 15px; border-left: 4px solid #3b82f6; border-radius: 3px; margin-top: 20px; }
+            .payment-info h3 { font-size: 12px; color: #1e40af; margin-bottom: 10px; font-weight: 600; }
+            .payment-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; }
+            .payment-row .paid { color: #059669; font-weight: 600; }
+            .payment-row .due { color: #dc2626; font-weight: 600; }
+            .notes-section { margin-top: 25px; padding-top: 15px; border-top: 1px solid #e5e7eb; }
+            .notes-section h3 { font-size: 12px; color: #6b7280; margin-bottom: 5px; font-weight: 600; }
+            .notes-section p { font-size: 11px; color: #111827; }
+            .invoice-footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; }
+            .invoice-footer p { font-size: 10px; color: #6b7280; margin: 3px 0; }
+            @media print { 
+              .no-print { display: none !important; } 
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+              .invoice-container { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-container">
+            <div class="invoice-header">
+              <div class="header-top">
+                <div class="company-info">
+                  <h1>FLOUR MILL</h1>
+                  <div class="subtitle">Sales Invoice</div>
+                </div>
+                <div class="invoice-info">
+                  <h2>INVOICE</h2>
+                  <div class="invoice-number">Invoice #: ${sale.invoiceNumber || 'N/A'}</div>
+                  <div class="invoice-date">Date: ${saleDate}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="parties-section">
+              <div class="party-box">
+                <h3>Bill To</h3>
+                <p class="name">${customerName}</p>
+                ${customerPhone !== 'N/A' ? `<p>Contact: ${customerPhone}</p>` : ''}
+                ${customerEmail ? `<p>Email: ${customerEmail}</p>` : ''}
+                ${customerAddress ? `<p>${customerAddress}</p>` : ''}
+              </div>
+              <div class="party-box">
+                <h3>Delivery Information</h3>
+                <p class="name">${warehouseName}</p>
+                <p>Location: ${warehouseLocation}</p>
+                <p>Sale Date: ${saleDate}</p>
+              </div>
+            </div>
+            
+            <div class="products-section">
+              <h3>Products Sold</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Product Name</th>
+                    <th>Unit</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invoiceRows}
+                  <tr style="background: #f3f4f6; font-weight: 600;">
+                    <td colspan="3" style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af;">TOTAL</td>
+                    <td style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af;">${totalQuantity.toLocaleString()}</td>
+                    <td style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af;">-</td>
+                    <td style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af; color: #1e40af; font-size: 13px;">Rs. ${(subtotal || 0).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="totals-section">
+              <div></div>
+              <div class="totals-box">
+                <div class="total-row">
+                  <span class="label">Subtotal:</span>
+                  <span class="value">Rs. ${(subtotal || 0).toLocaleString()}</span>
+                </div>
+                ${discount > 0 ? `
+                <div class="total-row">
+                  <span class="label">Discount:</span>
+                  <span class="value">-Rs. ${discount.toLocaleString()}</span>
+                </div>
+                ` : ''}
+                ${tax > 0 ? `
+                <div class="total-row">
+                  <span class="label">Tax:</span>
+                  <span class="value">Rs. ${tax.toLocaleString()}</span>
+                </div>
+                ` : ''}
+                <div class="total-row">
+                  <span class="label">Grand Total:</span>
+                  <span class="value">Rs. ${(totalAmount || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="payment-info">
+              <h3>Payment Details</h3>
+              <div class="payment-row">
+                <span>Payment Status:</span>
+                <span style="font-weight: 600; color: ${sale.paymentStatus === 'Paid' || sale.paymentStatus === 'Total Paid' ? '#059669' : sale.paymentStatus === 'Partial' ? '#d97706' : '#dc2626'};">
+                  ${sale.paymentStatus || 'Pending'}
+                </span>
+              </div>
+              <div class="payment-row">
+                <span>Payment Method:</span>
+                <span>${sale.paymentMethod || payment.method || 'N/A'}</span>
+              </div>
+              ${paidAmount > 0 ? `
+              <div class="payment-row">
+                <span>Paid Amount:</span>
+                <span class="paid">Rs. ${paidAmount.toLocaleString()}</span>
+              </div>
+              ` : ''}
+              ${dueAmount > 0 ? `
+              <div class="payment-row">
+                <span>Due Amount:</span>
+                <span class="due">Rs. ${dueAmount.toLocaleString()}</span>
+              </div>
+              ` : ''}
+            </div>
+            
+            ${sale.notes ? `
+            <div class="notes-section">
+              <h3>Notes</h3>
+              <p>${sale.notes}</p>
+            </div>
+            ` : ''}
+            
+            <div class="invoice-footer">
+              <p><strong>Thank you for your business!</strong></p>
+              <p>Generated on ${currentDate} at ${currentTime}</p>
+              <p>This is a computer-generated invoice</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.afterprint = () => printWindow.close();
+      }, 250);
+    };
   };
 
   // Print Gatepass
@@ -277,77 +436,199 @@ export default function SaleDetailPage() {
       return;
     }
     
-    const doc = new jsPDF();
+    const gatePassDate = gatePass.validFrom 
+      ? new Date(gatePass.validFrom).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
     
-    // Header
-    doc.setFontSize(20);
-    doc.text('FLOUR MILL MANAGEMENT SYSTEM', 105, 20, { align: 'center' });
-    doc.setFontSize(16);
-    doc.text('GATE PASS', 105, 30, { align: 'center' });
+    const validUntilDate = gatePass.validUntil
+      ? new Date(gatePass.validUntil).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : '';
     
-    // Gate Pass Details
-    doc.setFontSize(10);
-    doc.text(`Gate Pass #: ${gatePass.gatePassNumber || 'N/A'}`, 20, 45);
-    doc.text(`Date: ${gatePass.validFrom ? new Date(gatePass.validFrom).toLocaleDateString() : new Date().toLocaleDateString()}`, 20, 52);
-    doc.text(`Type: ${gatePass.type || 'Material'}`, 20, 59);
-    doc.text(`Purpose: ${gatePass.purpose || 'Stock Dispatch for Sale'}`, 20, 66);
-    
-    // Issued To
-    doc.setFontSize(12);
-    doc.text('Issued To:', 20, 80);
-    doc.setFontSize(10);
-    doc.text(`Name: ${gatePass.issuedTo?.name || customer.name || customer.customerName || 'N/A'}`, 20, 87);
-    if (gatePass.issuedTo?.contact || customer.contact?.phone || customer.phone) {
-      doc.text(`Contact: ${gatePass.issuedTo?.contact || customer.contact?.phone || customer.phone}`, 20, 94);
-    }
-    
-    // Items
-    doc.setFontSize(12);
-    doc.text('Items to Dispatch:', 20, 105);
-    
-    const itemsData = (gatePass.items || saleItems).map(item => [
-      item.description || item.name || item.productName || 'N/A',
-      (item.quantity || 0).toString(),
-      item.unit || 'units',
-      `Rs. ${(item.value || item.totalPrice || 0).toFixed(2)}`
-    ]);
-    
-    doc.autoTable({
-      startY: 112,
-      head: [['Product', 'Quantity', 'Unit', 'Value']],
-      body: itemsData,
-      theme: 'grid'
-    });
-    
-    // Warehouse Info
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(10);
+    const issuedToName = gatePass.issuedTo?.name || customer.name || customer.customerName || 'N/A';
+    const issuedToContact = gatePass.issuedTo?.contact || customer.contact?.phone || customer.phone || 'N/A';
     const warehouseName = warehouse.name || warehouse.warehouseName || 'N/A';
-    doc.text(`Warehouse: ${warehouseName}`, 20, finalY);
     
-    // Status
-    doc.text(`Status: ${gatePass.status || 'Active'}`, 20, finalY + 7);
+    // Use gatepass items if available, otherwise fall back to sale items
+    const itemsToShow = gatePass.items && gatePass.items.length > 0 ? gatePass.items : saleItems;
     
-    // Valid Until
-    if (gatePass.validUntil) {
-      doc.text(`Valid Until: ${new Date(gatePass.validUntil).toLocaleDateString()}`, 20, finalY + 14);
-    }
+    const gatePassRows = itemsToShow.map((item, index) => {
+      const itemName = item.description || item.name || item.productName || 'N/A';
+      const itemQuantity = item.quantity || 0;
+      const itemUnit = item.unit || 'units';
+      const itemValue = item.value || item.totalPrice || 0;
+      
+      return `
+        <tr>
+          <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+          <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${itemName}</td>
+          <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${itemQuantity.toLocaleString()}</td>
+          <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${itemUnit}</td>
+          <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Rs. ${itemValue.toLocaleString()}</td>
+        </tr>
+      `;
+    }).join('');
     
-    // Authorization
-    doc.setFontSize(10);
-    doc.text('Authorized By:', 20, finalY + 25);
-    doc.text('_________________', 20, finalY + 35);
-    doc.text('Signature', 20, finalY + 42);
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Gate Pass - ${gatePass.gatePassNumber || 'N/A'}</title>
+          <style>
+            @page { size: A4; margin: 1cm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #000; line-height: 1.4; }
+            .gatepass-container { max-width: 100%; padding: 20px; }
+            .gatepass-header { border-bottom: 3px solid #9333ea; padding-bottom: 20px; margin-bottom: 25px; }
+            .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+            .company-info h1 { font-size: 28px; color: #7c3aed; margin-bottom: 5px; font-weight: 700; }
+            .company-info .subtitle { font-size: 13px; color: #6b7280; }
+            .gatepass-info { text-align: right; }
+            .gatepass-info h2 { font-size: 24px; color: #9333ea; margin-bottom: 5px; font-weight: 700; }
+            .gatepass-info .gatepass-number { font-size: 14px; color: #111827; font-weight: 600; }
+            .gatepass-info .gatepass-date { font-size: 11px; color: #6b7280; margin-top: 5px; }
+            .details-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+            .detail-box { background: #f9fafb; padding: 15px; border-left: 4px solid #9333ea; border-radius: 3px; }
+            .detail-box h3 { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+            .detail-box p { font-size: 11px; color: #111827; margin: 3px 0; }
+            .detail-box .name { font-weight: 600; font-size: 13px; color: #111827; }
+            .items-section { margin-bottom: 25px; }
+            .items-section h3 { font-size: 14px; color: #111827; margin-bottom: 10px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: auto; }
+            thead { background: #7c3aed; color: white; }
+            thead th { padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+            thead th:nth-child(1) { text-align: center; width: 50px; }
+            thead th:nth-child(3),
+            thead th:nth-child(5) { text-align: right; }
+            thead th:nth-child(4) { text-align: center; }
+            tbody tr { border-bottom: 1px solid #e5e7eb; page-break-inside: avoid; }
+            tbody tr:nth-child(even) { background: #f9fafb; }
+            tbody td { padding: 10px 8px; font-size: 11px; color: #111827; }
+            .info-section { background: #f3f4f6; padding: 15px; border-radius: 5px; margin-top: 20px; }
+            .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 11px; }
+            .info-row:last-child { border-bottom: none; }
+            .info-row .label { color: #6b7280; font-weight: 600; }
+            .info-row .value { color: #111827; }
+            .signature-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb; }
+            .signature-box { text-align: center; }
+            .signature-box h3 { font-size: 12px; color: #6b7280; margin-bottom: 40px; font-weight: 600; }
+            .signature-line { border-top: 2px solid #111827; width: 200px; margin: 0 auto 5px; }
+            .signature-label { font-size: 10px; color: #6b7280; }
+            .gatepass-footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; }
+            .gatepass-footer p { font-size: 10px; color: #6b7280; margin: 3px 0; }
+            @media print { 
+              .no-print { display: none !important; } 
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+              .gatepass-container { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="gatepass-container">
+            <div class="gatepass-header">
+              <div class="header-top">
+                <div class="company-info">
+                  <h1>FLOUR MILL</h1>
+                  <div class="subtitle">Gate Pass</div>
+                </div>
+                <div class="gatepass-info">
+                  <h2>GATE PASS</h2>
+                  <div class="gatepass-number">Gate Pass #: ${gatePass.gatePassNumber || 'N/A'}</div>
+                  <div class="gatepass-date">Date: ${gatePassDate}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="details-section">
+              <div class="detail-box">
+                <h3>Issued To</h3>
+                <p class="name">${issuedToName}</p>
+                ${issuedToContact !== 'N/A' ? `<p>Contact: ${issuedToContact}</p>` : ''}
+              </div>
+              <div class="detail-box">
+                <h3>Gate Pass Details</h3>
+                <p><strong>Type:</strong> ${gatePass.type || 'Material'}</p>
+                <p><strong>Purpose:</strong> ${gatePass.purpose || 'Stock Dispatch for Sale'}</p>
+                <p><strong>Status:</strong> ${gatePass.status || 'Active'}</p>
+                ${validUntilDate ? `<p><strong>Valid Until:</strong> ${validUntilDate}</p>` : ''}
+              </div>
+            </div>
+            
+            <div class="items-section">
+              <h3>Items to Dispatch</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Unit</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${gatePassRows}
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="info-section">
+              <div class="info-row">
+                <span class="label">Warehouse:</span>
+                <span class="value">${warehouseName}</span>
+              </div>
+              ${gatePass.notes ? `
+              <div class="info-row">
+                <span class="label">Notes:</span>
+                <span class="value">${gatePass.notes}</span>
+              </div>
+              ` : ''}
+            </div>
+            
+            <div class="signature-section">
+              <div class="signature-box">
+                <h3>Authorized By</h3>
+                <div class="signature-line"></div>
+                <div class="signature-label">Signature</div>
+              </div>
+              <div class="signature-box">
+                <h3>Received By</h3>
+                <div class="signature-line"></div>
+                <div class="signature-label">Signature</div>
+              </div>
+            </div>
+            
+            <div class="gatepass-footer">
+              <p><strong>This gate pass is valid for stock dispatch only.</strong></p>
+              <p>Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p>This is a computer-generated gate pass</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
     
-    doc.text('Received By:', 120, finalY + 25);
-    doc.text('_________________', 120, finalY + 35);
-    doc.text('Signature', 120, finalY + 42);
+    printWindow.document.write(printContent);
+    printWindow.document.close();
     
-    // Footer
-    doc.setFontSize(8);
-    doc.text('This gate pass is valid for stock dispatch only.', 105, 280, { align: 'center' });
-    
-    doc.save(`GatePass-${gatePass.gatePassNumber || 'N/A'}.pdf`);
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.afterprint = () => printWindow.close();
+      }, 250);
+    };
   };
 
   // Print Both

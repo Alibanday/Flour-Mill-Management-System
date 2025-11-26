@@ -10,7 +10,6 @@ import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 import StockList from "../components/StockManagement/StockList";
 import StockStats from "../components/StockManagement/StockStats";
-import StockAlerts from "../components/StockManagement/StockAlerts";
 import StockTransferForm from '../components/StockTransfer/StockTransferForm';
 import StockTransferList from '../components/StockTransfer/StockTransferList';
 import StockTransferStats from '../components/StockTransfer/StockTransferStats';
@@ -48,14 +47,7 @@ export default function StockPage() {
   const stockMenu = [
     { name: "Dashboard", icon: <FaChartLine className="mr-3" /> },
     { name: "Stock List", icon: <FaBoxes className="mr-3" /> },
-    { name: "Stock Transfer", icon: <FaExchangeAlt className="mr-3" /> },
-    { name: "Low Stock Alerts", icon: <FaExclamationTriangle className="mr-3" /> }
-  ];
-
-  const stockActions = [
-    { name: "View All", icon: <FaBoxes />, action: () => setActiveMenu("Stock List"), color: "bg-green-500" },
-    { name: "Transfer", icon: <FaExchangeAlt />, action: () => setActiveMenu("Stock Transfer"), color: "bg-orange-500" },
-    { name: "Alerts", icon: <FaExclamationTriangle />, action: () => setActiveMenu("Low Stock Alerts"), color: "bg-red-500" }
+    { name: "Stock Transfer", icon: <FaExchangeAlt className="mr-3" /> }
   ];
 
   useEffect(() => {
@@ -428,8 +420,6 @@ export default function StockPage() {
         return <StockList stocks={stocks} onStockUpdate={refreshAllData} />;
       case "Stock Transfer":
         return renderStockTransferSection();
-      case "Low Stock Alerts":
-        return <StockAlerts alerts={alerts} stocks={stocks} onDataRefresh={refreshAllData} />;
       default:
         return <StockStats key={`stockstats-${refreshTrigger}`} stocks={stocks} alerts={alerts} onDataRefresh={refreshAllData} refreshTrigger={refreshTrigger} />;
     }
@@ -492,26 +482,7 @@ export default function StockPage() {
         </aside>
 
         <main className="flex-1 p-6 w-full">
-          {activeMenu !== "Dashboard" && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 w-full">
-                {stockActions.map((button, index) => (
-                  <button
-                    key={index}
-                    onClick={button.action}
-                  className={`flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow hover:bg-blue-50 group border border-gray-100 ${
-                    activeMenu === button.name ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  >
-                  <div className={`p-3 mb-2 rounded-full ${button.color} text-white group-hover:scale-110 transition-transform`}>
-                      {button.icon}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">{button.name}</span>
-                  </button>
-                ))}
-              </div>
-          )}
-
-              <div className="bg-white rounded-xl shadow-sm p-6 w-full">
+          <div className="bg-white rounded-xl shadow-sm p-6 w-full">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>

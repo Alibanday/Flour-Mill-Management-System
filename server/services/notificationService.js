@@ -258,21 +258,71 @@ class NotificationService {
   }
 
   // Get notifications for user
-  static async getUserNotifications(userId, limit = 50, skip = 0) {
+  static async getUserNotifications(userId, options = {}, userRole = null) {
     try {
-      const notifications = await Notification.find({
-        $or: [
+      const {
+        page = 1,
+        limit = 50,
+        status,
+        type,
+        priority,
+        unreadOnly = false
+      } = options;
+
+      // Build query - admins and managers see all notifications, others see only their own
+      const query = {};
+      
+      if (userRole === 'Admin' || userRole === 'General Manager') {
+        // Admins and General Managers see all notifications
+        // No user/recipient filter needed
+      } else {
+        // Other users see only notifications assigned to them
+        query.$or = [
           { user: userId },
           { recipient: userId }
-        ]
-      })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip(skip)
-      .populate('user', 'firstName lastName')
-      .populate('recipient', 'firstName lastName');
+        ];
+      }
 
-      return notifications;
+      // Add status filter
+      if (status) {
+        query.status = status;
+      } else if (unreadOnly) {
+        query.status = 'unread';
+      }
+
+      // Add type filter
+      if (type) {
+        query.type = type;
+      }
+
+      // Add priority filter
+      if (priority) {
+        query.priority = priority;
+      }
+
+      // Calculate pagination
+      const skip = (page - 1) * limit;
+
+      // Get total count for pagination
+      const total = await Notification.countDocuments(query);
+
+      // Fetch notifications
+      const notifications = await Notification.find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .skip(skip)
+        .populate('user', 'firstName lastName email')
+        .populate('recipient', 'firstName lastName email');
+
+      return {
+        notifications,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          totalItems: total,
+          itemsPerPage: limit
+        }
+      };
     } catch (error) {
       console.error("Error getting user notifications:", error);
       throw error;
@@ -403,16 +453,24 @@ class NotificationService {
   }
 
   // Get user notification statistics
-  static async getUserNotificationStats(userId) {
+  static async getUserNotificationStats(userId, userRole = null) {
     try {
+      // Build match query - admins and managers see all notifications
+      const matchQuery = {};
+      
+      if (userRole === 'Admin' || userRole === 'General Manager') {
+        // Admins and General Managers see all notifications - no filter needed
+      } else {
+        // Other users see only notifications assigned to them
+        matchQuery.$or = [
+          { user: userId },
+          { recipient: userId }
+        ];
+      }
+      
       const stats = await Notification.aggregate([
         {
-          $match: {
-            $or: [
-              { user: userId },
-              { recipient: userId }
-            ]
-          }
+          $match: matchQuery
         },
         {
           $group: {

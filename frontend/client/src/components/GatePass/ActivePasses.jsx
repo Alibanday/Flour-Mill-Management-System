@@ -261,7 +261,9 @@ export default function ActivePasses({ gatePasses, onConfirmDispatch, onWhatsApp
                     <FaCheckCircle className="mr-2" />
                     Stock dispatch confirmed
                     <span className="ml-2 text-xs text-gray-500">
-                      by {gatePass.stockDispatch.confirmedBy?.name}
+                      by {gatePass.stockDispatch.confirmedBy ? 
+                        `${gatePass.stockDispatch.confirmedBy.firstName || ''} ${gatePass.stockDispatch.confirmedBy.lastName || ''}`.trim() || 'N/A'
+                        : 'N/A'}
                     </span>
                   </div>
                 ) : (

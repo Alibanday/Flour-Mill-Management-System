@@ -318,7 +318,7 @@ router.post("/create", protect, authorize("Admin", "Manager", "Employee", "Wareh
 
     await gatePass.save();
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
     ]);
 
@@ -405,10 +405,10 @@ router.get("/all", protect, authorize("Admin", "Manager", "Employee", "Warehouse
     }
 
     const gatePasses = await GatePass.find(query)
-      .populate("issuedBy", "name email")
-      .populate("approvedBy", "name email")
+      .populate("issuedBy", "firstName lastName email")
+      .populate("approvedBy", "firstName lastName email")
       .populate("warehouse", "name location")
-      .populate("stockDispatch.confirmedBy", "name email")
+      .populate("stockDispatch.confirmedBy", "firstName lastName email")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -440,10 +440,10 @@ router.get("/all", protect, authorize("Admin", "Manager", "Employee", "Warehouse
 router.get("/:id", protect, authorize("Admin", "Manager", "Employee", "Warehouse Manager"), async (req, res) => {
   try {
     const gatePass = await GatePass.findById(req.params.id)
-      .populate("issuedBy", "name email")
-      .populate("approvedBy", "name email")
+      .populate("issuedBy", "firstName lastName email")
+      .populate("approvedBy", "firstName lastName email")
       .populate("warehouse", "name location")
-      .populate("stockDispatch.confirmedBy", "name email");
+      .populate("stockDispatch.confirmedBy", "firstName lastName email");
 
     if (!gatePass) {
       return res.status(404).json({
@@ -504,7 +504,7 @@ router.put("/:id", protect, authorize("Admin", "Manager", "Employee", "Warehouse
       { ...req.body, updatedBy: req.user.id },
       { new: true, runValidators: true }
     ).populate([
-      { path: "issuedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
     ]);
 
@@ -583,8 +583,8 @@ router.patch("/:id/approve", protect, authorize("Admin", "Manager", "Warehouse M
     await gatePass.save();
 
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
-      { path: "approvedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
+      { path: "approvedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
     ]);
 
@@ -626,8 +626,8 @@ router.patch("/:id/activate", protect, authorize("Admin", "Manager", "Warehouse 
     await gatePass.save();
 
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
-      { path: "approvedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
+      { path: "approvedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
     ]);
 
@@ -669,8 +669,8 @@ router.patch("/:id/complete", protect, authorize("Admin", "Manager", "Employee",
     await gatePass.save();
 
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
-      { path: "approvedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
+      { path: "approvedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
     ]);
 
@@ -720,8 +720,8 @@ router.patch("/:id/cancel", protect, authorize("Admin", "Manager", "Warehouse Ma
     await gatePass.save();
 
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
-      { path: "approvedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
+      { path: "approvedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
     ]);
 
@@ -776,10 +776,10 @@ router.patch("/:id/confirm-dispatch", protect, authorize("Admin", "Manager", "Em
     await gatePass.save();
 
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
-      { path: "approvedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
+      { path: "approvedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
-      { path: "stockDispatch.confirmedBy", select: "name email" },
+      { path: "stockDispatch.confirmedBy", select: "firstName lastName email" },
     ]);
 
     res.json({
@@ -816,9 +816,9 @@ router.patch("/:id/whatsapp-shared", protect, authorize("Admin", "Manager", "Emp
     await gatePass.save();
 
     await gatePass.populate([
-      { path: "issuedBy", select: "name email" },
+      { path: "issuedBy", select: "firstName lastName email" },
       { path: "warehouse", select: "name location" },
-      { path: "whatsappSharedBy", select: "name email" },
+      { path: "whatsappSharedBy", select: "firstName lastName email" },
     ]);
 
     res.json({
@@ -927,7 +927,7 @@ router.get("/warehouse/:warehouseId/active", protect, authorize("Admin", "Manage
       status: "Active",
       validUntil: { $gte: new Date() },
     })
-      .populate("issuedBy", "name email")
+      .populate("issuedBy", "firstName lastName email")
       .populate("warehouse", "name location")
       .sort({ validUntil: 1 });
 

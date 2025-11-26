@@ -441,6 +441,41 @@ router.post("/", [
   }
 });
 
+// @route   GET /api/food-purchases/:id
+// @desc    Get single food purchase by ID
+// @access  Private (Manager, Admin, Employee)
+// NOTE: This route must come after /stats to avoid conflicts
+router.get("/:id", [
+  authorize("Manager", "Admin", "Employee", "Sales Manager")
+], async (req, res) => {
+  try {
+    const purchase = await FoodPurchase.findById(req.params.id)
+      .populate('supplier', 'name contactPerson email phone supplierCode')
+      .populate('warehouse', 'name location')
+      .populate('createdBy', 'firstName lastName')
+      .populate('approvedBy', 'firstName lastName');
+
+    if (!purchase) {
+      return res.status(404).json({
+        success: false,
+        message: "Food purchase not found"
+      });
+    }
+
+    res.json({
+      success: true,
+      data: purchase
+    });
+  } catch (error) {
+    console.error("Get food purchase error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching food purchase",
+      error: error.message
+    });
+  }
+});
+
 // @route   PUT /api/food-purchases/:id
 // @desc    Update food purchase
 // @access  Private (Manager, Admin)

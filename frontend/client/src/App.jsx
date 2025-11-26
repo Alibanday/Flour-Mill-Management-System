@@ -20,6 +20,7 @@ import FoodPurchasePage from './pages/FoodPurchasePage';
 import SupplierManagementPage from './pages/SupplierManagementPage';
 import SupplierDetailPage from './pages/SupplierDetailPage';
 import GatePassPage from './pages/GatePassPage';
+import GatePassDetailPage from './pages/GatePassDetailPage';
 import NotificationsPage from './pages/NotificationsPage';
 import SystemConfigPage from './pages/SystemConfigPage';
 import LanguageTestPage from './pages/LanguageTestPage';
@@ -206,6 +207,14 @@ function App() {
           element={
             <EmployeeRoute>
               <GatePassPage />
+            </EmployeeRoute>
+          }
+        />
+        <Route
+          path="/gate-pass/:id"
+          element={
+            <EmployeeRoute>
+              <GatePassDetailPage />
             </EmployeeRoute>
           }
         />

@@ -83,9 +83,10 @@ const ExpenseReport = ({ onReportGenerated }) => {
                 name="startDate"
                 value={filters.startDate}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
-              <FaCalendarAlt className="absolute right-3 top-3 text-gray-400" />
+              <FaCalendarAlt className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
           
@@ -99,9 +100,11 @@ const ExpenseReport = ({ onReportGenerated }) => {
                 name="endDate"
                 value={filters.endDate}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min={filters.startDate || undefined}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
-              <FaCalendarAlt className="absolute right-3 top-3 text-gray-400" />
+              <FaCalendarAlt className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
 
@@ -116,11 +119,11 @@ const ExpenseReport = ({ onReportGenerated }) => {
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Categories</option>
+              <option value="sales">Sales</option>
+              <option value="purchases">Purchases</option>
+              <option value="salaries">Salaries</option>
               <option value="utilities">Utilities</option>
               <option value="maintenance">Maintenance</option>
-              <option value="supplies">Supplies</option>
-              <option value="transportation">Transportation</option>
-              <option value="marketing">Marketing</option>
               <option value="other">Other</option>
             </select>
           </div>
@@ -248,7 +251,7 @@ const ExpenseReport = ({ onReportGenerated }) => {
                     {reportData.data.map((expense, index) => (
                       <tr key={index}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(expense.transactionDate).toLocaleDateString()}
+                          {expense.date ? new Date(expense.date).toLocaleDateString() : 'N/A'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">

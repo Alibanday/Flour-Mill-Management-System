@@ -65,7 +65,8 @@ router.get('/', asyncHandler(async (req, res) => {
     };
 
     const userId = req.user._id || req.user.id;
-    const result = await NotificationService.getUserNotifications(userId, options);
+    const userRole = req.user.role;
+    const result = await NotificationService.getUserNotifications(userId, options, userRole);
 
     res.json({
       success: true,
@@ -103,7 +104,8 @@ router.get('/all', asyncHandler(async (req, res) => {
     };
 
     const userId = req.user._id || req.user.id;
-    const result = await NotificationService.getUserNotifications(userId, options);
+    const userRole = req.user.role;
+    const result = await NotificationService.getUserNotifications(userId, options, userRole);
 
     res.json({
       success: true,
@@ -123,7 +125,8 @@ router.get('/all', asyncHandler(async (req, res) => {
 router.get('/stats', asyncHandler(async (req, res) => {
   try {
     const userId = req.user._id || req.user.id;
-    const stats = await NotificationService.getUserNotificationStats(userId);
+    const userRole = req.user.role;
+    const stats = await NotificationService.getUserNotificationStats(userId, userRole);
 
     res.json({
       success: true,

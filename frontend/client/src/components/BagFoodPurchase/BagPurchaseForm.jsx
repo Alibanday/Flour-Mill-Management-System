@@ -15,8 +15,9 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
     notes: ''
   });
 
-  // Items array for multiple products
+  // Items array for multiple products - each item gets a unique ID for React keys
   const [items, setItems] = useState([{
+    id: Date.now(), // Unique ID for React key
     product: '',
     productId: '',
     weightCategory: '',
@@ -76,8 +77,26 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
           const allProducts = response.data.data || [];
           const activeProducts = allProducts.filter(p => p.status === 'Active');
 
+          // Filter out wheat products - exclude products with wheat/grain in name, category, or subcategory
+          const nonWheatProducts = activeProducts.filter(product => {
+            const name = (product.name || '').toLowerCase();
+            const category = (product.category || '').toLowerCase();
+            const subcategory = (product.subcategory || '').toLowerCase();
+
+            // Check if product is wheat/grain
+            const isWheat = 
+              name.includes('wheat') ||
+              name.includes('grain') ||
+              (category.includes('raw materials') && (name.includes('grain') || subcategory.includes('grain'))) ||
+              subcategory.includes('wheat') ||
+              subcategory.includes('grain');
+
+            // Exclude wheat products from bag purchase form
+            return !isWheat;
+          });
+
           // Sort products: bag-related products first, then others
-          const sortedProducts = activeProducts.sort((a, b) => {
+          const sortedProducts = nonWheatProducts.sort((a, b) => {
             const aIsBag = (a.category === 'Packaging Materials' && a.subcategory === 'Bags') ||
               (a.name.toLowerCase().includes('bag') || a.name.toLowerCase().includes('ata') ||
                 a.name.toLowerCase().includes('maida') || a.name.toLowerCase().includes('suji'));
@@ -93,7 +112,21 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
           setProducts(sortedProducts);
         } else {
           const allProducts = response.data?.data || response.data || [];
-          setProducts(allProducts.filter(p => p.status === 'Active'));
+          // Filter out wheat products here too
+          const nonWheatProducts = allProducts.filter(p => {
+            if (p.status !== 'Active') return false;
+            const name = (p.name || '').toLowerCase();
+            const category = (p.category || '').toLowerCase();
+            const subcategory = (p.subcategory || '').toLowerCase();
+            const isWheat = 
+              name.includes('wheat') ||
+              name.includes('grain') ||
+              (category.includes('raw materials') && (name.includes('grain') || subcategory.includes('grain'))) ||
+              subcategory.includes('wheat') ||
+              subcategory.includes('grain');
+            return !isWheat;
+          });
+          setProducts(nonWheatProducts);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -126,64 +159,91 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
   // Handle item changes (product, weight category, quantity, unitPrice)
   const handleItemChange = (index, field, value) => {
-    const newItems = [...items];
-    const item = newItems[index];
+    // Use functional update to ensure we're working with the latest state
+    setItems(prevItems => {
+      const newItems = [...prevItems];
+      // Create a new item object instead of mutating the existing one
+      const currentItem = newItems[index];
+      let updatedItem = { ...currentItem }; // Spread to create new object
 
-    if (field === 'product') {
-      // Product selected - find product and reset weight category
-      const product = products.find(p => p._id === value);
-      if (product) {
-        item.productId = product._id;
-        item.product = product.name;
-        item.weightCategory = '';
-        item.unitPrice = 0;
-        item.total = 0;
-      } else {
-        item.productId = '';
-        item.product = '';
-        item.weightCategory = '';
-        item.unitPrice = 0;
-        item.total = 0;
-      }
-    } else if (field === 'weightCategory') {
-      // Weight category selected - suggest price from catalog (can be overridden)
-      const product = products.find(p => p._id === item.productId);
-      if (product && product.weightVariants && product.weightVariants.length > 0) {
-        const weightVariant = product.weightVariants.find(v =>
-          v.weight === parseFloat(value) && v.isActive !== false
-        );
-        if (weightVariant) {
-          item.weightCategory = value;
-          // Suggest price from catalog, but user can change it
-          item.unitPrice = weightVariant.price || 0;
-          // Recalculate total
-          item.total = (parseFloat(item.quantity) || 0) * item.unitPrice;
+      if (field === 'product') {
+        // Product selected - find product and reset weight category
+        const product = products.find(p => p._id === value);
+        if (product) {
+          updatedItem = {
+            ...currentItem,
+            productId: product._id,
+            product: product.name,
+            weightCategory: '',
+            unitPrice: 0,
+            total: 0
+          };
+        } else {
+          updatedItem = {
+            ...currentItem,
+            productId: '',
+            product: '',
+            weightCategory: '',
+            unitPrice: 0,
+            total: 0
+          };
         }
+      } else if (field === 'weightCategory') {
+        // Weight category selected - suggest price from catalog (can be overridden)
+        const product = products.find(p => p._id === currentItem.productId);
+        if (product && product.weightVariants && product.weightVariants.length > 0) {
+          const weightVariant = product.weightVariants.find(v =>
+            v.weight === parseFloat(value) && v.isActive !== false
+          );
+          if (weightVariant) {
+            const newQuantity = parseFloat(currentItem.quantity) || 0;
+            const newUnitPrice = weightVariant.price || 0;
+            updatedItem = {
+              ...currentItem,
+              weightCategory: value,
+              unitPrice: newUnitPrice,
+              total: newQuantity * newUnitPrice
+            };
+          }
+        }
+      } else if (field === 'quantity') {
+        // Quantity changed - recalculate total
+        const newQuantity = parseFloat(value) || 0;
+        const currentUnitPrice = parseFloat(currentItem.unitPrice) || 0;
+        updatedItem = {
+          ...currentItem,
+          quantity: newQuantity,
+          total: newQuantity * currentUnitPrice
+        };
+      } else if (field === 'unitPrice') {
+        // Unit price manually changed - recalculate total
+        const newUnitPrice = parseFloat(value) || 0;
+        const currentQuantity = parseFloat(currentItem.quantity) || 0;
+        updatedItem = {
+          ...currentItem,
+          unitPrice: newUnitPrice,
+          total: currentQuantity * newUnitPrice
+        };
       }
-    } else if (field === 'quantity') {
-      // Quantity changed - recalculate total
-      item.quantity = parseFloat(value) || 0;
-      item.total = item.quantity * item.unitPrice;
-    } else if (field === 'unitPrice') {
-      // Unit price manually changed - recalculate total
-      item.unitPrice = parseFloat(value) || 0;
-      item.total = (parseFloat(item.quantity) || 0) * item.unitPrice;
-    }
 
-    newItems[index] = item;
-    setItems(newItems);
-
-    // Recalculate remaining amount
-    const totalPrice = newItems.reduce((sum, i) => sum + (i.total || 0), 0);
-    setFormData(prev => ({
-      ...prev,
-      remainingAmount: totalPrice - (parseFloat(formData.paidAmount) || 0)
-    }));
+      newItems[index] = updatedItem;
+      
+      // Recalculate remaining amount within the same update
+      const totalPrice = newItems.reduce((sum, i) => sum + (i.total || 0), 0);
+      setFormData(prev => ({
+        ...prev,
+        remainingAmount: totalPrice - (parseFloat(prev.paidAmount) || 0)
+      }));
+      
+      return newItems;
+    });
   };
 
   // Add new item
   const addItem = () => {
-    setItems([...items, {
+    // Use functional update to ensure we're working with the latest state
+    setItems(prevItems => [...prevItems, {
+      id: Date.now(), // Unique ID for React key
       product: '',
       productId: '',
       weightCategory: '',
@@ -222,6 +282,283 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
 
   // Calculate grand total
   const grandTotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
+
+  // Print professional invoice
+  const printBagPurchaseInvoice = (purchase, purchaseItems, suppliersList, warehousesList) => {
+    // Handle supplier - could be populated object or just ID
+    let supplierData = null;
+    if (purchase.supplier && typeof purchase.supplier === 'object' && purchase.supplier.name) {
+      supplierData = purchase.supplier;
+    } else {
+      const supplierId = purchase.supplier?._id || purchase.supplier;
+      supplierData = suppliersList.find(s => s._id === supplierId);
+    }
+    
+    // Handle warehouse - could be populated object or just ID
+    let warehouseData = null;
+    if (purchase.warehouse && typeof purchase.warehouse === 'object' && purchase.warehouse.name) {
+      warehouseData = purchase.warehouse;
+    } else {
+      const warehouseId = purchase.warehouse?._id || purchase.warehouse;
+      warehouseData = warehousesList.find(w => w._id === warehouseId);
+    }
+    
+    const supplierName = supplierData?.name || 'N/A';
+    const supplierContact = supplierData?.contactPerson?.phone || supplierData?.phone || 'N/A';
+    const supplierAddress = supplierData?.address || 'N/A';
+    
+    const warehouseName = warehouseData?.name || 'N/A';
+    const warehouseLocation = warehouseData?.location || 'N/A';
+    
+    // Get all products from purchase
+    const productsList = [];
+    if (purchase.bags) {
+      const bags = purchase.bags instanceof Map ? Object.fromEntries(purchase.bags) : purchase.bags;
+      Object.entries(bags).forEach(([productName, bagData]) => {
+        if (bagData && bagData.quantity > 0) {
+          productsList.push({
+            name: productName,
+            quantity: bagData.quantity || 0,
+            unit: bagData.unit || 'bags',
+            unitPrice: bagData.unitPrice || 0,
+            totalPrice: bagData.totalPrice || 0
+          });
+        }
+      });
+    }
+    
+    const totalQuantity = productsList.reduce((sum, p) => sum + (p.quantity || 0), 0);
+    const subtotal = purchase.subtotal || purchase.totalAmount || purchase.totalPrice || 
+                     productsList.reduce((sum, p) => sum + (p.totalPrice || 0), 0);
+    const tax = purchase.tax || 0;
+    const discount = purchase.discount || 0;
+    const totalAmount = purchase.totalAmount || purchase.totalPrice || subtotal + tax - discount;
+    const paidAmount = purchase.paidAmount || 0;
+    const dueAmount = purchase.dueAmount || (totalAmount - paidAmount);
+    
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const currentTime = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const purchaseDate = purchase.purchaseDate 
+      ? new Date(purchase.purchaseDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : currentDate;
+    
+    const invoiceRows = productsList.map((product, index) => `
+      <tr>
+        <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${index + 1}</td>
+        <td style="padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">${product.name}</td>
+        <td style="text-align: center; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${product.unit}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">${product.quantity.toLocaleString()}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb;">Rs. ${product.unitPrice.toLocaleString()}</td>
+        <td style="text-align: right; padding: 10px 8px; border-bottom: 1px solid #e5e7eb; font-weight: 600;">Rs. ${product.totalPrice.toLocaleString()}</td>
+      </tr>
+    `).join('');
+    
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Bag Purchase Invoice - ${purchase.purchaseNumber || 'N/A'}</title>
+          <style>
+            @page { size: A4; margin: 1cm; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 12px; color: #000; line-height: 1.4; }
+            .invoice-container { max-width: 100%; padding: 20px; }
+            .invoice-header { border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 25px; }
+            .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+            .company-info h1 { font-size: 28px; color: #1e40af; margin-bottom: 5px; font-weight: 700; }
+            .company-info .subtitle { font-size: 13px; color: #6b7280; }
+            .invoice-info { text-align: right; }
+            .invoice-info h2 { font-size: 24px; color: #2563eb; margin-bottom: 5px; font-weight: 700; }
+            .invoice-info .invoice-number { font-size: 14px; color: #111827; font-weight: 600; }
+            .invoice-info .invoice-date { font-size: 11px; color: #6b7280; margin-top: 5px; }
+            .parties-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
+            .party-box { background: #f9fafb; padding: 15px; border-left: 4px solid #2563eb; border-radius: 3px; }
+            .party-box h3 { font-size: 12px; color: #6b7280; text-transform: uppercase; margin-bottom: 8px; font-weight: 600; }
+            .party-box p { font-size: 11px; color: #111827; margin: 3px 0; }
+            .party-box .name { font-weight: 600; font-size: 13px; color: #111827; }
+            .products-section { margin-bottom: 25px; }
+            .products-section h3 { font-size: 14px; color: #111827; margin-bottom: 10px; font-weight: 600; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; page-break-inside: auto; }
+            thead { background: #1e40af; color: white; }
+            thead th { padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+            thead th:nth-child(1) { text-align: center; width: 50px; }
+            thead th:nth-child(3),
+            thead th:nth-child(4),
+            thead th:nth-child(5),
+            thead th:nth-child(6) { text-align: right; }
+            tbody tr { border-bottom: 1px solid #e5e7eb; page-break-inside: avoid; }
+            tbody tr:nth-child(even) { background: #f9fafb; }
+            tbody td { padding: 10px 8px; font-size: 11px; color: #111827; }
+            .totals-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+            .totals-box { background: #f3f4f6; padding: 15px; border-radius: 5px; }
+            .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+            .total-row:last-child { border-bottom: none; font-weight: 700; font-size: 14px; color: #1e40af; }
+            .total-row .label { color: #6b7280; }
+            .total-row .value { color: #111827; font-weight: 600; }
+            .payment-info { background: #eff6ff; padding: 15px; border-left: 4px solid #3b82f6; border-radius: 3px; margin-top: 20px; }
+            .payment-info h3 { font-size: 12px; color: #1e40af; margin-bottom: 10px; font-weight: 600; }
+            .payment-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; }
+            .payment-row .paid { color: #059669; font-weight: 600; }
+            .payment-row .due { color: #dc2626; font-weight: 600; }
+            .notes-section { margin-top: 25px; padding-top: 15px; border-top: 1px solid #e5e7eb; }
+            .notes-section h3 { font-size: 12px; color: #6b7280; margin-bottom: 5px; font-weight: 600; }
+            .notes-section p { font-size: 11px; color: #111827; }
+            .invoice-footer { margin-top: 30px; padding-top: 15px; border-top: 2px solid #e5e7eb; text-align: center; }
+            .invoice-footer p { font-size: 10px; color: #6b7280; margin: 3px 0; }
+            @media print { 
+              .no-print { display: none !important; } 
+              body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+              .invoice-container { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-container">
+            <div class="invoice-header">
+              <div class="header-top">
+                <div class="company-info">
+                  <h1>FLOUR MILL</h1>
+                  <div class="subtitle">Bag Purchase Invoice</div>
+                </div>
+                <div class="invoice-info">
+                  <h2>INVOICE</h2>
+                  <div class="invoice-number">Invoice #: ${purchase.purchaseNumber || 'N/A'}</div>
+                  <div class="invoice-date">Date: ${purchaseDate}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="parties-section">
+              <div class="party-box">
+                <h3>Supplier Information</h3>
+                <p class="name">${supplierName}</p>
+                <p>Contact: ${supplierContact}</p>
+                <p>${supplierAddress}</p>
+              </div>
+              <div class="party-box">
+                <h3>Delivery Information</h3>
+                <p class="name">${warehouseName}</p>
+                <p>Location: ${warehouseLocation}</p>
+                <p>Purchase Date: ${purchaseDate}</p>
+              </div>
+            </div>
+            
+            <div class="products-section">
+              <h3>Products Purchased</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Product Name</th>
+                    <th>Unit</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invoiceRows}
+                  <tr style="background: #f3f4f6; font-weight: 600;">
+                    <td colspan="3" style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af;">TOTAL</td>
+                    <td style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af;">${totalQuantity.toLocaleString()}</td>
+                    <td style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af;">-</td>
+                    <td style="text-align: right; padding: 12px 8px; border-top: 2px solid #1e40af; color: #1e40af; font-size: 13px;">Rs. ${subtotal.toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="totals-section">
+              <div></div>
+              <div class="totals-box">
+                <div class="total-row">
+                  <span class="label">Subtotal:</span>
+                  <span class="value">Rs. ${subtotal.toLocaleString()}</span>
+                </div>
+                ${tax > 0 ? `
+                <div class="total-row">
+                  <span class="label">Tax:</span>
+                  <span class="value">Rs. ${tax.toLocaleString()}</span>
+                </div>
+                ` : ''}
+                ${discount > 0 ? `
+                <div class="total-row">
+                  <span class="label">Discount:</span>
+                  <span class="value">-Rs. ${discount.toLocaleString()}</span>
+                </div>
+                ` : ''}
+                <div class="total-row">
+                  <span class="label">Grand Total:</span>
+                  <span class="value">Rs. ${totalAmount.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="payment-info">
+              <h3>Payment Details</h3>
+              <div class="payment-row">
+                <span>Payment Status:</span>
+                <span style="font-weight: 600; color: ${purchase.paymentStatus === 'Paid' ? '#059669' : purchase.paymentStatus === 'Partial' ? '#d97706' : '#dc2626'};">
+                  ${purchase.paymentStatus || 'Pending'}
+                </span>
+              </div>
+              <div class="payment-row">
+                <span>Payment Method:</span>
+                <span>${purchase.paymentMethod || 'N/A'}</span>
+              </div>
+              ${paidAmount > 0 ? `
+              <div class="payment-row">
+                <span>Paid Amount:</span>
+                <span class="paid">Rs. ${paidAmount.toLocaleString()}</span>
+              </div>
+              ` : ''}
+              ${dueAmount > 0 ? `
+              <div class="payment-row">
+                <span>Due Amount:</span>
+                <span class="due">Rs. ${dueAmount.toLocaleString()}</span>
+              </div>
+              ` : ''}
+            </div>
+            
+            ${purchase.notes ? `
+            <div class="notes-section">
+              <h3>Notes</h3>
+              <p>${purchase.notes}</p>
+            </div>
+            ` : ''}
+            
+            <div class="invoice-footer">
+              <p><strong>Thank you for your business!</strong></p>
+              <p>Generated on ${currentDate} at ${currentTime}</p>
+              <p>This is a computer-generated invoice</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.afterprint = () => printWindow.close();
+      }, 250);
+    };
+  };
 
   // Create gatepass after purchase is saved
   const createGatePass = async (savedPurchase, purchaseItems) => {
@@ -358,9 +695,9 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
       }
 
       // Print invoice if selected (after a short delay to ensure message is shown)
-      if (printInvoice) {
+      if (printInvoice && savedPurchase) {
         setTimeout(() => {
-          window.print();
+          printBagPurchaseInvoice(savedPurchase, validItems, suppliers, warehouses);
         }, 1500);
       }
 
@@ -470,8 +807,9 @@ export default function BagPurchaseForm({ purchase, suppliers, onClose, onSave }
             <div className="space-y-4">
               {items.map((item, index) => {
                 const weightVariants = getWeightVariants(item.productId);
+                // Use the unique ID as key to ensure React properly tracks each item
                 return (
-                  <div key={index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                  <div key={item.id || `item-${index}`} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <div className="flex justify-between items-center mb-3">
                       <h4 className="text-sm font-medium text-gray-700">Product {index + 1}</h4>
                       {items.length > 1 && (

@@ -260,7 +260,6 @@ export default function FoodPurchasePage() {
                             purchases={foodPurchases}
                             loading={loading}
                             error={error}
-                            onEdit={handleEdit}
                             onDelete={handleDelete}
                         />
                     </div>
