@@ -248,22 +248,54 @@ const WarehouseDetail = () => {
                         Total: {data.totalBags}
                       </span>
                     </div>
-                    {data.bags && data.bags.length > 0 && (
-                      <div className="space-y-2">
-                        {data.bags.map((item, index) => (
-                          <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
-                            <div>
-                              <p className="text-sm text-gray-900">
-                                {item.quantity} {item.unit}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                From: {item.purchaseNumber} • {formatDate(item.date)}
-                              </p>
+                    {(() => {
+                      const currentStockItems = (data.bags || []).filter(item => item.type === 'Current Stock');
+                      
+                      // Group entries by unit/weight category
+                      const groupedByUnit = currentStockItems.reduce((acc, item) => {
+                        const unit = item.unit || 'units';
+                        if (!acc[unit]) {
+                          acc[unit] = {
+                            unit: unit,
+                            quantity: 0,
+                            date: item.date
+                          };
+                        }
+                        acc[unit].quantity += item.quantity || 0;
+                        // Keep the most recent date
+                        if (new Date(item.date) > new Date(acc[unit].date)) {
+                          acc[unit].date = item.date;
+                        }
+                        return acc;
+                      }, {});
+                      
+                      // Sort by unit (weight category) for consistent display
+                      const groupedEntries = Object.values(groupedByUnit).sort((a, b) => {
+                        // Extract numeric weight from unit string (e.g., "20kg bags" -> 20)
+                        const getWeight = (unit) => {
+                          const match = unit.match(/(\d+(?:\.\d+)?)/);
+                          return match ? parseFloat(match[1]) : 0;
+                        };
+                        return getWeight(b.unit) - getWeight(a.unit); // Sort descending by weight
+                      });
+                      
+                      return groupedEntries.length > 0 ? (
+                        <div className="space-y-2">
+                          {groupedEntries.map((group, index) => (
+                            <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+                              <div>
+                                <p className="text-sm text-gray-900 font-medium">
+                                  {group.quantity} {group.unit}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  From: Current Stock • {formatDate(group.date)}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
                 )
               ))}

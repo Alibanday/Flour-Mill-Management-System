@@ -29,7 +29,7 @@ const bagPurchaseSchema = new mongoose.Schema(
         },
         unit: {
           type: String,
-          enum: ["tons", "quintals", "50kg bags", "25kg bags", "20kg bags", "15kg bags", "10kg bags", "5kg bags", "100kg sacks", "50kg sacks", "25kg sacks", "bags", "pieces", "rolls", "sheets", "boxes", "packets", "bundles", "units", "sets", "kits", "pairs", "meters", "liters"],
+          trim: true,
           default: "50kg bags"
         },
         unitPrice: {
