@@ -4,6 +4,9 @@ import { protect, authorize } from "../middleware/auth.js";
 import BagPurchase from "../model/BagPurchase.js";
 import mongoose from "mongoose";
 import { createBagPurchase } from "../controller/bagPurchaseController.js";
+import Stock from "../model/stock.js";
+import Inventory from "../model/inventory.js";
+import Warehouse from "../model/wareHouse.js";
 
 const router = express.Router();
 
@@ -339,30 +342,142 @@ router.put("/:id", [
 });
 
 // @route   DELETE /api/bag-purchases/:id
-// @desc    Delete bag purchase
+// @desc    Delete bag purchase and reverse stock movements
 // @access  Private (Admin only)
 router.delete("/:id", [
   authorize("Admin")
 ], async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await BagPurchase.findByIdAndDelete(id);
-    if (!deleted) {
+    
+    // Step 1: Find the purchase first to get purchaseNumber
+    const purchase = await BagPurchase.findById(id);
+    if (!purchase) {
       return res.status(404).json({
         success: false,
         message: "Bag purchase not found"
       });
     }
+
+    const purchaseNumber = purchase.purchaseNumber;
+    console.log(`🗑️  Starting cascade delete for bag purchase: ${purchaseNumber}`);
+
+    // Step 2: Find all Stock movements linked to this purchase
+    const stockMovements = await Stock.find({
+      referenceNumber: purchaseNumber,
+      movementType: 'in' // Only reverse 'in' movements (purchases)
+    }).populate('inventoryItem warehouse');
+
+    console.log(`📦 Found ${stockMovements.length} stock movements to reverse`);
+
+    // Step 3: Reverse each stock movement (subtract from inventory)
+    const errors = [];
+    const warehouseCapacityUpdates = new Map(); // Track warehouse capacity changes
+
+    for (const movement of stockMovements) {
+      try {
+        if (!movement.inventoryItem) {
+          console.warn(`⚠️  Stock movement ${movement._id} has no inventory item, skipping`);
+          errors.push(`Stock movement ${movement._id}: No inventory item`);
+          continue;
+        }
+
+        const inventory = await Inventory.findById(movement.inventoryItem._id || movement.inventoryItem);
+        if (!inventory) {
+          console.warn(`⚠️  Inventory item not found for movement ${movement._id}, skipping`);
+          errors.push(`Stock movement ${movement._id}: Inventory item not found`);
+          continue;
+        }
+
+        // Reverse the inventory stock (subtract the quantity that was added)
+        const currentStock = inventory.currentStock || 0;
+        const calculatedStock = currentStock - movement.quantity;
+        
+        // Warn if stock would go negative (meaning stock was sold after purchase)
+        if (calculatedStock < 0) {
+          console.warn(`⚠️  WARNING: Reversing purchase would make stock negative for ${inventory.name || inventory._id}. Current: ${currentStock}, Reversing: ${movement.quantity}. This may indicate stock was sold after purchase. Setting to 0.`);
+          errors.push(`Stock reversal warning: ${inventory.name || inventory._id} would go negative (current: ${currentStock}, reversing: ${movement.quantity})`);
+        }
+        
+        // Ensure stock never goes negative
+        const newStock = Math.max(0, calculatedStock);
+        inventory.currentStock = newStock;
+
+        // Update inventory status based on new stock level
+        if (newStock === 0) {
+          inventory.status = "Out of Stock";
+        } else if (inventory.minimumStock && newStock <= inventory.minimumStock) {
+          inventory.status = "Low Stock";
+        } else {
+          inventory.status = "Active";
+        }
+
+        await inventory.save();
+        console.log(`✅ Reversed ${movement.quantity} units from inventory: ${inventory.name || inventory._id} (New stock: ${newStock})`);
+
+        // Track warehouse capacity updates (we'll apply them later)
+        if (movement.warehouse) {
+          const warehouseId = movement.warehouse._id?.toString() || movement.warehouse.toString();
+          const currentCapacityChange = warehouseCapacityUpdates.get(warehouseId) || 0;
+          warehouseCapacityUpdates.set(warehouseId, currentCapacityChange - movement.quantity);
+        }
+
+      } catch (movementError) {
+        console.error(`❌ Error reversing stock movement ${movement._id}:`, movementError);
+        errors.push(`Stock movement ${movement._id}: ${movementError.message}`);
+      }
+    }
+
+    // Step 4: Update warehouse capacity usage
+    for (const [warehouseId, capacityChange] of warehouseCapacityUpdates.entries()) {
+      try {
+        const warehouse = await Warehouse.findById(warehouseId);
+        if (warehouse && warehouse.capacity && warehouse.capacity.totalCapacity) {
+          warehouse.capacity.currentUsage = Math.max(0, (warehouse.capacity.currentUsage || 0) + capacityChange);
+          await warehouse.save();
+          console.log(`✅ Updated warehouse capacity: ${warehouse.name} (Change: ${capacityChange})`);
+        }
+      } catch (warehouseError) {
+        console.error(`❌ Error updating warehouse capacity for ${warehouseId}:`, warehouseError);
+        errors.push(`Warehouse ${warehouseId}: ${warehouseError.message}`);
+      }
+    }
+
+    // Step 5: Delete all Stock movements
+    if (stockMovements.length > 0) {
+      const deleteResult = await Stock.deleteMany({
+        referenceNumber: purchaseNumber,
+        movementType: 'in'
+      });
+      console.log(`🗑️  Deleted ${deleteResult.deletedCount} stock movements`);
+    }
+
+    // Step 6: Delete the BagPurchase
+    await BagPurchase.findByIdAndDelete(id);
+    console.log(`✅ Deleted bag purchase: ${purchaseNumber}`);
+
+    // Step 7: Return response
+    const message = errors.length > 0
+      ? `Bag purchase deleted successfully, but ${errors.length} error(s) occurred during stock reversal`
+      : `Bag purchase deleted successfully and ${stockMovements.length} stock movement(s) reversed`;
+
     res.json({
       success: true,
-      message: "Bag purchase deleted successfully",
-      data: { _id: id }
+      message: message,
+      data: { 
+        _id: id,
+        purchaseNumber: purchaseNumber,
+        stockMovementsReversed: stockMovements.length,
+        errors: errors.length > 0 ? errors : undefined
+      }
     });
+
   } catch (error) {
-    console.error("Delete bag purchase error:", error);
+    console.error("❌ Delete bag purchase error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error while deleting bag purchase"
+      message: "Server error while deleting bag purchase",
+      error: error.message
     });
   }
 });

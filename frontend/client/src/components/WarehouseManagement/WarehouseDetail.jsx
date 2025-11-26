@@ -320,38 +320,36 @@ const WarehouseDetail = () => {
                   <p className="text-xs text-gray-500 mb-3">
                     This is the actual current stock from the centralized inventory system, reflecting all purchases, sales, production, and transfers.
                   </p>
-                  {wheatInventory.wheat && wheatInventory.wheat.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-gray-700 mb-2">Stock Details:</div>
-                      {wheatInventory.wheat.map((item, index) => (
-                        <div key={index} className={`flex items-center justify-between py-2 border-b last:border-0 ${
-                          item.type === 'Current Stock' ? 'bg-green-50' : ''
-                        }`}>
-                          <div>
-                            <p className="text-sm text-gray-900">
-                              {item.quantity} {item.unit}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {item.type === 'Current Stock' 
-                                ? `Current Stock from Inventory • ${formatDate(item.date)}`
-                                : `From: ${item.purchaseNumber} • ${formatDate(item.date)}`
-                              }
-                            </p>
-                            {item.source && (
-                              <p className="text-xs text-blue-600">
-                                Source: {item.source} {item.quality ? `• Quality: ${item.quality}` : ''}
+                  {(() => {
+                    // Filter to only show current stock entries
+                    const currentStockItems = (wheatInventory.wheat || []).filter(item => item.type === 'Current Stock');
+                    
+                    return currentStockItems.length > 0 ? (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-gray-700 mb-2">Stock Details:</div>
+                        {currentStockItems.map((item, index) => (
+                          <div key={index} className="flex items-center justify-between py-2 border-b last:border-0 bg-green-50">
+                            <div>
+                              <p className="text-sm text-gray-900 font-medium">
+                                {item.quantity} {item.unit}
                               </p>
-                            )}
-                          </div>
-                          {item.type === 'Current Stock' && (
+                              <p className="text-xs text-gray-500">
+                                From: Current Stock • {formatDate(item.date)}
+                              </p>
+                              {item.source && (
+                                <p className="text-xs text-blue-600">
+                                  Source: {item.source} {item.quality ? `• Quality: ${item.quality}` : ''}
+                                </p>
+                              )}
+                            </div>
                             <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                               Live
                             </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               ) : (
                 <p className="text-gray-500 text-center py-8">No wheat inventory found</p>
@@ -383,57 +381,100 @@ const WarehouseDetail = () => {
                 </div>
               </div>
               
-              {actualStock && actualStock.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {actualStock.map((item, index) => (
-                          <tr key={item.productId || index} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                  <FaBoxes className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-sm font-medium text-gray-900">{item.productName}</div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.category}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {item.unit}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap">
-                              <span className="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                {item.currentStock} {item.unit}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+              {(() => {
+                // Separate bags and wheat
+                const bagItems = (actualStock || []).filter(item => {
+                  const nameLower = (item.productName || '').toLowerCase();
+                  const categoryLower = (item.category || '').toLowerCase();
+                  return categoryLower === 'packaging' || 
+                         nameLower.includes('ata') || 
+                         nameLower.includes('maida') || 
+                         nameLower.includes('suji') || 
+                         nameLower.includes('fine') ||
+                         nameLower.includes('bag');
+                });
+
+                const wheatItems = (actualStock || []).filter(item => {
+                  const nameLower = (item.productName || '').toLowerCase();
+                  const categoryLower = (item.category || '').toLowerCase();
+                  return nameLower.includes('wheat') || 
+                         categoryLower.includes('raw materials') && nameLower.includes('grain');
+                });
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Bags Table */}
+                    <div>
+                      <h4 className="text-md font-semibold text-gray-900 mb-3">Bags</h4>
+                      {bagItems.length > 0 ? (
+                        <div className="overflow-x-auto border rounded-lg">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {bagItems.map((item, index) => (
+                                <tr key={item.productId || index} className="hover:bg-gray-50">
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-gray-900">{item.productName}</div>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                      {item.currentStock} {item.unit}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-lg border">
+                          <p className="text-sm text-gray-500">No bags in stock</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Wheat Table */}
+                    <div>
+                      <h4 className="text-md font-semibold text-gray-900 mb-3">Wheat</h4>
+                      {wheatItems.length > 0 ? (
+                        <div className="overflow-x-auto border rounded-lg">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Stock</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {wheatItems.map((item, index) => (
+                                <tr key={item.productId || index} className="hover:bg-gray-50">
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <div className="text-sm font-medium text-gray-900">{item.productName}</div>
+                                  </td>
+                                  <td className="px-3 py-3 whitespace-nowrap">
+                                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
+                                      {item.currentStock} kg
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-lg border">
+                          <p className="text-sm text-gray-500">No wheat in stock</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                  <FaBoxes className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No stock available</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    This warehouse currently has no stock items
-                  </p>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
