@@ -17,7 +17,7 @@ router.use(protect);
 // @desc    Get all bag purchases
 // @access  Private (Manager, Admin, Employee)
 router.get("/", [
-  authorize("Manager", "Admin", "Employee")
+  authorize("Manager", "Admin", "Employee", "Sales Manager")
 ], async (req, res) => {
   try {
     const {
@@ -96,7 +96,7 @@ router.get("/", [
 // @desc    Get bag purchases statistics
 // @access  Private (Manager, Admin, Employee)
 router.get("/stats", [
-  authorize("Manager", "Admin", "Employee")
+  authorize("Manager", "Admin", "Employee", "Sales Manager")
 ], async (req, res) => {
   try {
     // Get real stats from database
@@ -136,7 +136,7 @@ router.get("/stats", [
 // @access  Private (Manager, Admin, Employee)
 // NOTE: This route must come after /stats to avoid conflicts
 router.get("/:id", [
-  authorize("Manager", "Admin", "Employee")
+  authorize("Manager", "Admin", "Employee", "Sales Manager")
 ], async (req, res) => {
   try {
     const purchase = await BagPurchase.findById(req.params.id)
@@ -170,7 +170,7 @@ router.get("/:id", [
 // @desc    Create new bag purchase
 // @access  Private (Manager, Admin)
 router.post("/", [
-  authorize("Manager", "Admin"),
+  authorize("Manager", "Admin", "Sales Manager"),
   body("supplier").trim().notEmpty().withMessage("Supplier is required"),
   body("warehouse").trim().notEmpty().withMessage("Warehouse is required"),
   body("bags").isObject().withMessage("Bags object is required"),
@@ -182,7 +182,7 @@ router.post("/", [
 // @desc    Update bag purchase
 // @access  Private (Manager, Admin)
 router.put("/:id", [
-  authorize("Manager", "Admin"),
+  authorize("Manager", "Admin", "Sales Manager"),
   body("purchaseNumber").optional().trim().notEmpty().withMessage("Purchase number cannot be empty"),
   body("supplier").optional().trim().notEmpty().withMessage("Supplier cannot be empty"),
   body("productType").optional().isIn(["ATA", "MAIDA", "SUJI", "FINE"]).withMessage("Invalid product type"),

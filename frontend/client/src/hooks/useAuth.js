@@ -123,6 +123,7 @@ export const useAuth = () => {
         'sales.create', 'sales.read', 'sales.update',
         'customer.create', 'customer.read', 'customer.update',
         'purchase.read',
+        'warehouse.read',
         'inventory.read',
         'reports.read',
         'financial.read',

@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { FaCalendarAlt, FaFilter, FaDownload, FaFilePdf, FaFileExcel, FaPrint, FaChartLine } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { FaCalendarAlt, FaFilter, FaDownload, FaPrint, FaChartLine } from 'react-icons/fa';
 
 const SalesReport = ({ onReportGenerated }) => {
   const [filters, setFilters] = useState({
@@ -51,7 +47,9 @@ const SalesReport = ({ onReportGenerated }) => {
       const result = await response.json();
       if (result.success && result.data) {
         setReportData(result.data);
-        onReportGenerated(result.data);
+        if (onReportGenerated && typeof onReportGenerated === 'function') {
+          onReportGenerated(result.data);
+        }
       } else {
         throw new Error(result.message || 'Failed to generate report');
       }
@@ -62,128 +60,6 @@ const SalesReport = ({ onReportGenerated }) => {
     }
   };
 
-  const exportToPDF = () => {
-    try {
-      if (!reportData) {
-        setError('No report data available to export');
-        return;
-      }
-
-      if (typeof jsPDF === 'undefined') {
-        setError('PDF export library not available. Please use Print or Excel export instead.');
-        return;
-      }
-
-      const doc = new jsPDF();
-      
-      // Title
-      doc.setFontSize(20);
-      doc.text('Sales Report', 105, 20, { align: 'center' });
-      
-      // Date range
-      doc.setFontSize(12);
-      const dateRange = filters.startDate && filters.endDate 
-        ? `${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`
-        : 'All Time';
-      doc.text(`Period: ${dateRange}`, 20, 35);
-      
-      // Summary
-      doc.setFontSize(14);
-      doc.text('Summary', 20, 50);
-      
-      const summaryData = [
-        ['Total Sales', (reportData.summary?.totalSales || 0).toString()],
-        ['Total Amount', `Rs. ${(reportData.summary?.totalAmount || 0).toLocaleString()}`],
-        ['Total Quantity', (reportData.summary?.totalQuantity || 0).toString()],
-        ['Average Order Value', `Rs. ${(reportData.summary?.averageOrderValue || 0).toLocaleString()}`]
-      ];
-      
-      doc.autoTable({
-        startY: 60,
-        head: [['Metric', 'Value']],
-        body: summaryData,
-        theme: 'grid'
-      });
-
-      // Sales data
-      if (reportData.data && reportData.data.length > 0) {
-        doc.addPage();
-        doc.setFontSize(14);
-        doc.text('Sales Details', 20, 20);
-        
-        const salesData = reportData.data.map(sale => [
-          sale.saleDate ? new Date(sale.saleDate).toLocaleDateString() : 'N/A',
-          sale.customer?.name || sale.customer?.customerName || 'N/A',
-          (sale.totalAmount || 0).toLocaleString(),
-          (sale.paidAmount || 0).toLocaleString(),
-          (sale.remainingAmount || sale.dueAmount || 0).toLocaleString(),
-          sale.paymentStatus || 'N/A'
-        ]);
-        
-        doc.autoTable({
-          startY: 30,
-          head: [['Date', 'Customer', 'Total Amount (Rs.)', 'Paid Amount (Rs.)', 'Debit/Outstanding (Rs.)', 'Payment Status']],
-          body: salesData,
-          theme: 'grid',
-          styles: { fontSize: 9 },
-          headStyles: { fontSize: 9 }
-        });
-      }
-
-      doc.save('sales-report.pdf');
-    } catch (error) {
-      console.error('Error exporting to PDF:', error);
-      setError('Failed to export PDF. Please use Print or Excel export instead.');
-    }
-  };
-
-  const exportToExcel = () => {
-    if (!reportData) return;
-
-    const workbook = XLSX.utils.book_new();
-    
-    // Summary sheet
-    const summaryData = [
-      ['Metric', 'Value'],
-      ['Total Sales', reportData.summary.totalSales],
-      ['Total Amount', reportData.summary.totalAmount],
-      ['Total Quantity', reportData.summary.totalQuantity],
-      ['Average Order Value', reportData.summary.averageOrderValue],
-      ['Paid Orders', reportData.summary.paymentBreakdown.paid],
-      ['Pending Orders', reportData.summary.paymentBreakdown.pending],
-      ['Partial Orders', reportData.summary.paymentBreakdown.partial]
-    ];
-    
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // Sales data sheet
-    if (reportData.data && reportData.data.length > 0) {
-      const salesData = [
-        ['Date', 'Customer', 'Total Amount (Rs.)', 'Paid Amount (Rs.)', 'Debit/Outstanding (Rs.)', 'Payment Status', 'Items']
-      ];
-      
-      reportData.data.forEach(sale => {
-        const items = sale.items?.map(item => `${item.product?.name || 'N/A'} (${item.quantity})`).join(', ') || 'N/A';
-        salesData.push([
-          new Date(sale.saleDate).toLocaleDateString(),
-          sale.customer?.name || 'N/A',
-          sale.totalAmount || 0,
-          sale.paidAmount || 0,
-          sale.remainingAmount || sale.dueAmount || 0,
-          sale.paymentStatus,
-          items
-        ]);
-      });
-      
-      const salesSheet = XLSX.utils.aoa_to_sheet(salesData);
-      XLSX.utils.book_append_sheet(workbook, salesSheet, 'Sales Data');
-    }
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, 'sales-report.xlsx');
-  };
 
   const printReport = () => {
     // Create a new window for printing
@@ -644,22 +520,13 @@ const SalesReport = ({ onReportGenerated }) => {
           {/* Export Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Sales Report Results</h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={printReport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaPrint className="mr-2" />
-                Print
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFileExcel className="mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={printReport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FaPrint className="mr-2" />
+              Print
+            </button>
           </div>
 
           {/* Summary Cards */}

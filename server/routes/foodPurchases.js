@@ -16,7 +16,7 @@ router.use(protect);
 // @desc    Get all food purchases
 // @access  Private (Manager, Admin, Employee)
 router.get("/", [
-  authorize("Manager", "Admin", "Employee")
+  authorize("Manager", "Admin", "Employee", "Sales Manager")
 ], async (req, res) => {
   try {
     const {
@@ -94,7 +94,7 @@ router.get("/", [
 // @desc    Get food purchases statistics
 // @access  Private (Manager, Admin, Employee)
 router.get("/stats", [
-  authorize("Manager", "Admin", "Employee")
+  authorize("Manager", "Admin", "Employee", "Sales Manager")
 ], async (req, res) => {
   try {
     // Get real stats from database
@@ -133,7 +133,7 @@ router.get("/stats", [
 // @desc    Create new food purchase
 // @access  Private (Manager, Admin)
 router.post("/", [
-  authorize("Manager", "Admin"),
+  authorize("Manager", "Admin", "Sales Manager"),
   body("supplier").trim().notEmpty().withMessage("Supplier is required"),
   body("productType").trim().notEmpty().withMessage("Product type is required"),
   body("quantity").isNumeric().withMessage("Quantity must be a number"),
@@ -445,7 +445,7 @@ router.post("/", [
 // @desc    Update food purchase
 // @access  Private (Manager, Admin)
 router.put("/:id", [
-  authorize("Manager", "Admin"),
+  authorize("Manager", "Admin", "Sales Manager"),
   body("purchaseNumber").optional().trim().notEmpty().withMessage("Purchase number cannot be empty"),
   body("supplier").optional().trim().notEmpty().withMessage("Supplier cannot be empty"),
   body("productType").optional().isIn(["Wheat Grain", "Corn", "Rice", "Barley", "Oats", "Rye", "Millet", "Other"]).withMessage("Invalid product type"),

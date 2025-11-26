@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { FaUserTie, FaCalendarAlt, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { FaUserTie, FaCalendarAlt, FaPrint } from 'react-icons/fa';
 
 const SalaryReport = ({ onReportGenerated }) => {
   const [filters, setFilters] = useState({
@@ -49,7 +45,9 @@ const SalaryReport = ({ onReportGenerated }) => {
       const result = await response.json();
       if (result.success && result.data) {
       setReportData(result.data);
-      onReportGenerated(result.data);
+      if (onReportGenerated && typeof onReportGenerated === 'function') {
+        onReportGenerated(result.data);
+      }
       } else {
         throw new Error(result.message || 'Failed to generate report');
       }
@@ -60,148 +58,6 @@ const SalaryReport = ({ onReportGenerated }) => {
     }
   };
 
-  const exportToPDF = () => {
-    if (!reportData) return;
-
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(20);
-    doc.text('Employee Salary Report', 105, 20, { align: 'center' });
-    
-    // Date range
-    doc.setFontSize(12);
-    doc.text(`Period: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`, 20, 35);
-    
-    // Summary
-    doc.setFontSize(14);
-    doc.text('Summary', 20, 50);
-    
-    const summaryData = [
-      ['Total Salaries', reportData.summary.totalSalaries.toString()],
-      ['Total Amount', `Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}`],
-      ['Average Salary', `Rs. ${(reportData.summary.averageSalary || 0).toLocaleString()}`]
-    ];
-    
-    doc.autoTable({
-      startY: 60,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid'
-    });
-
-    // Department breakdown
-    if (Object.keys(reportData.summary.departmentBreakdown).length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Salaries by Department', 20, 20);
-      
-      const deptData = Object.entries(reportData.summary.departmentBreakdown).map(([dept, data]) => [
-        dept,
-        data.count.toString(),
-        `Rs. ${(data.amount || 0).toLocaleString()}`
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Department', 'Count', 'Total Amount']],
-        body: deptData,
-        theme: 'grid'
-      });
-    }
-
-    // Salary details
-    if (reportData.data && reportData.data.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Salary Details', 20, 20);
-      
-      const salaryData = reportData.data.map(salary => [
-        new Date(salary.date).toLocaleDateString(),
-        salary.createdBy ? `${salary.createdBy.firstName} ${salary.createdBy.lastName}` : 'N/A',
-        salary.createdBy?.role || 'N/A',
-        `Rs. ${(salary.amount || 0).toLocaleString()}`,
-        salary.description || 'N/A'
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Date', 'Employee', 'Department', 'Amount', 'Description']],
-        body: salaryData,
-        theme: 'grid'
-      });
-    }
-
-    doc.save('salary-report.pdf');
-  };
-
-  const exportToExcel = () => {
-    if (!reportData) return;
-
-    const workbook = XLSX.utils.book_new();
-    
-    // Summary sheet
-    const summaryData = [
-      ['Employee Salary Report Summary'],
-      [''],
-      ['Period', `${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`],
-      [''],
-      ['Metric', 'Value'],
-      ['Total Salaries', reportData.summary.totalSalaries],
-      ['Total Amount', reportData.summary.totalAmount],
-      ['Average Salary', reportData.summary.averageSalary]
-    ];
-    
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // Department breakdown sheet
-    if (Object.keys(reportData.summary.departmentBreakdown).length > 0) {
-      const deptData = [
-        ['Salaries by Department'],
-        [''],
-        ['Department', 'Count', 'Total Amount']
-      ];
-      
-      Object.entries(reportData.summary.departmentBreakdown).forEach(([dept, data]) => {
-        deptData.push([
-          dept,
-          data.count,
-          data.amount
-        ]);
-      });
-      
-      const deptSheet = XLSX.utils.aoa_to_sheet(deptData);
-      XLSX.utils.book_append_sheet(workbook, deptSheet, 'Department Breakdown');
-    }
-
-    // Salary details sheet
-    if (reportData.data && reportData.data.length > 0) {
-      const salaryData = [
-        ['Salary Details'],
-        [''],
-        ['Date', 'Employee', 'Department', 'Amount', 'Description', 'Transaction ID']
-      ];
-      
-      reportData.data.forEach(salary => {
-        salaryData.push([
-          new Date(salary.date).toLocaleDateString(),
-          salary.createdBy ? `${salary.createdBy.firstName} ${salary.createdBy.lastName}` : 'N/A',
-          salary.createdBy?.role || 'N/A',
-          salary.amount,
-          salary.description || 'N/A',
-          salary._id
-        ]);
-      });
-      
-      const salarySheet = XLSX.utils.aoa_to_sheet(salaryData);
-      XLSX.utils.book_append_sheet(workbook, salarySheet, 'Salary Details');
-    }
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, 'salary-report.xlsx');
-  };
 
   const printReport = () => {
     window.print();
@@ -307,32 +163,16 @@ const SalaryReport = ({ onReportGenerated }) => {
       {/* Report Results */}
       {reportData && (
         <div className="space-y-6">
-          {/* Export Actions */}
+          {/* Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Employee Salary Report Results</h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={printReport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaPrint className="mr-2" />
-                Print
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFilePdf className="mr-2" />
-                Export PDF
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFileExcel className="mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={printReport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FaPrint className="mr-2" />
+              Print
+            </button>
           </div>
 
           {/* Summary Cards */}

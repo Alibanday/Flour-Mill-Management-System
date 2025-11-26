@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { FaMoneyBillWave, FaCalendarAlt, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { FaMoneyBillWave, FaCalendarAlt, FaPrint } from 'react-icons/fa';
 
 const ExpenseReport = ({ onReportGenerated }) => {
   const [filters, setFilters] = useState({
@@ -49,7 +45,9 @@ const ExpenseReport = ({ onReportGenerated }) => {
       const result = await response.json();
       if (result.success && result.data) {
         setReportData(result.data);
-        onReportGenerated(result.data);
+        if (onReportGenerated && typeof onReportGenerated === 'function') {
+          onReportGenerated(result.data);
+        }
       } else {
         throw new Error(result.message || 'Failed to generate report');
       }
@@ -60,148 +58,6 @@ const ExpenseReport = ({ onReportGenerated }) => {
     }
   };
 
-  const exportToPDF = () => {
-    if (!reportData) return;
-
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(20);
-    doc.text('Expense Report', 105, 20, { align: 'center' });
-    
-    // Date range
-    doc.setFontSize(12);
-    doc.text(`Period: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`, 20, 35);
-    
-    // Summary
-    doc.setFontSize(14);
-    doc.text('Summary', 20, 50);
-    
-    const summaryData = [
-      ['Total Expenses', reportData.summary.totalExpenses.toString()],
-      ['Total Amount', `Rs. ${(reportData.summary.totalAmount || 0).toLocaleString()}`],
-      ['Average Expense', `Rs. ${(reportData.summary.averageExpense || 0).toLocaleString()}`]
-    ];
-    
-    doc.autoTable({
-      startY: 60,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid'
-    });
-
-    // Category breakdown
-    if (Object.keys(reportData.summary.categoryBreakdown).length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Expenses by Category', 20, 20);
-      
-      const categoryData = Object.entries(reportData.summary.categoryBreakdown).map(([category, data]) => [
-        category,
-        data.count.toString(),
-        `Rs. ${(data.amount || 0).toLocaleString()}`
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Category', 'Count', 'Total Amount']],
-        body: categoryData,
-        theme: 'grid'
-      });
-    }
-
-    // Expense details
-    if (reportData.data && reportData.data.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Expense Details', 20, 20);
-      
-      const expenseData = reportData.data.map(expense => [
-        new Date(expense.date).toLocaleDateString(),
-        expense.category || 'Uncategorized',
-        expense.description || 'N/A',
-        `Rs. ${(expense.amount || 0).toLocaleString()}`,
-        expense.createdBy ? `${expense.createdBy.firstName} ${expense.createdBy.lastName}` : 'N/A'
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Date', 'Category', 'Description', 'Amount', 'Created By']],
-        body: expenseData,
-        theme: 'grid'
-      });
-    }
-
-    doc.save('expense-report.pdf');
-  };
-
-  const exportToExcel = () => {
-    if (!reportData) return;
-
-    const workbook = XLSX.utils.book_new();
-    
-    // Summary sheet
-    const summaryData = [
-      ['Expense Report Summary'],
-      [''],
-      ['Period', `${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`],
-      [''],
-      ['Metric', 'Value'],
-      ['Total Expenses', reportData.summary.totalExpenses],
-      ['Total Amount', reportData.summary.totalAmount],
-      ['Average Expense', reportData.summary.averageExpense]
-    ];
-    
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // Category breakdown sheet
-    if (Object.keys(reportData.summary.categoryBreakdown).length > 0) {
-      const categoryData = [
-        ['Expenses by Category'],
-        [''],
-        ['Category', 'Count', 'Total Amount']
-      ];
-      
-      Object.entries(reportData.summary.categoryBreakdown).forEach(([category, data]) => {
-        categoryData.push([
-          category,
-          data.count,
-          data.amount
-        ]);
-      });
-      
-      const categorySheet = XLSX.utils.aoa_to_sheet(categoryData);
-      XLSX.utils.book_append_sheet(workbook, categorySheet, 'Category Breakdown');
-    }
-
-    // Expense details sheet
-    if (reportData.data && reportData.data.length > 0) {
-      const expenseData = [
-        ['Expense Details'],
-        [''],
-        ['Date', 'Category', 'Description', 'Amount', 'Created By', 'Transaction ID']
-      ];
-      
-      reportData.data.forEach(expense => {
-        expenseData.push([
-          new Date(expense.date).toLocaleDateString(),
-          expense.category || 'Uncategorized',
-          expense.description || 'N/A',
-          expense.amount,
-          expense.createdBy ? `${expense.createdBy.firstName} ${expense.createdBy.lastName}` : 'N/A',
-          expense._id
-        ]);
-      });
-      
-      const expenseSheet = XLSX.utils.aoa_to_sheet(expenseData);
-      XLSX.utils.book_append_sheet(workbook, expenseSheet, 'Expense Details');
-    }
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, 'expense-report.xlsx');
-  };
 
   const printReport = () => {
     window.print();
@@ -313,32 +169,16 @@ const ExpenseReport = ({ onReportGenerated }) => {
       {/* Report Results */}
       {reportData && (
         <div className="space-y-6">
-          {/* Export Actions */}
+          {/* Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Expense Report Results</h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={printReport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaPrint className="mr-2" />
-                Print
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFilePdf className="mr-2" />
-                Export PDF
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFileExcel className="mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={printReport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FaPrint className="mr-2" />
+              Print
+            </button>
           </div>
 
           {/* Summary Cards */}

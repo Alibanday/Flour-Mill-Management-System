@@ -31,9 +31,10 @@ import ProductionCostPage from './pages/ProductionCostPage';
 import StockPage from './pages/StockPage';
 import WarehouseManagerDashboard from './pages/WarehouseManagerDashboard';
 import DamageReportPage from './pages/DamageReportPage';
-import ProtectedRoute, { AdminRoute, GeneralManagerRoute, SalesManagerRoute, ProductionManagerRoute, WarehouseManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute } from './components/Auth/ProtectedRoute';
+import ProtectedRoute, { AdminRoute, GeneralManagerRoute, SalesManagerRoute, ProductionManagerRoute, WarehouseManagerRoute, UserManagementRoute, EmployeeRoute, CashierRoute, PurchaseRoute } from './components/Auth/ProtectedRoute';
 import SaleDetailPage from './pages/SaleDetailPage';
 import CustomerDetailPage from './pages/CustomerDetailPage';
+import UserDetail from './pages/UserDetail';
 
 function App() {
   return (
@@ -60,6 +61,14 @@ function App() {
           element={
             <UserManagementRoute>
               <UserManagementPage />
+            </UserManagementRoute>
+          }
+        />
+        <Route
+          path="/users/:id"
+          element={
+            <UserManagementRoute>
+              <UserDetail />
             </UserManagementRoute>
           }
         />
@@ -153,23 +162,23 @@ function App() {
           }
         />
 
-        {/* Bag Purchase - Admin and General Manager only */}
+        {/* Bag Purchase - Admin, General Manager, and Sales Manager */}
         <Route
           path="/bag-purchase"
           element={
-            <GeneralManagerRoute>
+            <PurchaseRoute>
               <BagPurchasePage />
-            </GeneralManagerRoute>
+            </PurchaseRoute>
           }
         />
 
-        {/* Food Purchase - Admin and General Manager only */}
+        {/* Food Purchase - Admin, General Manager, and Sales Manager */}
         <Route
           path="/food-purchase"
           element={
-            <GeneralManagerRoute>
+            <PurchaseRoute>
               <FoodPurchasePage />
-            </GeneralManagerRoute>
+            </PurchaseRoute>
           }
         />
 

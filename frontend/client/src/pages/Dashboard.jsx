@@ -21,7 +21,7 @@ export default function Dashboard() {
 
   const isSalesMgr = isSalesManager();
   const canAccessGatePass = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager() || isSalesManager();
-  const canAccessBagFoodPurchase = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager();
+  const canAccessBagFoodPurchase = isAdmin() || isGeneralManager() || isProductionManager() || isWarehouseManager() || isSalesManager();
   const canSeeReports = isAdmin() || isGeneralManager() || isSalesManager();
   const canSeeNotifications = isAdmin() || isGeneralManager() || isSalesManager();
   const canSeeSupplierManagement = isAdmin() || isGeneralManager();

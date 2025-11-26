@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FaBoxes, FaSearch, FaFilter,
+  FaBoxes, FaSearch,
   FaSort, FaSortUp, FaSortDown,
   FaExclamationTriangle, FaCheckCircle, FaTimesCircle,
-  FaWarehouse
+  FaWarehouse, FaPlus
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../../services/api';
 import { toast } from 'react-toastify';
+import ProductCatalog from './ProductCatalog';
 
 const InventoryList = () => {
   const { isAdmin, isManager, isEmployee } = useAuth();
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showProductCatalog, setShowProductCatalog] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    category: 'all',
-    subcategory: 'all',
     status: 'all',
     warehouse: 'all'
   });
@@ -31,11 +31,9 @@ const InventoryList = () => {
     total: 0,
     pages: 0
   });
-  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     fetchInventory();
-    fetchCategories();
     fetchWarehouses();
   }, [pagination.current, pagination.limit, searchTerm, filters, sortConfig]);
 
@@ -72,8 +70,6 @@ const InventoryList = () => {
         page: pagination.current,
         limit: pagination.limit,
         ...(searchTerm && { search: searchTerm }),
-        ...(filters.category !== 'all' && { category: filters.category }),
-        ...(filters.subcategory !== 'all' && { subcategory: filters.subcategory }),
         ...(filters.status !== 'all' && { status: filters.status }),
         ...(filters.warehouse !== 'all' && { warehouse: filters.warehouse })
       });
@@ -117,15 +113,6 @@ const InventoryList = () => {
   };
 
 
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('http://localhost:7000/api/inventory/category/all');
-      setCategories(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
-
   const fetchWarehouses = async () => {
     try {
       const response = await api.get('http://localhost:7000/api/warehouses');
@@ -138,7 +125,7 @@ const InventoryList = () => {
   };
 
   const handleSearch = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setPagination(prev => ({ ...prev, current: 1 }));
   };
 
@@ -194,6 +181,31 @@ const InventoryList = () => {
            (item.currentStock !== undefined ? item.currentStock : (item.weight || 0));
   };
 
+  const getDisplayUnit = (item) => {
+    const name = (item.productName || item.product?.name || item.name || '').toLowerCase();
+    const category = (item.category || item.product?.category || '').toLowerCase();
+    const originalUnit = item.unit || item.product?.unit || '';
+    
+    // Check if it's wheat
+    if (name.includes('wheat') || 
+        (category.includes('raw materials') && name.includes('grain'))) {
+      return 'kg';
+    }
+    
+    // Check if it's a bag (Packaging category or bag-related names)
+    if (category === 'packaging' || 
+        name.includes('ata') || 
+        name.includes('maida') || 
+        name.includes('suji') || 
+        name.includes('fine') ||
+        name.includes('bag')) {
+      return 'units';
+    }
+    
+    // Return original unit or default to 'units'
+    return originalUnit || 'units';
+  };
+
   const getStockStatusColor = (item) => {
     const stock = getCurrentStock(item);
     if (stock === 0) return 'text-red-600';
@@ -231,40 +243,52 @@ const InventoryList = () => {
         </div>
       </div>
 
+      {/* Add Inventory Item Button */}
+      {(isAdmin() || isManager()) && (
+        <div className="px-6 py-4 border-b bg-gray-50">
+          <button
+            onClick={() => setShowProductCatalog(true)}
+            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm"
+          >
+            <FaPlus />
+            <span>Add Inventory Item</span>
+          </button>
+        </div>
+      )}
+
       {/* Search and Filters */}
-      <div className="p-6 border-b">
-        <form onSubmit={handleSearch} className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name, code, or description..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-              </div>
+      <div className="p-6 border-b bg-gray-50">
+        <div className="space-y-4">
+          {/* Search Bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by name, code, or description..."
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all shadow-sm"
+              />
             </div>
             <button
-              type="submit"
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              onClick={handleSearch}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium shadow-sm whitespace-nowrap"
             >
               Search
             </button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                <FaWarehouse className="inline mr-1" />
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Warehouse
               </label>
               <select
                 value={filters.warehouse}
                 onChange={(e) => handleFilterChange('warehouse', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-all shadow-sm"
               >
                 <option value="all">All Warehouses</option>
                 {warehouses.map(warehouse => (
@@ -275,48 +299,14 @@ const InventoryList = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select
-                value={filters.category}
-                onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
-              <select
-                value={filters.subcategory || 'all'}
-                onChange={(e) => handleFilterChange('subcategory', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-              >
-                <option value="all">All Subcategories</option>
-                <option value="Wheat Grain">Wheat Grain</option>
-                <option value="Corn">Corn</option>
-                <option value="Rice">Rice</option>
-                <option value="Flour">Flour</option>
-                <option value="Maida">Maida</option>
-                <option value="Suji">Suji</option>
-                <option value="Chokhar">Chokhar</option>
-                <option value="Bags">Bags</option>
-                <option value="Sacks">Sacks</option>
-                <option value="Machine Parts">Machine Parts</option>
-                <option value="Lubricants">Lubricants</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Status
+              </label>
               <select
                 value={filters.status}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white transition-all shadow-sm"
               >
                 <option value="all">All Status</option>
                 <option value="Active">Active</option>
@@ -326,8 +316,26 @@ const InventoryList = () => {
                 <option value="Discontinued">Discontinued</option>
               </select>
             </div>
+
+            {(filters.warehouse !== 'all' || filters.status !== 'all' || searchTerm) && (
+              <div className="flex items-end">
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilters({
+                      status: 'all',
+                      warehouse: 'all'
+                    });
+                    setPagination(prev => ({ ...prev, current: 1 }));
+                  }}
+                  className="px-4 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium shadow-sm"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            )}
           </div>
-        </form>
+        </div>
       </div>
 
       {/* Inventory Table */}
@@ -419,13 +427,13 @@ const InventoryList = () => {
                   <div className="flex items-center space-x-2">
                     {getStockStatusIcon(item)}
                     <span className={`text-sm font-medium ${getStockStatusColor(item)}`}>
-                      {getCurrentStock(item).toLocaleString()} {item.unit || item.product?.unit || 'units'}
+                      {getCurrentStock(item).toLocaleString()} {getDisplayUnit(item)}
                     </span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="text-sm text-gray-600">
-                    {item.minimumStock ? `${item.minimumStock.toLocaleString()} kg` : 'Not set'}
+                    {item.minimumStock ? `${item.minimumStock.toLocaleString()} ${getDisplayUnit(item)}` : 'Not set'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -515,6 +523,10 @@ const InventoryList = () => {
         </div>
       )}
 
+      {/* Product Catalog Modal */}
+      {showProductCatalog && (
+        <ProductCatalog onClose={() => setShowProductCatalog(false)} />
+      )}
     </div>
   );
 };

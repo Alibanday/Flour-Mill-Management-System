@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaBoxes, FaWarehouse, FaExclamationTriangle, FaCheckCircle, 
-  FaTimesCircle, FaChartBar, FaPlus, FaSearch, FaFilter, FaSync,
-  FaTags
+  FaTimesCircle, FaChartBar, FaSync, FaTags, FaHome
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import api, { API_ENDPOINTS } from '../services/api';
@@ -10,6 +10,7 @@ import InventoryList from '../components/InventoryManagement/InventoryList';
 import ProductCatalog from '../components/InventoryManagement/ProductCatalog';
 
 const InventoryPage = () => {
+  const navigate = useNavigate();
   const { user, isAdmin, isManager, isEmployee } = useAuth();
   const [stats, setStats] = useState({
     totalItems: 0,
@@ -87,54 +88,6 @@ const InventoryPage = () => {
     return baseNav;
   };
 
-  const getRoleBasedQuickActions = () => {
-    const actions = [];
-
-    if (isAdmin() || isManager()) {
-      actions.push({
-        name: 'Add Inventory Item',
-        description: 'Create a new inventory item',
-        href: '#',
-        icon: FaPlus,
-        action: 'add-inventory'
-      });
-    }
-
-    actions.push(
-      {
-        name: 'Search Inventory',
-        description: 'Find specific items quickly',
-        href: '#',
-        icon: FaSearch,
-        action: 'search'
-      },
-      {
-        name: 'Filter Items',
-        description: 'View items by category or status',
-        href: '#',
-        icon: FaFilter,
-        action: 'filter'
-      }
-    );
-
-    return actions;
-  };
-
-  const handleQuickAction = (action) => {
-    switch (action) {
-      case 'add-inventory':
-        // This will be handled by the InventoryList component
-        break;
-      case 'search':
-        // Focus on search input
-        break;
-      case 'filter':
-        // Show filter options
-        break;
-      default:
-        break;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -150,6 +103,13 @@ const InventoryPage = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center space-x-2 px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"
+              >
+                <FaHome className="mr-2" />
+                <span>Back to Dashboard</span>
+              </button>
               <button
                 onClick={() => setShowProductCatalog(true)}
                 className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-md"
@@ -247,30 +207,6 @@ const InventoryPage = () => {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {getRoleBasedQuickActions().map((action) => (
-                  <button
-                    key={action.name}
-                    onClick={() => handleQuickAction(action.action)}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-green-300 hover:bg-green-50 transition-colors text-left group"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-                        <action.icon className="text-green-600 text-lg" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">{action.name}</h3>
-                        <p className="text-sm text-gray-500">{action.description}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Inventory List */}

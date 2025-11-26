@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaBoxes, FaPallet, FaClipboardList, FaTruckLoading,
-  FaChartLine, FaWarehouse, FaPlus, FaSearch, FaHome,
-  FaMapMarkerAlt, FaPhone, FaClock, FaIndustry, FaSync
+  FaBoxes, FaPallet, FaWarehouse, FaHome, FaIndustry
 } from "react-icons/fa";
 import WarehouseList from "../components/WarehouseManagement/WarehouseList";
 import WarehouseForm from "../components/WarehouseManagement/WarehouseForm";
@@ -18,7 +16,6 @@ export default function WarehousePage() {
     totalWarehouses: 0,
     activeWarehouses: 0,
     totalCapacity: 0,
-    inMaintenance: 0,
     loading: true
   });
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -42,7 +39,6 @@ export default function WarehousePage() {
             totalWarehouses: data.data.totalWarehouses || 0,
             activeWarehouses: data.data.activeWarehouses || 0,
             totalCapacity: data.data.totalCapacity || 0,
-            inMaintenance: data.data.inMaintenance || 0,
             loading: false
           });
           setLastUpdated(new Date());
@@ -90,36 +86,6 @@ export default function WarehousePage() {
     { name: "Stock", icon: <FaPallet className="mr-3" />, roles: ['Admin', 'Manager', 'Employee'] }
   ];
 
-  const warehouseActions = [
-    { 
-      name: "New Warehouse", 
-      icon: <FaPlus />, 
-      action: () => setShowAddWarehouse(true),
-      roles: ['Admin'],
-      color: "bg-blue-100 text-blue-600"
-    },
-    { 
-      name: "Stock Check", 
-      icon: <FaSearch />, 
-      action: () => console.log("Stock Check"),
-      roles: ['Admin', 'Manager', 'Employee'],
-      color: "bg-green-100 text-green-600"
-    },
-    { 
-      name: "Dispatch", 
-      icon: <FaTruckLoading />, 
-      action: () => console.log("Dispatch"),
-      roles: ['Admin', 'Manager', 'Employee'],
-      color: "bg-orange-100 text-orange-600"
-    },
-    { 
-      name: "Reports", 
-      icon: <FaChartLine />, 
-      action: () => console.log("Reports"),
-      roles: ['Admin', 'Manager'],
-      color: "bg-purple-100 text-purple-600"
-    }
-  ];
 
   // Real-time warehouse statistics
   const getWarehouseStatsData = () => [
@@ -146,23 +112,11 @@ export default function WarehousePage() {
       changeType: "positive",
       icon: <FaBoxes className="text-2xl" />,
       color: "bg-purple-500"
-    },
-    { 
-      title: "In Maintenance", 
-      value: warehouseStats.loading ? "..." : warehouseStats.inMaintenance.toString(), 
-      change: "-1", 
-      changeType: "negative",
-      icon: <FaClock className="text-2xl" />,
-      color: "bg-yellow-500"
     }
   ];
 
   const getFilteredMenu = () => {
     return warehouseMenu.filter(item => item.roles.includes(user?.role));
-  };
-
-  const getFilteredActions = () => {
-    return warehouseActions.filter(action => action.roles.includes(user?.role));
   };
 
   return (
@@ -171,40 +125,24 @@ export default function WarehousePage() {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
+              <FaWarehouse className="text-3xl text-blue-600" />
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Warehouse Management</h1>
+                <p className="text-gray-600">Manage warehouses, inventory, and stock</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="mr-4 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center space-x-2 px-4 py-2 font-medium rounded-md transition duration-150 text-gray-600 hover:text-blue-600 bg-gray-200 hover:shadow-sm"
               >
-                <FaHome className="h-5 w-5 text-gray-600" />
+                <FaHome className="mr-2" />
+                <span>Back to Dashboard</span>
               </button>
-                             <div>
-                 <h1 className="text-2xl font-bold text-gray-900">Warehouse Management</h1>
-                 <p className="text-gray-600">Manage warehouses, inventory, and stock</p>
-                 <p className="text-sm text-gray-500 mt-1">
-                   Last updated: {lastUpdated.toLocaleTimeString()}
-                   {warehouseStats.loading && <span className="ml-2 text-blue-600">🔄 Updating...</span>}
-                 </p>
-               </div>
-               <div className="flex items-center space-x-3">
-                 <button
-                   onClick={fetchWarehouseStats}
-                   disabled={warehouseStats.loading}
-                   className="inline-flex items-center px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
-                 >
-                   <FaSync className={`mr-2 ${warehouseStats.loading ? 'animate-spin' : ''}`} />
-                   Refresh
-                 </button>
-                 {(isAdmin() || isManager()) && (
-                   <button
-                     onClick={() => setShowAddWarehouse(true)}
-                     className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                   >
-                     <FaPlus className="mr-2" />
-                     Add Warehouse
-                   </button>
-                 )}
-               </div>
+              <span className="text-sm text-gray-500">
+                Welcome back, {user?.name || 'User'}
+              </span>
             </div>
           </div>
         </div>
@@ -212,7 +150,7 @@ export default function WarehousePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {getWarehouseStatsData().map((stat, index) => (
             <div key={index} className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center">
@@ -236,24 +174,6 @@ export default function WarehousePage() {
           ))}
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {getFilteredActions().map((action, index) => (
-              <button
-                key={index}
-                onClick={action.action}
-                className={`p-4 rounded-lg border-2 border-dashed ${action.color} hover:opacity-80 transition-opacity`}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <div className="text-2xl mb-2">{action.icon}</div>
-                  <span className="text-sm font-medium">{action.name}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Main Content */}
         <div className="bg-white rounded-lg shadow-sm border">

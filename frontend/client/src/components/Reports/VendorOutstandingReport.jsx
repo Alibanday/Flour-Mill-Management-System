@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { FaExclamationTriangle, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { FaExclamationTriangle, FaPrint } from 'react-icons/fa';
 
 const VendorOutstandingReport = ({ onReportGenerated }) => {
   const [loading, setLoading] = useState(false);
@@ -30,7 +26,9 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       const result = await response.json();
       if (result.success && result.data) {
       setReportData(result.data);
-      onReportGenerated(result.data);
+      if (onReportGenerated && typeof onReportGenerated === 'function') {
+        onReportGenerated(result.data);
+      }
       } else {
         throw new Error(result.message || 'Failed to generate report');
       }
@@ -41,112 +39,6 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
     }
   };
 
-  const exportToPDF = () => {
-    if (!reportData) return;
-
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(20);
-    doc.text('Vendor Outstanding Report', 105, 20, { align: 'center' });
-    
-    // Generated date
-    doc.setFontSize(12);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 35);
-    
-    // Summary
-    doc.setFontSize(14);
-    doc.text('Summary', 20, 50);
-    
-    const summaryData = [
-      ['Total Vendors with Outstanding', reportData.summary.totalVendors.toString()],
-      ['Total Outstanding Amount', `Rs. ${(reportData.summary.totalOutstanding || 0).toLocaleString()}`],
-      ['Average Outstanding per Vendor', `Rs. ${(reportData.summary.averageOutstanding || 0).toLocaleString()}`],
-      ['Overdue Vendors', reportData.summary.overdueVendors.toString()]
-    ];
-    
-    doc.autoTable({
-      startY: 60,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid'
-    });
-
-    // Vendor details
-    if (reportData.data && reportData.data.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Vendor Outstanding Details', 20, 20);
-      
-      const vendorData = reportData.data.map(vendor => [
-        vendor.supplier.name || 'N/A',
-        vendor.supplier.contactPerson || 'N/A',
-        vendor.supplier.phone || 'N/A',
-        `Rs. ${(vendor.totalOutstanding || 0).toLocaleString()}`,
-        new Date(vendor.lastPurchaseDate).toLocaleDateString()
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Vendor', 'Contact Person', 'Phone', 'Outstanding Amount', 'Last Purchase']],
-        body: vendorData,
-        theme: 'grid'
-      });
-    }
-
-    doc.save('vendor-outstanding-report.pdf');
-  };
-
-  const exportToExcel = () => {
-    if (!reportData) return;
-
-    const workbook = XLSX.utils.book_new();
-    
-    // Summary sheet
-    const summaryData = [
-      ['Vendor Outstanding Report Summary'],
-      [''],
-      ['Generated', new Date().toLocaleDateString()],
-      [''],
-      ['Metric', 'Value'],
-      ['Total Vendors with Outstanding', reportData.summary.totalVendors],
-      ['Total Outstanding Amount', reportData.summary.totalOutstanding],
-      ['Average Outstanding per Vendor', reportData.summary.averageOutstanding],
-      ['Overdue Vendors', reportData.summary.overdueVendors]
-    ];
-    
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // Vendor details sheet
-    if (reportData.data && reportData.data.length > 0) {
-      const vendorData = [
-        ['Vendor Outstanding Details'],
-        [''],
-        ['Vendor', 'Contact Person', 'Phone', 'Email', 'Outstanding Amount', 'Last Purchase', 'Bag Purchases', 'Food Purchases']
-      ];
-      
-      reportData.data.forEach(vendor => {
-        vendorData.push([
-          vendor.supplier.name || 'N/A',
-          vendor.supplier.contactPerson || 'N/A',
-          vendor.supplier.phone || 'N/A',
-          vendor.supplier.email || 'N/A',
-          vendor.totalOutstanding,
-          new Date(vendor.lastPurchaseDate).toLocaleDateString(),
-          vendor.bagPurchases?.length || 0,
-          vendor.foodPurchases?.length || 0
-        ]);
-      });
-      
-      const vendorSheet = XLSX.utils.aoa_to_sheet(vendorData);
-      XLSX.utils.book_append_sheet(workbook, vendorSheet, 'Vendor Details');
-    }
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, 'vendor-outstanding-report.xlsx');
-  };
 
   const printReport = () => {
     window.print();
@@ -208,32 +100,16 @@ const VendorOutstandingReport = ({ onReportGenerated }) => {
       {/* Report Results */}
       {reportData && (
         <div className="space-y-6">
-          {/* Export Actions */}
+          {/* Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Vendor Outstanding Report Results</h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={printReport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaPrint className="mr-2" />
-                Print
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFilePdf className="mr-2" />
-                Export PDF
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFileExcel className="mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={printReport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FaPrint className="mr-2" />
+              Print
+            </button>
           </div>
 
           {/* Summary Cards */}

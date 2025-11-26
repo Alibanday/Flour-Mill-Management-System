@@ -120,19 +120,25 @@ export const createUser = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
-    const { role } = req.query;
+    const { role, status } = req.query;
     
     let query = {};
     
     // Filter by role if provided
-    if (role) {
+    if (role && role !== 'all') {
       query.role = role;
-    } else {
-      // Exclude admin users by default unless specifically requested
-      query.role = { $ne: "Admin" };
     }
     
-    const users = await User.find(query).select('-password');
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      if (status === 'active') {
+        query.isActive = true;
+      } else if (status === 'inactive') {
+        query.isActive = false;
+      }
+    }
+    
+    const users = await User.find(query).select('-password').sort({ createdAt: -1 });
     
     res.status(200).json({ 
       success: true,
@@ -214,13 +220,16 @@ export const getUser = async (req, res) => {
         return res.status(400).json({ message: 'Invalid user ID' });
       }
   
-      const user = await User.findById(id);
+      const user = await User.findById(id).select('-password');
   
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
   
-      res.status(200).json(user);
+      res.status(200).json({
+        success: true,
+        data: user
+      });
     } catch (error) {
       console.error('Error fetching user:', error);
       res.status(500).json({ message: 'Server error' });

@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { FaWarehouse, FaBoxes, FaExclamationTriangle, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { FaWarehouse, FaBoxes, FaExclamationTriangle, FaPrint } from 'react-icons/fa';
 
 const InventoryReport = ({ onReportGenerated }) => {
   const [filters, setFilters] = useState({
@@ -41,8 +37,11 @@ const InventoryReport = ({ onReportGenerated }) => {
 
       const result = await response.json();
       if (result.success && result.data) {
+        console.log('Inventory Report Data:', result.data); // Debug log
         setReportData(result.data);
-        onReportGenerated(result.data);
+        if (onReportGenerated && typeof onReportGenerated === 'function') {
+          onReportGenerated(result.data);
+        }
       } else {
         throw new Error(result.message || 'Failed to generate report');
       }
@@ -53,152 +52,361 @@ const InventoryReport = ({ onReportGenerated }) => {
     }
   };
 
-  const exportToPDF = () => {
-    if (!reportData) return;
+  const printReport = () => {
+    if (!reportData) {
+      alert('Please generate a report first before printing.');
+      return;
+    }
 
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(20);
-    doc.text('Inventory Report', 105, 20, { align: 'center' });
-    
-    // Summary
-    doc.setFontSize(14);
-    doc.text('Summary', 20, 40);
-    
-    const summaryData = [
-      ['Total Items', reportData.summary.totalItems.toString()],
-      ['Total Warehouses', reportData.summary.totalWarehouses.toString()],
-      ['Low Stock Items', reportData.summary.lowStockItems.toString()],
-      ['Out of Stock Items', reportData.summary.outOfStockItems.toString()],
-      ['Total Value', `Rs. ${(reportData.summary.totalValue || 0).toLocaleString()}`]
-    ];
-    
-    doc.autoTable({
-      startY: 50,
-      head: [['Metric', 'Value']],
-      body: summaryData,
-      theme: 'grid'
+    // Generate HTML content
+    const currentDate = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    const currentTime = new Date().toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
     });
 
-    // Warehouse breakdown
-    if (Object.keys(reportData.summary.warehouseBreakdown).length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Warehouse Breakdown', 20, 20);
-      
-      const warehouseData = Object.entries(reportData.summary.warehouseBreakdown).map(([name, data]) => [
-        name,
-        data.items.toString(),
-        `Rs. ${(data.value || 0).toLocaleString()}`,
-        data.lowStock.toString()
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Warehouse', 'Items', 'Value', 'Low Stock']],
-        body: warehouseData,
-        theme: 'grid'
-      });
-    }
+    // Summary cards HTML
+    const summaryCards = `
+      <div class="summary-grid">
+        <div class="summary-card">
+          <h3>Total Items</h3>
+          <div class="value">${reportData.summary.totalItems}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total Warehouses</h3>
+          <div class="value">${reportData.summary.totalWarehouses}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Low Stock Items</h3>
+          <div class="value" style="color: #d97706;">${reportData.summary.lowStockItems}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Out of Stock</h3>
+          <div class="value" style="color: #dc2626;">${reportData.summary.outOfStockItems}</div>
+        </div>
+        <div class="summary-card">
+          <h3>Total Value</h3>
+          <div class="value">Rs. ${(reportData.summary.totalValue || 0).toLocaleString()}</div>
+        </div>
+      </div>
+    `;
 
-    // Inventory details
-    if (reportData.data && reportData.data.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Inventory Details', 20, 20);
+    // Warehouse breakdown HTML
+    const warehouseBreakdown = Object.keys(reportData.summary.warehouseBreakdown || {}).length > 0 ? `
+      <div class="warehouse-breakdown">
+        <h2>Warehouse Breakdown</h2>
+        <div class="warehouse-grid">
+          ${Object.entries(reportData.summary.warehouseBreakdown).map(([name, data]) => `
+            <div class="warehouse-item">
+              <h3>${name}</h3>
+              <div class="detail">
+                <span class="detail-label">Items:</span>
+                <span class="detail-value">${data.items || 0}</span>
+              </div>
+              <div class="detail">
+                <span class="detail-label">Value:</span>
+                <span class="detail-value">Rs. ${(data.value || 0).toLocaleString()}</span>
+              </div>
+              <div class="detail">
+                <span class="detail-label">Low Stock:</span>
+                <span class="detail-value" style="color: #d97706;">${data.lowStock || 0}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
+    // Table rows HTML
+    const tableRows = reportData.data && reportData.data.length > 0 ? reportData.data.map((item) => {
+      const totalValue = (item.quantity || 0) * (item.unitPrice || 0);
+      const status = item.status || (
+        item.quantity === 0 ? 'Out of Stock' : 
+        item.quantity <= (item.reorderLevel || 0) ? 'Low Stock' : 'In Stock'
+      );
       
-      const inventoryData = reportData.data.map(item => [
-        item.product?.name || 'N/A',
-        item.warehouse?.name || 'N/A',
-        item.quantity.toString(),
-        item.unit || 'N/A',
-        `Rs. ${(item.unitPrice || 0).toLocaleString()}`,
-        `Rs. ${(item.quantity * (item.unitPrice || 0)).toLocaleString()}`
-      ]);
+      let statusClass = 'status-in';
+      if (status === 'Out of Stock' || status === 'out of stock') {
+        statusClass = 'status-out';
+      } else if (status === 'Low Stock' || status === 'low stock') {
+        statusClass = 'status-low';
+      }
+
+      const productName = (item.product?.name || 'N/A').replace(/"/g, '&quot;');
+      const productCode = (item.product?.code || item.code || 'N/A').replace(/"/g, '&quot;');
+      const warehouseName = (item.warehouse?.name || 'N/A').replace(/"/g, '&quot;');
       
-      doc.autoTable({
-        startY: 30,
-        head: [['Product', 'Warehouse', 'Quantity', 'Unit', 'Unit Price', 'Total Value']],
-        body: inventoryData,
-        theme: 'grid'
-      });
-    }
+      return `
+        <tr>
+          <td>${productName}</td>
+          <td>${productCode}</td>
+          <td>${warehouseName}</td>
+          <td style="text-align: right;">${(item.quantity || 0).toLocaleString()}</td>
+          <td>${(item.unit || 'N/A').replace(/"/g, '&quot;')}</td>
+          <td style="text-align: right;">Rs. ${(item.unitPrice || 0).toLocaleString()}</td>
+          <td style="text-align: right; font-weight: 600;">Rs. ${totalValue.toLocaleString()}</td>
+          <td style="text-align: right;">${(item.reorderLevel || 0).toLocaleString()}</td>
+          <td><span class="status-badge ${statusClass}">${status.replace(/"/g, '&quot;')}</span></td>
+        </tr>
+      `;
+    }).join('') : '<tr><td colspan="9" style="text-align: center; padding: 20px;">No inventory items found</td></tr>';
 
-    doc.save('inventory-report.pdf');
-  };
+    const reportHTML = `
+      <div class="print-header">
+        <h1>Inventory Report</h1>
+        <div class="subtitle">Comprehensive Inventory Analysis Across All Warehouses</div>
+        <div class="date">Generated on ${currentDate} at ${currentTime}</div>
+      </div>
 
-  const exportToExcel = () => {
-    if (!reportData) return;
+      <div class="summary-section">
+        <h2 style="font-size: 14px; margin-bottom: 10px; color: #111827; font-weight: 600;">Executive Summary</h2>
+        ${summaryCards}
+      </div>
 
-    const workbook = XLSX.utils.book_new();
+      ${warehouseBreakdown}
+
+      <div class="table-section">
+        <h2>Detailed Inventory List</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Code</th>
+              <th>Warehouse</th>
+              <th style="text-align: right;">Quantity</th>
+              <th>Unit</th>
+              <th style="text-align: right;">Unit Price</th>
+              <th style="text-align: right;">Total Value</th>
+              <th style="text-align: right;">Reorder Level</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="print-footer">
+        <p>This report was generated by FlourMill Management System</p>
+        <p>For any queries, please contact the system administrator</p>
+      </div>
+    `;
+
+    // Create a new window for printing with professional layout
+    const printWindow = window.open('', '_blank');
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Inventory Report - ${currentDate}</title>
+          <style>
+            @page {
+              size: A4;
+              margin: 1cm;
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              font-size: 12px;
+              color: #000;
+              line-height: 1.4;
+            }
+            .print-header {
+              border-bottom: 3px solid #2563eb;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            .print-header h1 {
+              font-size: 24px;
+              color: #1e40af;
+              margin-bottom: 5px;
+              font-weight: 700;
+            }
+            .print-header .subtitle {
+              font-size: 14px;
+              color: #6b7280;
+              margin-bottom: 10px;
+            }
+            .print-header .date {
+              font-size: 11px;
+              color: #9ca3af;
+            }
+            .summary-section {
+              background: #f3f4f6;
+              padding: 15px;
+              border-radius: 5px;
+              margin-bottom: 20px;
+            }
+            .summary-grid {
+              display: grid;
+              grid-template-columns: repeat(5, 1fr);
+              gap: 15px;
+              margin-bottom: 15px;
+            }
+            .summary-card {
+              background: white;
+              padding: 12px;
+              border-left: 4px solid #2563eb;
+              border-radius: 3px;
+            }
+            .summary-card h3 {
+              font-size: 10px;
+              color: #6b7280;
+              text-transform: uppercase;
+              margin-bottom: 5px;
+              font-weight: 600;
+            }
+            .summary-card .value {
+              font-size: 18px;
+              font-weight: 700;
+              color: #111827;
+            }
+            .warehouse-breakdown {
+              margin-bottom: 20px;
+            }
+            .warehouse-breakdown h2 {
+              font-size: 16px;
+              color: #111827;
+              margin-bottom: 10px;
+              font-weight: 600;
+              border-bottom: 2px solid #e5e7eb;
+              padding-bottom: 5px;
+            }
+            .warehouse-grid {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 10px;
+              margin-bottom: 15px;
+            }
+            .warehouse-item {
+              background: #f9fafb;
+              padding: 10px;
+              border: 1px solid #e5e7eb;
+              border-radius: 3px;
+            }
+            .warehouse-item h3 {
+              font-size: 12px;
+              font-weight: 600;
+              color: #111827;
+              margin-bottom: 8px;
+            }
+            .warehouse-item .detail {
+              display: flex;
+              justify-content: space-between;
+              font-size: 10px;
+              padding: 2px 0;
+            }
+            .warehouse-item .detail-label {
+              color: #6b7280;
+            }
+            .warehouse-item .detail-value {
+              color: #111827;
+              font-weight: 600;
+            }
+            .table-section h2 {
+              font-size: 16px;
+              color: #111827;
+              margin-bottom: 10px;
+              font-weight: 600;
+              border-bottom: 2px solid #e5e7eb;
+              padding-bottom: 5px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+              page-break-inside: auto;
+            }
+            thead {
+              background: #1e40af;
+              color: white;
+            }
+            thead th {
+              padding: 10px 8px;
+              text-align: left;
+              font-size: 10px;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            tbody tr {
+              border-bottom: 1px solid #e5e7eb;
+              page-break-inside: avoid;
+            }
+            tbody tr:nth-child(even) {
+              background: #f9fafb;
+            }
+            tbody td {
+              padding: 8px;
+              font-size: 11px;
+              color: #111827;
+            }
+            tbody td:first-child {
+              font-weight: 600;
+            }
+            .status-badge {
+              padding: 4px 8px;
+              border-radius: 3px;
+              font-size: 10px;
+              font-weight: 600;
+              display: inline-block;
+            }
+            .status-out {
+              background: #fee2e2;
+              color: #991b1b;
+            }
+            .status-low {
+              background: #fef3c7;
+              color: #92400e;
+            }
+            .status-in {
+              background: #d1fae5;
+              color: #065f46;
+            }
+            .print-footer {
+              margin-top: 30px;
+              padding-top: 10px;
+              border-top: 1px solid #e5e7eb;
+              text-align: center;
+              font-size: 10px;
+              color: #6b7280;
+            }
+            @media print {
+              .no-print {
+                display: none !important;
+              }
+              body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          ${reportHTML}
+        </body>
+      </html>
+    `;
     
-    // Summary sheet
-    const summaryData = [
-      ['Metric', 'Value'],
-      ['Total Items', reportData.summary.totalItems],
-      ['Total Warehouses', reportData.summary.totalWarehouses],
-      ['Low Stock Items', reportData.summary.lowStockItems],
-      ['Out of Stock Items', reportData.summary.outOfStockItems],
-      ['Total Value', reportData.summary.totalValue]
-    ];
+    printWindow.document.write(printContent);
+    printWindow.document.close();
     
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // Warehouse breakdown sheet
-    if (Object.keys(reportData.summary.warehouseBreakdown).length > 0) {
-      const warehouseData = [
-        ['Warehouse', 'Items', 'Value', 'Low Stock']
-      ];
-      
-      Object.entries(reportData.summary.warehouseBreakdown).forEach(([name, data]) => {
-        warehouseData.push([
-          name,
-          data.items,
-          data.value,
-          data.lowStock
-        ]);
-      });
-      
-      const warehouseSheet = XLSX.utils.aoa_to_sheet(warehouseData);
-      XLSX.utils.book_append_sheet(workbook, warehouseSheet, 'Warehouse Breakdown');
-    }
-
-    // Inventory details sheet
-    if (reportData.data && reportData.data.length > 0) {
-      const inventoryData = [
-        ['Product', 'Warehouse', 'Quantity', 'Unit', 'Unit Price', 'Total Value', 'Reorder Level', 'Status']
-      ];
-      
-      reportData.data.forEach(item => {
-        const totalValue = item.quantity * (item.unitPrice || 0);
-        const status = item.quantity === 0 ? 'Out of Stock' : 
-                      item.quantity <= (item.reorderLevel || 0) ? 'Low Stock' : 'In Stock';
-        
-        inventoryData.push([
-          item.product?.name || 'N/A',
-          item.warehouse?.name || 'N/A',
-          item.quantity,
-          item.unit || 'N/A',
-          item.unitPrice || 0,
-          totalValue,
-          item.reorderLevel || 0,
-          status
-        ]);
-      });
-      
-      const inventorySheet = XLSX.utils.aoa_to_sheet(inventoryData);
-      XLSX.utils.book_append_sheet(workbook, inventorySheet, 'Inventory Details');
-    }
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, 'inventory-report.xlsx');
-  };
-
-  const printReport = () => {
-    window.print();
+    // Wait for content to load then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.afterprint = () => printWindow.close();
+      }, 250);
+    };
   };
 
   return (
@@ -273,29 +481,13 @@ const InventoryReport = ({ onReportGenerated }) => {
           {/* Export Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Inventory Report Results</h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={printReport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaPrint className="mr-2" />
-                Print
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFilePdf className="mr-2" />
-                Export PDF
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFileExcel className="mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={printReport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FaPrint className="mr-2" />
+              Print
+            </button>
           </div>
 
           {/* Summary Cards */}
@@ -361,30 +553,38 @@ const InventoryReport = ({ onReportGenerated }) => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Warehouse</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Value</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reorder Level</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reportData.data.map((item, index) => {
-                      const totalValue = item.quantity * (item.unitPrice || 0);
-                      const status = item.quantity === 0 ? 'Out of Stock' : 
-                                    item.quantity <= (item.reorderLevel || 0) ? 'Low Stock' : 'In Stock';
+                      const totalValue = (item.quantity || 0) * (item.unitPrice || 0);
+                      // Use status from backend if available, otherwise calculate
+                      const status = item.status || (
+                        item.quantity === 0 ? 'Out of Stock' : 
+                        item.quantity <= (item.reorderLevel || 0) ? 'Low Stock' : 'In Stock'
+                      );
                       
                       return (
                         <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {item.product?.name || 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {item.product?.code || item.code || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.warehouse?.name || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.quantity}
+                            {(item.quantity || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {item.unit || 'N/A'}
@@ -392,13 +592,16 @@ const InventoryReport = ({ onReportGenerated }) => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             Rs. {(item.unitPrice || 0).toLocaleString()}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Rs. {(totalValue || 0).toLocaleString()}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                            Rs. {totalValue.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {(item.reorderLevel || 0).toLocaleString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              status === 'Out of Stock' ? 'bg-red-100 text-red-800' :
-                              status === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' :
+                              status === 'Out of Stock' || status === 'out of stock' ? 'bg-red-100 text-red-800' :
+                              status === 'Low Stock' || status === 'low stock' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-green-100 text-green-800'
                             }`}>
                               {status}

@@ -111,19 +111,58 @@ class ReportService {
         query.warehouse = warehouseId;
       }
       
-      const inventory = (await Inventory.find(query)
-        .populate('warehouse', 'name location'))
-        .map(doc => doc); // ensure plain iteration
+      const inventoryDocs = await Inventory.find(query)
+        .populate('product', 'name code category subcategory unit price purchasePrice')
+        .populate('warehouse', 'name location code');
+      
+      // Convert to plain objects safely
+      const inventory = Array.isArray(inventoryDocs) 
+        ? inventoryDocs.map(doc => {
+            try {
+              return doc.toObject ? doc.toObject() : (typeof doc === 'object' ? doc : {});
+            } catch (error) {
+              console.error('Error converting inventory doc to object:', error);
+              return typeof doc === 'object' ? doc : {};
+            }
+          })
+        : [];
 
       // Sort in JS to avoid DB sort on populated paths
       inventory.sort((a, b) => {
         const wa = a.warehouse?.name || '';
         const wb = b.warehouse?.name || '';
         if (wa === wb) {
-          return (a.name || '').localeCompare(b.name || '');
+          const nameA = a.product?.name || a.name || '';
+          const nameB = b.product?.name || b.name || '';
+          return nameA.localeCompare(nameB);
         }
         return wa.localeCompare(wb);
       });
+
+      // Helper function to get unit price from item
+      const getUnitPrice = (item) => {
+        // Try different possible price fields in order of preference
+        if (item.product?.purchasePrice) return item.product.purchasePrice;
+        if (item.product?.price) return item.product.price;
+        if (item.price) return item.price;
+        if (item.cost?.purchasePrice) return item.cost.purchasePrice;
+        return 0;
+      };
+
+      // Helper function to get product name
+      const getProductName = (item) => {
+        return item.product?.name || item.name || 'Unnamed Product';
+      };
+
+      // Helper function to get product code
+      const getProductCode = (item) => {
+        return item.product?.code || item.code || '';
+      };
+
+      // Helper function to get unit
+      const getUnit = (item) => {
+        return item.product?.unit || item.unit || 'units';
+      };
 
       const summary = {
         totalItems: Array.isArray(inventory) ? inventory.length : 0,
@@ -131,13 +170,21 @@ class ReportService {
           ? [...new Set(inventory.filter(i => i?.warehouse?._id).map(item => item.warehouse._id.toString()))].length
           : 0,
         lowStockItems: Array.isArray(inventory)
-          ? inventory.filter(item => (item?.currentStock ?? 0) <= (item?.minimumStock ?? 0)).length
+          ? inventory.filter(item => {
+              const currentStock = item.currentStock ?? item.weight ?? 0;
+              const minimumStock = item.minimumStock ?? item.product?.minimumStock ?? 0;
+              return currentStock > 0 && currentStock <= minimumStock;
+            }).length
           : 0,
         outOfStockItems: Array.isArray(inventory)
-          ? inventory.filter(item => (item?.currentStock ?? 0) === 0).length
+          ? inventory.filter(item => (item.currentStock ?? item.weight ?? 0) === 0).length
           : 0,
         totalValue: Array.isArray(inventory)
-          ? inventory.reduce((sum, item) => sum + ((item?.currentStock ?? 0) * (item?.cost?.purchasePrice ?? 0)), 0)
+          ? inventory.reduce((sum, item) => {
+              const currentStock = item.currentStock ?? item.weight ?? 0;
+              const unitPrice = getUnitPrice(item);
+              return sum + (currentStock * unitPrice);
+            }, 0)
           : 0,
         warehouseBreakdown: {}
       };
@@ -152,23 +199,66 @@ class ReportService {
             lowStock: 0
           };
         }
+        const currentStock = item.currentStock ?? item.weight ?? 0;
+        const unitPrice = getUnitPrice(item);
         summary.warehouseBreakdown[warehouseName].items++;
-        summary.warehouseBreakdown[warehouseName].value += ((item?.currentStock ?? 0) * (item?.cost?.purchasePrice ?? 0));
-        if ((item?.currentStock ?? 0) <= (item?.minimumStock ?? 0)) {
+        summary.warehouseBreakdown[warehouseName].value += (currentStock * unitPrice);
+        const minimumStock = item.minimumStock ?? item.product?.minimumStock ?? 0;
+        if (currentStock > 0 && currentStock <= minimumStock) {
           summary.warehouseBreakdown[warehouseName].lowStock++;
         }
       });
 
       // Normalize data for frontend expectations
-      const normalized = (inventory || []).map(item => ({
-        product: { name: item.name },
-        warehouse: item.warehouse ? { name: item.warehouse.name } : null,
-        quantity: item.currentStock || 0,
-        unit: item.unit || 'kg',
-        unitPrice: item.cost?.purchasePrice || 0,
-        reorderLevel: item.minimumStock || 0,
-        code: item.code || ''
-      }));
+      const normalized = (inventory || []).map(item => {
+        try {
+          const currentStock = item.currentStock ?? item.weight ?? 0;
+          const minimumStock = item.minimumStock ?? item.product?.minimumStock ?? 0;
+          const unitPrice = getUnitPrice(item);
+          
+          // Determine status
+          let status = item.status;
+          if (!status) {
+            if (currentStock === 0) {
+              status = 'Out of Stock';
+            } else if (minimumStock > 0 && currentStock <= minimumStock) {
+              status = 'Low Stock';
+            } else {
+              status = 'In Stock';
+            }
+          }
+          
+          return {
+            product: { 
+              name: getProductName(item),
+              code: getProductCode(item) || ''
+            },
+          warehouse: item.warehouse ? { 
+            name: item.warehouse.name || item.warehouse.location || 'Unassigned',
+            code: item.warehouse.code || ''
+          } : null,
+            quantity: Number(currentStock) || 0,
+            unit: getUnit(item),
+            unitPrice: Number(unitPrice) || 0,
+            reorderLevel: Number(minimumStock) || 0,
+            code: getProductCode(item) || '',
+            status: status
+          };
+        } catch (error) {
+          console.error('Error normalizing inventory item:', error, item);
+          // Return a minimal object to prevent crash
+          return {
+            product: { name: 'Error', code: '' },
+            warehouse: null,
+            quantity: 0,
+            unit: 'units',
+            unitPrice: 0,
+            reorderLevel: 0,
+            code: '',
+            status: 'Error'
+          };
+        }
+      });
 
       return {
         reportType: 'inventory',

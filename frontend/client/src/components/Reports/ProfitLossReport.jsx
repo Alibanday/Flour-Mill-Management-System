@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import { FaChartLine, FaCalendarAlt, FaFilePdf, FaFileExcel, FaPrint } from 'react-icons/fa';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import { FaChartLine, FaCalendarAlt, FaPrint } from 'react-icons/fa';
 
 const ProfitLossReport = ({ onReportGenerated }) => {
   const [filters, setFilters] = useState({
@@ -48,7 +44,9 @@ const ProfitLossReport = ({ onReportGenerated }) => {
       const result = await response.json();
       if (result.success && result.data) {
       setReportData(result.data);
-      onReportGenerated(result.data);
+      if (onReportGenerated && typeof onReportGenerated === 'function') {
+        onReportGenerated(result.data);
+      }
       } else {
         throw new Error(result.message || 'Failed to generate report');
       }
@@ -59,151 +57,185 @@ const ProfitLossReport = ({ onReportGenerated }) => {
     }
   };
 
-  const exportToPDF = () => {
-    if (!reportData) return;
-
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(20);
-    doc.text('Profit & Loss Report', 105, 20, { align: 'center' });
-    
-    // Date range
-    doc.setFontSize(12);
-    doc.text(`Period: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`, 20, 35);
-    
-    // Summary
-    doc.setFontSize(14);
-    doc.text('Financial Summary', 20, 50);
-    
-    const summaryData = [
-      ['Revenue', `Rs. ${(reportData.summary.revenue.total || 0).toLocaleString()}`],
-      ['Cost of Goods Sold', `Rs. ${(reportData.summary.costs.cogs || 0).toLocaleString()}`],
-      ['Gross Profit', `Rs. ${(reportData.summary.profit.gross || 0).toLocaleString()}`],
-      ['Operating Expenses', `Rs. ${(reportData.summary.costs.expenses || 0).toLocaleString()}`],
-      ['Salaries', `Rs. ${(reportData.summary.costs.salaries || 0).toLocaleString()}`],
-      ['Total Costs', `Rs. ${(reportData.summary.costs.total || 0).toLocaleString()}`],
-      ['Net Profit', `Rs. ${(reportData.summary.profit.net || 0).toLocaleString()}`],
-      ['Profit Margin', `${reportData.summary.profit.margin.toFixed(2)}%`]
-    ];
-    
-    doc.autoTable({
-      startY: 60,
-      head: [['Item', 'Amount']],
-      body: summaryData,
-      theme: 'grid'
-    });
-
-    // Revenue breakdown
-    if (reportData.data.sales && reportData.data.sales.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Revenue Details', 20, 20);
-      
-      const revenueData = reportData.data.sales.map(sale => [
-        new Date(sale.saleDate).toLocaleDateString(),
-        sale.customer?.name || 'N/A',
-        (sale.totalAmount || 0).toLocaleString()
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Date', 'Customer', 'Amount (Rs.)']],
-        body: revenueData,
-        theme: 'grid'
-      });
-    }
-
-    // Cost breakdown
-    if (reportData.data.bagPurchases && reportData.data.bagPurchases.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text('Bag Purchase Costs', 20, 20);
-      
-      const bagData = reportData.data.bagPurchases.map(purchase => [
-        new Date(purchase.purchaseDate).toLocaleDateString(),
-        purchase.supplier?.name || 'N/A',
-        (purchase.totalAmount || 0).toLocaleString()
-      ]);
-      
-      doc.autoTable({
-        startY: 30,
-        head: [['Date', 'Supplier', 'Amount (Rs.)']],
-        body: bagData,
-        theme: 'grid'
-      });
-    }
-
-    doc.save('profit-loss-report.pdf');
-  };
-
-  const exportToExcel = () => {
-    if (!reportData) return;
-
-    const workbook = XLSX.utils.book_new();
-    
-    // Summary sheet
-    const summaryData = [
-      ['Profit & Loss Summary'],
-      [''],
-      ['Period', `${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`],
-      [''],
-      ['Item', 'Amount (Rs.)'],
-      ['Revenue', reportData.summary.revenue.total],
-      ['Cost of Goods Sold', reportData.summary.costs.cogs],
-      ['Gross Profit', reportData.summary.profit.gross],
-      ['Operating Expenses', reportData.summary.costs.expenses],
-      ['Salaries', reportData.summary.costs.salaries],
-      ['Total Costs', reportData.summary.costs.total],
-      ['Net Profit', reportData.summary.profit.net],
-      ['Profit Margin (%)', reportData.summary.profit.margin]
-    ];
-    
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-
-    // Revenue sheet
-    if (reportData.data.sales && reportData.data.sales.length > 0) {
-      const revenueData = [
-        ['Revenue Details'],
-        [''],
-        ['Date', 'Customer', 'Amount (Rs.)']
-      ];
-      
-      reportData.data.sales.forEach(sale => {
-        revenueData.push([
-          new Date(sale.saleDate).toLocaleDateString(),
-          sale.customer?.name || 'N/A',
-          sale.totalAmount
-        ]);
-      });
-      
-      const revenueSheet = XLSX.utils.aoa_to_sheet(revenueData);
-      XLSX.utils.book_append_sheet(workbook, revenueSheet, 'Revenue');
-    }
-
-    // Costs sheet
-    const costsData = [
-      ['Cost Breakdown'],
-      [''],
-      ['Category', 'Amount (Rs.)'],
-      ['Bag Purchases', reportData.summary.costs.cogs - (reportData.data.foodPurchases?.reduce((sum, p) => sum + p.totalAmount, 0) || 0)],
-      ['Food Purchases', reportData.data.foodPurchases?.reduce((sum, p) => sum + p.totalAmount, 0) || 0],
-      ['Operating Expenses', reportData.summary.costs.expenses],
-      ['Salaries', reportData.summary.costs.salaries],
-      ['Total Costs', reportData.summary.costs.total]
-    ];
-    
-    const costsSheet = XLSX.utils.aoa_to_sheet(costsData);
-    XLSX.utils.book_append_sheet(workbook, costsSheet, 'Costs');
-
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    saveAs(data, 'profit-loss-report.xlsx');
-  };
-
   const printReport = () => {
-    window.print();
+    if (!reportData) {
+      alert('Generate the report before printing.');
+      return;
+    }
+
+    const start = new Date(filters.startDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const end = new Date(filters.endDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    const generatedAt = new Date().toLocaleString();
+
+    const safeText = (text) => {
+      if (!text) return '';
+      return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    };
+
+    const formatCurrency = (value) =>
+      `Rs. ${(Number(value) || 0).toLocaleString()}`;
+
+    const revenueRows = (reportData.data.sales || [])
+      .map(sale => `
+        <tr>
+          <td>${safeText(new Date(sale.saleDate).toLocaleDateString())}</td>
+          <td>${safeText(sale.customer?.name || 'N/A')}</td>
+          <td class="num">${formatCurrency(sale.totalAmount)}</td>
+        </tr>
+      `).join('') || `
+        <tr><td colspan="3" class="empty">No revenue entries recorded</td></tr>
+      `;
+
+    const costRows = [
+      ['Cost of Goods Sold', reportData.summary.costs.cogs],
+      ['Operating Expenses', reportData.summary.costs.expenses],
+      ['Salaries', reportData.summary.costs.salaries],
+      ['Other Costs', (reportData.summary.costs.total || 0) - ((reportData.summary.costs.cogs || 0) + (reportData.summary.costs.expenses || 0) + (reportData.summary.costs.salaries || 0))]
+    ].map(([label, value]) => `
+      <tr>
+        <td>${safeText(label)}</td>
+        <td class="num">${formatCurrency(value)}</td>
+      </tr>
+    `).join('');
+
+    const profitSummary = [
+      ['Total Revenue', reportData.summary.revenue.total],
+      ['Total Costs', reportData.summary.costs.total],
+      ['Gross Profit', reportData.summary.profit.gross],
+      ['Net Profit', reportData.summary.profit.net],
+      ['Profit Margin', `${(reportData.summary.profit.margin || 0).toFixed(2)}%`]
+    ].map(([label, value]) => `
+      <div class="summary-card">
+        <div class="label">${safeText(label)}</div>
+        <div class="value">${typeof value === 'string' && value.includes('%') ? value : formatCurrency(value)}</div>
+      </div>
+    `).join('');
+
+    const printWindow = window.open('', '_blank');
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Profit & Loss Report - Flour Mill</title>
+          <style>
+            @page { size: A4; margin: 15mm; }
+            body { font-family: 'Segoe UI', Tahoma, sans-serif; color: #111827; }
+            .header { border-bottom: 4px solid #2563eb; padding-bottom: 12px; margin-bottom: 16px; }
+            .title { font-size: 24px; font-weight: 700; color: #1e3a8a; }
+            .subtitle { color: #6b7280; margin-top: 4px; }
+            .date-range { font-size: 12px; color: #6b7280; margin-top: 8px; }
+            .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 20px 0; }
+            .summary-card { background: #f8fafc; border-left: 4px solid #2563eb; padding: 10px; border-radius: 6px; }
+            .summary-card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+            .summary-card .value { font-size: 18px; font-weight: 700; margin-top: 6px; color: #0f172a; }
+            h2 { font-size: 16px; margin-top: 25px; margin-bottom: 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; color: #0f172a; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+            th, td { padding: 8px; font-size: 12px; }
+            th { background: #1d4ed8; color: #fff; text-align: left; text-transform: uppercase; letter-spacing: 0.03em; }
+            tr:nth-child(even) { background: #f8fafc; }
+            .num { text-align: right; font-weight: 600; }
+            .empty { text-align: center; font-style: italic; color: #9ca3af; }
+            .footer { border-top: 1px solid #e5e7eb; margin-top: 25px; padding-top: 8px; font-size: 11px; color: #6b7280; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="title">Profit & Loss Report</div>
+            <div class="subtitle">Flour Mill Financial Performance Overview</div>
+            <div class="date-range">
+              Reporting Period: ${safeText(start)} - ${safeText(end)} | Generated: ${safeText(generatedAt)}
+            </div>
+          </div>
+
+          <section>
+            <h2>Executive Summary</h2>
+            <div class="summary-grid">
+              ${profitSummary}
+            </div>
+          </section>
+
+          <section>
+            <h2>Revenue Details</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 15%;">Date</th>
+                  <th>Customer</th>
+                  <th style="width: 20%;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${revenueRows}
+              </tbody>
+            </table>
+          </section>
+
+          <section>
+            <h2>Cost Breakdown</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th style="width: 25%;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${costRows}
+              </tbody>
+            </table>
+          </section>
+
+          <section>
+            <h2>Net Profit Analysis</h2>
+            <table>
+              <tbody>
+                <tr>
+                  <td>Total Revenue</td>
+                  <td class="num">${formatCurrency(reportData.summary.revenue.total)}</td>
+                </tr>
+                <tr>
+                  <td>Total Costs</td>
+                  <td class="num">${formatCurrency(reportData.summary.costs.total)}</td>
+                </tr>
+                <tr>
+                  <td>Gross Profit</td>
+                  <td class="num">${formatCurrency(reportData.summary.profit.gross)}</td>
+                </tr>
+                <tr>
+                  <td>Net Profit</td>
+                  <td class="num">${formatCurrency(reportData.summary.profit.net)}</td>
+                </tr>
+                <tr>
+                  <td>Profit Margin</td>
+                  <td class="num">${(reportData.summary.profit.margin || 0).toFixed(2)}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <div class="footer">
+            FlourMill Management System · This report is confidential and intended for internal financial review
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    };
   };
 
   return (
@@ -226,9 +258,10 @@ const ProfitLossReport = ({ onReportGenerated }) => {
                 name="startDate"
                 value={filters.startDate}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
-              <FaCalendarAlt className="absolute right-3 top-3 text-gray-400" />
+              <FaCalendarAlt className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
           
@@ -242,9 +275,11 @@ const ProfitLossReport = ({ onReportGenerated }) => {
                 name="endDate"
                 value={filters.endDate}
                 onChange={handleFilterChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min={filters.startDate || undefined}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
-              <FaCalendarAlt className="absolute right-3 top-3 text-gray-400" />
+              <FaCalendarAlt className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -295,29 +330,13 @@ const ProfitLossReport = ({ onReportGenerated }) => {
           {/* Export Actions */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Profit & Loss Report Results</h3>
-            <div className="flex space-x-3">
-              <button
-                onClick={printReport}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaPrint className="mr-2" />
-                Print
-              </button>
-              <button
-                onClick={exportToPDF}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFilePdf className="mr-2" />
-                Export PDF
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <FaFileExcel className="mr-2" />
-                Export Excel
-              </button>
-            </div>
+            <button
+              onClick={printReport}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FaPrint className="mr-2" />
+              Print
+            </button>
           </div>
 
           {/* Financial Summary */}
