@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FaWarehouse, FaBoxes, FaExclamationTriangle,
+  FaWarehouse, FaBoxes,
   FaSearch, FaRedo, FaUser, FaSignOutAlt,
-  FaIdCard, FaTruck, FaArrowRight, FaEye, FaCheckCircle
+  FaIdCard, FaTruck, FaEye, FaCheckCircle
 } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
@@ -495,17 +495,6 @@ export default function WarehouseManagerDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Damage Report Button */}
-        <div className="mb-6 flex justify-end">
-          <button
-            onClick={() => navigate('/damage-report')}
-            className="flex items-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md"
-          >
-            <FaExclamationTriangle className="mr-2" />
-            Report Damaged Stock
-            <FaArrowRight className="ml-2" />
-          </button>
-        </div>
 
         {/* Stock Section */}
         <div className="bg-white rounded-lg shadow mb-8">
