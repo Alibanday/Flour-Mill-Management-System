@@ -175,19 +175,6 @@ export default function LoginForm() {
             </button>
           </div>
         </form>
-
-        {/* Database Users Info */}
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-center mb-2">
-            <FaShieldAlt className="h-4 w-4 text-blue-600 mr-2" />
-            <h3 className="text-sm font-medium text-blue-800">Login Information</h3>
-          </div>
-          <div className="text-xs text-blue-700 space-y-1">
-            <div><strong>Note:</strong> Use credentials from your database</div>
-            <div>Example: admin@flourmill.com / admin123</div>
-            <div>Or create users via User Management page</div>
-          </div>
-        </div>
       </div>
     </div>
   );
